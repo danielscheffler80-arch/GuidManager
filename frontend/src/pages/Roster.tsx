@@ -220,13 +220,13 @@ export default function Roster() {
     }
   };
 
-  // Auto-Sync Effect
+  // Auto-Sync Effect: Only sync if roster is completely empty
   useEffect(() => {
-    if (selectedGuild && !sessionSyncs.includes(selectedGuild.id) && !isSyncing) {
-      console.log(`[Roster] Initial sync for guild ${selectedGuild.id}`);
+    if (selectedGuild && !sessionSyncs.includes(selectedGuild.id) && !isSyncing && roster.length === 0 && !loading) {
+      console.log(`[Roster] Initial sync for guild ${selectedGuild.id} (Roster empty)`);
       triggerSync(selectedGuild.id);
     }
-  }, [selectedGuild, sessionSyncs, isSyncing]);
+  }, [selectedGuild, sessionSyncs, isSyncing, roster.length, loading]);
 
   const toggleShowFiltered = () => {
     const newState = !showFiltered;
@@ -309,6 +309,27 @@ export default function Roster() {
             <option value="main">Main Roster</option>
             <option value="all">Alle Mitglieder</option>
           </select>
+
+          <button
+            onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
+            disabled={isSyncing}
+            className={`p-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${isSyncing
+                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                : 'bg-[#A330C9] text-white hover:bg-[#b340d9] active:scale-95'
+              }`}
+          >
+            {isSyncing ? (
+              <>
+                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white"></div>
+                Syncing...
+              </>
+            ) : (
+              <>
+                <span className="text-base">🔄</span>
+                Synchronisieren
+              </>
+            )}
+          </button>
 
           <select
             value={selectedGuild?.id || ''}
