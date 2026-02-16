@@ -162,7 +162,7 @@ function createWindow() {
     const devUrl = process.env.FRONTEND_URL || 'http://localhost:5173/';
 
     // Öffne DevTools automatisch im Dev-Mode
-    mainWindow.webContents.openDevTools();
+    // mainWindow.webContents.openDevTools();
 
     const loadApp = () => {
       console.log(`[MAIN] Versuche Frontend zu laden: ${devUrl}`);
