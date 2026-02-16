@@ -26,6 +26,7 @@ export default function Settings() {
   const { user } = useAuth();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [updatingChars, setUpdatingChars] = useState<number[]>([]);
   const [sortField, setSortField] = useState<SortField>('ilvl');
 
   // Permissions & Ranks state
@@ -165,13 +166,17 @@ export default function Settings() {
   };
 
   const updateCharacterRole = async (charId: number, role: string) => {
+    setUpdatingChars(prev => [...prev, charId]);
     try {
       const data = await CharacterService.updateCharacter(charId, { role });
       if (data.success) {
-        fetchCharacters();
+        // Update local state immediately for fast feedback
+        setCharacters(prev => prev.map(c => c.id === charId ? { ...c, role } : c));
       }
     } catch (err) {
       console.error('Failed to update character role:', err);
+    } finally {
+      setUpdatingChars(prev => prev.filter(id => id !== charId));
     }
   };
 
@@ -412,7 +417,8 @@ export default function Settings() {
                         alignItems: 'center',
                         justifyContent: 'center',
                         transition: 'all 0.2s',
-                        opacity: char.role?.toLowerCase() === r.id ? 1 : 0.4
+                        opacity: updatingChars.includes(char.id) ? 0.3 : (char.role?.toLowerCase() === r.id ? 1 : 0.4),
+                        pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
                       onMouseLeave={(e) => {
