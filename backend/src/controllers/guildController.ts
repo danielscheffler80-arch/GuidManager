@@ -125,32 +125,12 @@ export class GuildController {
 
             let ranks = defaultRanks;
 
-            try {
-                const user = await prisma.user.findUnique({
-                    where: { id: (req as any).user.userId }
-                });
-
-                if (user && user.accessToken) {
-                    // Versuche, echte Rang-Namen von Blizzard zu holen
-                    const guildInfoResponse = await axios.get(`https://eu.api.blizzard.com/data/wow/guild/${guild.realm}/${encodeURIComponent(guild.name.toLowerCase())}`, {
-                        headers: { 'Authorization': `Bearer ${user.accessToken}` },
-                        params: {
-                            namespace: 'profile-eu',
-                            locale: 'de_DE'
-                        },
-                        timeout: 5000
-                    });
-
-                    if (guildInfoResponse.data.ranks && guildInfoResponse.data.ranks.length > 0) {
-                        ranks = guildInfoResponse.data.ranks.map((r: any) => ({
-                            id: r.id,
-                            name: r.name.de_DE || r.name || `Rang ${r.id}`
-                        }));
-                    }
-                }
-            } catch (apiError) {
-                console.warn('Failed to fetch ranks from Blizzard API, using defaults:', apiError);
-                // Verwende Fallback-Ränge
+            // If we have ranks in DB, use them (they were synced during roster sync)
+            if (guild.ranks && Array.isArray(guild.ranks) && guild.ranks.length > 0) {
+                ranks = (guild.ranks as any[]).map(r => ({
+                    id: r.id ?? r.rank,
+                    name: r.name?.de_DE || r.name || `Rang ${r.id ?? r.rank}`
+                }));
             }
 
             res.json({
