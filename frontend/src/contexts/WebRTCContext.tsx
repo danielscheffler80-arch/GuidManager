@@ -140,9 +140,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             localStreamRef.current.getTracks().forEach(track => {
                 pc.addTrack(track, localStreamRef.current!);
             });
+            // Initial bitrate setting
+            setVideoBitrate(pc, 8000); // 8 Mbps high quality
         }
 
         pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'connected') {
+                if (!isInitiator) setVideoBitrate(pc, 8000);
+            }
             if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
                 if (incomingPC.current?.id === userId) {
                     setRemoteStream(null);
@@ -159,6 +164,24 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         }
 
         return pc;
+    };
+
+    const setVideoBitrate = async (pc: RTCPeerConnection, maxBitrate: number) => {
+        try {
+            const senders = pc.getSenders();
+            const videoSender = senders.find(s => s.track?.kind === 'video');
+            if (videoSender) {
+                const parameters = videoSender.getParameters();
+                if (!parameters.encodings || parameters.encodings.length === 0) {
+                    parameters.encodings = [{}];
+                }
+                parameters.encodings[0].maxBitrate = maxBitrate * 1000;
+                await videoSender.setParameters(parameters);
+                console.log(`[WebRTC] Bitrate set to ${maxBitrate}kbps for user`);
+            }
+        } catch (err) {
+            console.warn('[WebRTC] Could not set bitrate:', err);
+        }
     };
 
     const processCandidateQueue = async (userId: string, pc: RTCPeerConnection) => {
@@ -276,6 +299,18 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                     }
                 }
                 console.warn('[WebRTC] Camera capture SUCCESS:', stream.id);
+                // Optimierung für Kamera (OBS/Meld)
+                stream.getVideoTracks().forEach(track => {
+                    if ((track as any).contentHint !== undefined) {
+                        (track as any).contentHint = 'motion';
+                    }
+                    console.log(`[WebRTC] Camera track state:`, {
+                        label: track.label,
+                        enabled: track.enabled,
+                        readyState: track.readyState,
+                        muted: track.muted
+                    });
+                });
             } else {
                 const videoConstraints: any = {
                     mandatory: {
@@ -295,6 +330,12 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                         video: videoConstraints
                     } as any);
                     console.warn('[WebRTC] Desktop capture SUCCESS:', stream.id);
+                    // Optimierung für Desktop (Detail-Schärfe bevorzugen)
+                    stream.getVideoTracks().forEach(track => {
+                        if ((track as any).contentHint !== undefined) {
+                            (track as any).contentHint = 'detail';
+                        }
+                    });
                 } catch (videoErr: any) {
                     console.error('[WebRTC] Video capture failed (desktop branch):', videoErr);
                     throw videoErr;
