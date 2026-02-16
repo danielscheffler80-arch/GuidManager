@@ -2,10 +2,13 @@
 
 Kopiere diese Werte und trage sie auf Render unter **Environment** ein.
 
-## Datenbank
+## Datenbank (WICHTIG: IPv4 Fix für Render)
 
 **Key**: `DATABASE_URL`  
-**Value**: `postgresql://postgres:b4PZevKB7NpjHn@db.byxdneprmynjwbxsrnop.supabase.co:5432/postgres`
+**Value**: `postgresql://postgres.byxdneprmynjwbxsrnop:b4PZevKB7NpjHn@aws-1-eu-west-3.pooler.supabase.com:6543/postgres?pgbouncer=true`
+
+> [!CAUTION]
+> Nutzt du den Standard-Port 5432, wird die Verbindung von Render aus fehlschlagen (IPv6 Problem).
 
 ## Battle.net OAuth
 
