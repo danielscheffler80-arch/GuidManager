@@ -46,9 +46,7 @@
     "icon": "assets/app-icon.png",
     "win": {
       "icon": "assets/app-icon.ico",
-      "target": [
-        "nsis"
-      ],
+      "target": "nsis-web",
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
@@ -59,10 +57,19 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Guild Manager Standalone"
     },
+    "nsisWeb": {
+      "appPackageUrl": "https://guild-manager-backend.onrender.com/updates",
+      "oneClick": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Guild Manager Standalone"
+    },
     "publish": [
       {
         "provider": "generic",
-        "url": "http://192.168.178.65:3000/updates"
+        "url": "https://guild-manager-backend.onrender.com/updates"
       }
     ]
   },
