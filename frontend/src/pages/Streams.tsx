@@ -18,7 +18,8 @@ export default function Streams() {
     socket,
     startStream,
     stopStream,
-    viewStream
+    viewStream,
+    clearView
   } = useWebRTC();
 
   const [sources, setSources] = useState<any[]>([]);
@@ -204,6 +205,8 @@ export default function Streams() {
                   setViewingId(stream.id);
                   if (stream.id !== socket?.id) {
                     viewStream(stream.id);
+                  } else {
+                    clearView();
                   }
                 }}
               >
