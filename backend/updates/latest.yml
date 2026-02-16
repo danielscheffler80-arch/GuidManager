@@ -1,0 +1,14 @@
+version: 0.6.3
+files:
+  - url: Guild Manager Standalone Web Setup 0.6.3.exe
+    sha512: jgXLSBaBtJPTff3bQi8EHru4qoNcB5E68P8SO+mh3ezu2CS79PEXXVmw4fniqFCyrky8koYuI5e4I+W0Swjk3A==
+path: Guild Manager Standalone Web Setup 0.6.3.exe
+sha512: jgXLSBaBtJPTff3bQi8EHru4qoNcB5E68P8SO+mh3ezu2CS79PEXXVmw4fniqFCyrky8koYuI5e4I+W0Swjk3A==
+packages:
+  x64:
+    size: 76920419
+    sha512: dHnggc+trV4wyHnLh3vIKnVrM7l06z+bNN7kpNZ2WfUidoAanbTDmIrxsGDtfaupPyHmFHWfSQtCC18dVdTqBA==
+    blockMapSize: 81633
+    path: guild-manager-standalone-0.6.3-x64.nsis.7z
+    file: guild-manager-standalone-0.6.3-x64.nsis.7z
+releaseDate: '2026-02-16T18:59:45.822Z'
