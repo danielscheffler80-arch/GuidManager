@@ -62,7 +62,10 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         const backendUrl = window.electronAPI ? window.electronAPI.getBackendUrl() : 'http://localhost:3334';
         console.log('[WebRTC] Connecting to signaling server:', backendUrl);
-        const newSocket = io(backendUrl);
+        const newSocket = io(backendUrl, {
+            transports: ['websocket'],
+            upgrade: false
+        });
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
