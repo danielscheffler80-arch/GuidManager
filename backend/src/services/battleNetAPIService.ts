@@ -291,17 +291,18 @@ export class BattleNetAPIService {
       try {
         const raidEncounters = await this.getCharacterRaidEncounters(realmSlug, name);
         if (raidEncounters && raidEncounters.expansions) {
-          const CURRENT_RAID_NAME = 'Befreiung von Lorenhall';
+          // Dynamic raid detection: search for the latest raid in the most recent expansion
           let targetRaid = null;
 
-          for (let i = raidEncounters.expansions.length - 1; i >= 0; i--) {
-            const exp = raidEncounters.expansions[i];
-            if (exp.instances) {
-              const found = exp.instances.find((inst: any) =>
-                inst.instance.name === 'Nerub-ar Palace' ||
-                inst.instance.name === "Palast der Nerub'ar"
-              );
-              if (found) { targetRaid = found; break; }
+          if (raidEncounters.expansions && raidEncounters.expansions.length > 0) {
+            // Sort expansions by ID if possible, or just take the last one (usually latest)
+            const latestExp = raidEncounters.expansions[raidEncounters.expansions.length - 1];
+
+            if (latestExp.instances && latestExp.instances.length > 0) {
+              // Take the last instance - Blizzard usually appends new raids to the end of the expansion's array
+              targetRaid = latestExp.instances[latestExp.instances.length - 1];
+
+              console.log(`[RaidSync] Detected latest raid: ${targetRaid.instance.name} in expansion: ${latestExp.expansion.name}`);
             }
           }
 

@@ -218,17 +218,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             log('start_stream_requested', { sourceId, constraints });
 
             const videoConstraints: any = {
-                mandatory: {
-                    chromeMediaSource: 'desktop',
-                    chromeMediaSourceId: sourceId,
-                    minWidth: constraints.width,
-                    maxWidth: constraints.width,
-                    minHeight: constraints.height,
-                    maxHeight: constraints.height,
-                    minFrameRate: constraints.fps,
-                    maxFrameRate: constraints.fps
-                }
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: sourceId,
+                width: { ideal: constraints.width },
+                height: { ideal: constraints.height },
+                frameRate: { ideal: constraints.fps }
             };
+
+            log('webrtc_capturing_video', { videoConstraints });
 
             try {
                 stream = await navigator.mediaDevices.getUserMedia({
@@ -266,10 +263,8 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                             console.log('[WebRTC] Capturing System Sound (desktop)...');
                             extraStream = await navigator.mediaDevices.getUserMedia({
                                 audio: {
-                                    mandatory: {
-                                        chromeMediaSource: 'desktop',
-                                        chromeMediaSourceId: sourceId
-                                    }
+                                    chromeMediaSource: 'desktop',
+                                    chromeMediaSourceId: sourceId
                                 } as any,
                                 video: false
                             });

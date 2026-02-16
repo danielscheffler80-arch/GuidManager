@@ -13,10 +13,10 @@ Kopiere diese Werte und trage sie auf Render unter **Environment** ein.
 ## Battle.net OAuth
 
 **Key**: `BNET_CLIENT_ID`  
-**Value**: `840050255f984ec088a0284a5d3535ee`
+**Value**: `68eaf954f0dd49f1be481c8164b15ccf`
 
 **Key**: `BNET_CLIENT_SECRET`  
-**Value**: `Ia3SmO1akrFfiVlGBgiTSTpU5LuiAggl`
+**Value**: `mtxNa5LapQuKu7kgmVgO5LtbYf33pwwj`
 
 **Key**: `BNET_REDIRECT_URI`  
 **Value**: `https://guild-manager-backend.onrender.com/auth/callback`
