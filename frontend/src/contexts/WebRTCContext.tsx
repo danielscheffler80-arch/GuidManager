@@ -28,6 +28,7 @@ interface WebRTCContextType {
     startStream: (sourceId: string, constraints: any, metadata: any) => Promise<void>;
     stopStream: () => void;
     viewStream: (streamId: string) => Promise<void>;
+    clearView: () => void;
     updateMetadata: (metadata: any) => void;
 }
 
@@ -80,9 +81,9 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             setActiveStreams(streams);
         });
 
-        newSocket.on('signal', async (data: { from: string; signal: any }) => {
-            const { from, signal } = data;
-            logWebRTC('signal_received', { from, type: signal.type || 'candidate', socketId: newSocket.id });
+        newSocket.on('signal', async (data: { from: string; signal: any; connectionRole?: 'viewer' | 'streamer' }) => {
+            const { from, signal, connectionRole } = data;
+            logWebRTC('signal_received', { from, type: signal.type || 'candidate', role: connectionRole, socketId: newSocket.id });
 
             try {
                 if (signal.type === 'offer') {
@@ -90,7 +91,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                 } else if (signal.type === 'answer') {
                     await handleAnswer(from, signal);
                 } else if (signal.candidate) {
-                    await handleCandidate(from, signal.candidate);
+                    await handleCandidate(from, signal.candidate, connectionRole);
                 }
             } catch (err: any) {
                 console.error('[WebRTC] Signal error:', err);
@@ -118,7 +119,9 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         pc.onicecandidate = (event) => {
             if (event.candidate && (currentSocket || socket)) {
                 const s = currentSocket || socket;
-                s?.emit('signal', { to: userId, signal: { candidate: event.candidate } });
+                // As the Initiator, I am the Viewer. As the Responder, I am the Streamer.
+                const role = isInitiator ? 'viewer' : 'streamer';
+                s?.emit('signal', { to: userId, signal: { candidate: event.candidate }, connectionRole: role });
             }
         };
 
@@ -175,27 +178,46 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const handleOffer = async (from: string, offer: RTCSessionDescriptionInit, currentSocket: Socket) => {
+        // CLOSE OLD PC IF EXISTS (Bugfix: Resource leak and connection collision)
+        const oldPc = outgoingPCs.current.get(from);
+        if (oldPc) {
+            console.log('[WebRTC] Closing old outgoing connection to', from);
+            oldPc.close();
+        }
+
         const pc = createPeerConnection(from, false, currentSocket);
         outgoingPCs.current.set(from, pc);
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         await processCandidateQueue(from, pc);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        currentSocket.emit('signal', { to: from, signal: answer });
+        currentSocket.emit('signal', { to: from, signal: answer, connectionRole: 'streamer' });
     };
 
     const handleAnswer = async (from: string, answer: RTCSessionDescriptionInit) => {
-        let pc = outgoingPCs.current.get(from);
-        if (!pc && incomingPC.current?.id === from) pc = incomingPC.current.pc;
+        // Answers always come from the streamer to the viewer (incomingPC)
+        let pc = incomingPC.current?.id === from ? incomingPC.current.pc : null;
         if (pc) {
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
             await processCandidateQueue(from, pc);
         }
     };
 
-    const handleCandidate = async (from: string, candidate: RTCIceCandidateInit) => {
-        let pc = outgoingPCs.current.get(from);
-        if (!pc && incomingPC.current?.id === from) pc = incomingPC.current.pc;
+    const handleCandidate = async (from: string, candidate: RTCIceCandidateInit, role?: 'viewer' | 'streamer') => {
+        // If the sender is a 'viewer', the candidate belongs to our 'outgoingPC' (we are streaming to them)
+        // If the sender is a 'streamer', the candidate belongs to our 'incomingPC' (we are watching them)
+        let pc: RTCPeerConnection | null | undefined = null;
+
+        if (role === 'viewer') {
+            pc = outgoingPCs.current.get(from);
+        } else if (role === 'streamer') {
+            pc = (incomingPC.current?.id === from) ? incomingPC.current.pc : null;
+        } else {
+            // Fallback for older versions
+            pc = outgoingPCs.current.get(from);
+            if (!pc && incomingPC.current?.id === from) pc = incomingPC.current.pc;
+        }
+
         if (pc && pc.remoteDescription) {
             try {
                 await pc.addIceCandidate(new RTCIceCandidate(candidate));
@@ -351,7 +373,17 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket?.emit('signal', { to: streamId, signal: offer });
+        socket?.emit('signal', { to: streamId, signal: offer, connectionRole: 'viewer' });
+    };
+
+    const clearView = () => {
+        if (incomingPC.current) {
+            incomingPC.current.pc.close();
+            candidateQueues.current.delete(incomingPC.current.id);
+            incomingPC.current = null;
+        }
+        setRemoteStream(null);
+        setIsConnecting(false);
     };
 
     const updateMetadata = (metadata: any) => {
@@ -363,7 +395,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     return (
         <WebRTCContext.Provider value={{
             activeStreams, isStreaming, isConnecting, localStream, remoteStream, socket,
-            startStream, stopStream, viewStream, updateMetadata
+            startStream, stopStream, viewStream, clearView, updateMetadata
         }}>
             {children}
         </WebRTCContext.Provider>
