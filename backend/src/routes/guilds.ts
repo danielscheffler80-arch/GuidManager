@@ -68,7 +68,7 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
 
   // Filter roster by visible ranks
   const includeFiltered = req.query.includeFiltered === 'true';
-  const visibleRanks = guild.visibleRanks.length > 0 ? guild.visibleRanks : [5, 7];
+  const visibleRanks = guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
   const totalInDb = guild.characters.length;
 
   console.log(`[RosterAPI] Guild: ${guild.name}, TotalChars: ${totalInDb}, VisibleRanks: ${JSON.stringify(visibleRanks)}, IncludeFiltered: ${includeFiltered}`);

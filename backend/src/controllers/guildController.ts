@@ -137,7 +137,7 @@ export class GuildController {
                 success: true,
                 ranks: ranks,
                 currentAdminRanks: guild.adminRanks,
-                currentVisibleRanks: guild.visibleRanks
+                currentVisibleRanks: guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
             });
 
         } catch (error) {
