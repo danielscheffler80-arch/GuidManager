@@ -16,6 +16,7 @@ interface StreamMetadata {
         contrast: number;
         saturation: number;
     } | null;
+    sourceType?: 'desktop' | 'camera';
 }
 
 interface WebRTCContextType {
@@ -239,25 +240,65 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         try {
             log('start_stream_requested', { sourceId, constraints });
 
-            const videoConstraints: any = {
-                mandatory: {
-                    chromeMediaSource: 'desktop',
-                    chromeMediaSourceId: sourceId,
-                    maxWidth: constraints.width,
-                    maxHeight: constraints.height,
-                    maxFrameRate: constraints.fps
+            if (constraints.sourceType === 'camera') {
+                console.warn('[WebRTC] Capturing CAMERA:', sourceId);
+                log('webrtc_capturing_camera', { sourceId });
+
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            deviceId: { exact: sourceId },
+                            width: { ideal: constraints.width },
+                            height: { ideal: constraints.height },
+                            frameRate: { ideal: constraints.fps }
+                        },
+                        audio: false
+                    });
+                } catch (camErr: any) {
+                    console.error('[WebRTC] Primary camera capture failed:', camErr);
+
+                    if (camErr.name === 'NotReadableError') {
+                        console.warn('[WebRTC] NotReadableError detected. Source might be in use. Retrying with loose constraints...');
+                        // Fallback: Try without 'exact' or specific device (will pick default)
+                        try {
+                            stream = await navigator.mediaDevices.getUserMedia({
+                                video: true,
+                                audio: false
+                            });
+                            console.warn('[WebRTC] Fallback capture SUCCESS (default camera)');
+                        } catch (fallbackErr: any) {
+                            console.error('[WebRTC] Fallback capture also failed:', fallbackErr);
+                            throw new Error(`Kamera konnte nicht gestartet werden (NotReadableError). 
+                            Dies passiert oft, wenn die Kamera (z.B. OBS Virtual Camera) bereits von einem anderen Programm verwendet wird oder in OBS noch nicht gestartet wurde.`);
+                        }
+                    } else {
+                        throw camErr;
+                    }
                 }
-            };
+                console.warn('[WebRTC] Camera capture SUCCESS:', stream.id);
+            } else {
+                const videoConstraints: any = {
+                    mandatory: {
+                        chromeMediaSource: 'desktop',
+                        chromeMediaSourceId: sourceId,
+                        maxWidth: constraints.width,
+                        maxHeight: constraints.height,
+                        maxFrameRate: constraints.fps
+                    }
+                };
 
-            log('webrtc_capturing_video', { videoConstraints });
+                console.warn('[WebRTC] Capturing DESKTOP:', { sourceId, videoConstraints });
+                log('webrtc_capturing_video', { videoConstraints });
 
-            try {
-                stream = await navigator.mediaDevices.getUserMedia({
-                    video: videoConstraints
-                } as any);
-            } catch (videoErr: any) {
-                console.error('[WebRTC] Video capture failed:', videoErr);
-                throw videoErr;
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints
+                    } as any);
+                    console.warn('[WebRTC] Desktop capture SUCCESS:', stream.id);
+                } catch (videoErr: any) {
+                    console.error('[WebRTC] Video capture failed (desktop branch):', videoErr);
+                    throw videoErr;
+                }
             }
 
             // Capture Mic

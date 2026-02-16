@@ -50,9 +50,32 @@ export default function Streams() {
   const refreshSources = async () => {
     if (window.electronAPI) {
       const src = await window.electronAPI.getSources(['window', 'screen']);
-      setSources(src);
-      if (src.length > 0 && !selectedSource) {
-        setSelectedSource(src[0].id);
+
+      // Also fetch camera sources
+      let cameraSources: any[] = [];
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        cameraSources = devices
+          .filter(d => d.kind === 'videoinput')
+          .map(d => ({
+            id: d.deviceId,
+            name: `📷 ${d.label || 'Kamera ' + d.deviceId.slice(0, 5)}`,
+            type: 'camera'
+          }));
+      } catch (err) {
+        console.error('[Streams] Failed to fetch cameras:', err);
+      }
+
+      const desktopSources = src.map(s => ({
+        ...s,
+        type: s.id.startsWith('screen') ? 'screen' : 'window'
+      }));
+
+      const allSources = [...desktopSources, ...cameraSources];
+      setSources(allSources);
+
+      if (allSources.length > 0 && !selectedSource) {
+        setSelectedSource(allSources[0].id);
       }
     }
   };
@@ -91,6 +114,17 @@ export default function Streams() {
       '1440': { w: 2560, h: 1440 }
     };
 
+    const currentSource = sources.find(s => s.id === selectedSource);
+    const sourceType = currentSource?.type === 'camera' ? 'camera' : 'desktop';
+
+    console.warn('[Streams] handleStartStream:', {
+      selectedSource,
+      sourceType,
+      resolution,
+      fps,
+      availableSources: sources.map(s => ({ id: s.id, name: s.name, type: s.type }))
+    });
+
     const constraints = {
       width: resMap[resolution].w,
       height: resMap[resolution].h,
@@ -98,7 +132,8 @@ export default function Streams() {
       micId: micId,
       micMuted: micMuted,
       audioIds: channels.map(c => c.id),
-      mutedAudio: channels.map(c => c.muted)
+      mutedAudio: channels.map(c => c.muted),
+      sourceType: sourceType
     };
 
     try {
@@ -111,7 +146,11 @@ export default function Streams() {
       }
     } catch (err: any) {
       console.error('[Streams] Start failed:', err);
-      alert(`Fehler beim Starten des Streams: ${err.message || 'Unbekannter Fehler'}`);
+      const errorMsg = `Fehler beim Starten des Streams:
+      Typ: ${sourceType}
+      Quelle: ${selectedSource}
+      Fehler: ${err.message || 'Unbekannter Fehler'} (${err.name || 'Ohne Name'})`;
+      alert(errorMsg);
     }
   };
 
@@ -169,9 +208,21 @@ export default function Streams() {
           {!isStreaming ? (
             <div className="start-stream-form">
               <select value={selectedSource} onChange={(e) => setSelectedSource(e.target.value)}>
-                {sources.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
+                <optgroup label="Bildschirme">
+                  {sources.filter(s => s.type === 'screen').map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Fenster">
+                  {sources.filter(s => s.type === 'window').map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="Kameras (OBS/Meld)">
+                  {sources.filter(s => s.type === 'camera').map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </optgroup>
               </select>
               <select value={resolution} onChange={(e) => setResolution(e.target.value)}>
                 <option value="720">720p</option>
@@ -190,6 +241,12 @@ export default function Streams() {
           )}
         </div>
       </header>
+
+      {!isStreaming && sources.find(s => s.id === selectedSource)?.type === 'camera' && (
+        <div style={{ background: 'rgba(0, 170, 255, 0.1)', borderLeft: '4px solid #00aaff', padding: '10px', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '10px' }}>
+          <strong>💡 Tipp:</strong> Falls du <strong>OBS</strong> oder <strong>Meld</strong> verwendest, stelle sicher, dass du dort die <strong>"Virtual Camera"</strong> gestartet hast, bevor du hier auf "Stream starten" klickst.
+        </div>
+      )}
 
 
       <div className="streams-content">
@@ -436,8 +493,8 @@ export default function Streams() {
                     justify-content: center;
                 }
                 video {
-                    max-width: 100%;
-                    max-height: 100%;
+                    width: 100%;
+                    height: 100%;
                     object-fit: contain;
                 }
                 .video-badge {
