@@ -130,113 +130,165 @@ export default function AdminSettings() {
                 </div>
             </header>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                {/* Main List Section */}
-                <div className="lg:col-span-3">
-                    {/* Header for the list */}
-                    <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-black/20 rounded-t-xl border-x border-t border-gray-800 text-[10px] font-black uppercase tracking-widest text-gray-500">
-                        <div className="col-span-1">ID</div>
-                        <div className="col-span-5">Rang Name</div>
-                        <div className="col-span-3 text-center">Administrator</div>
-                        <div className="col-span-3 text-center">Sichtbarkeit</div>
-                    </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '20px' }}>
+                {displayRanks.map(rank => {
+                    const isAdminRank = rank.id === 0 || adminRanks.includes(rank.id);
+                    const isVisibleRank = visibleRanks.includes(rank.id);
 
-                    {/* Rank Rows with 4px gap */}
-                    <div className="flex flex-col gap-[4px] mt-[4px]">
-                        {displayRanks.map(rank => {
-                            const isAdminRank = rank.id === 0 || adminRanks.includes(rank.id);
-                            const isVisibleRank = visibleRanks.includes(rank.id);
-
-                            return (
+                    return (
+                        <div
+                            key={rank.id}
+                            style={{
+                                background: '#1D1E1F',
+                                padding: '8px 20px',
+                                borderRadius: '10px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                border: rank.id === 0 ? '1px solid #A330C9' : '1px solid #333',
+                                transition: 'border-color 0.2s',
+                            }}
+                        >
+                            {/* 1. Spalte: Sichtbarkeit-Checkbox (Position des Sterns) */}
+                            <div style={{ width: '50px', flexShrink: 0 }}>
                                 <div
-                                    key={rank.id}
-                                    className={`grid grid-cols-12 gap-4 px-6 py-3 bg-[#1D1E1F] border border-gray-800/50 rounded-lg items-center transition-all hover:bg-[#242526] ${rank.id === 0 ? 'border-l-4 border-l-[#A330C9]' : ''
-                                        }`}
+                                    onClick={() => toggleVisibleRank(rank.id)}
+                                    style={{
+                                        cursor: 'pointer',
+                                        width: '22px',
+                                        height: '22px',
+                                        borderRadius: '6px',
+                                        border: '2px solid',
+                                        borderColor: isVisibleRank ? '#3B82F6' : '#333',
+                                        background: isVisibleRank ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                    }}
+                                    title={isVisibleRank ? 'Vom Roster entfernen' : 'Im Roster anzeigen'}
                                 >
-                                    {/* ID */}
-                                    <div className="col-span-1 font-mono text-[#A330C9] font-black">{rank.id}</div>
-
-                                    {/* Name */}
-                                    <div className="col-span-5">
-                                        <span className={`font-bold text-sm ${isAdminRank ? 'text-white' : 'text-gray-400'}`}>
-                                            {rank.name === 'Rank 0' ? 'Gildenleiter' : (rank.name || `Rang ${rank.id}`)}
-                                        </span>
-                                    </div>
-
-                                    {/* Admin Checkbox */}
-                                    <div className="col-span-3 flex justify-center">
-                                        <div
-                                            onClick={() => rank.id !== 0 && toggleAdminRank(rank.id)}
-                                            className={`p-1.5 rounded-lg border flex items-center gap-2 cursor-pointer transition-all ${isAdminRank ? 'bg-[#A330C9]/10 border-[#A330C9]/40' : 'bg-black/20 border-gray-800 grayscale opacity-40 hover:grayscale-0 hover:opacity-100'
-                                                } ${rank.id === 0 ? 'cursor-default' : 'active:scale-95'}`}
-                                        >
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${isAdminRank ? 'bg-[#A330C9] border-[#A330C9]' : 'border-gray-700'}`}>
-                                                {isAdminRank && <span className="text-white text-[10px]">✓</span>}
-                                            </div>
-                                            <span className="text-[10px] font-bold uppercase tracking-tighter">Admin</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Visibility Checkbox */}
-                                    <div className="col-span-3 flex justify-center">
-                                        <div
-                                            onClick={() => toggleVisibleRank(rank.id)}
-                                            className={`p-1.5 rounded-lg border flex items-center gap-2 cursor-pointer transition-all ${isVisibleRank ? 'bg-blue-500/10 border-blue-500/40' : 'bg-black/20 border-gray-800 grayscale opacity-40 hover:grayscale-0 hover:opacity-100'
-                                                } active:scale-95`}
-                                        >
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center transition-all ${isVisibleRank ? 'bg-blue-500 border-blue-500' : 'border-gray-700'}`}>
-                                                {isVisibleRank && <span className="text-white text-[10px]">✓</span>}
-                                            </div>
-                                            <span className="text-[10px] font-bold uppercase tracking-tighter">Visible</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                {/* Sidebar Section */}
-                <div className="space-y-4">
-                    <div className="p-6 bg-[#1D1E1F] border border-gray-800 rounded-2xl">
-                        <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-4">Einstellungen</h3>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="text-[10px] font-bold text-gray-500 uppercase block mb-2">WoW Pfad (Addon)</label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        value={wowPath}
-                                        onChange={(e) => setWowPath(e.target.value)}
-                                        className="flex-1 p-2 bg-black/40 border border-gray-800 rounded-lg text-gray-400 outline-none focus:border-[#A330C9] text-[10px] font-mono"
-                                    />
-                                    <button
-                                        onClick={handleSavePath}
-                                        className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white font-bold rounded-lg text-[10px]"
-                                    >
-                                        Save
-                                    </button>
+                                    {isVisibleRank && <span style={{ color: '#3B82F6', fontSize: '14px', fontWeight: '900' }}>✓</span>}
                                 </div>
                             </div>
 
-                            <div className="pt-4 border-t border-gray-800">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-[10px] text-gray-500">Admins:</span>
-                                    <span className="text-[#A330C9] font-black text-xs">{adminRanks.length + 1}</span>
+                            {/* 2. Spalte: Rang ID & Name */}
+                            <div style={{ width: '220px', flexShrink: 0 }}>
+                                <div style={{
+                                    fontWeight: 'bold',
+                                    fontSize: '1.1em',
+                                    color: (isAdminRank || rank.id === 0) ? '#A330C9' : '#D1D9E0'
+                                }}>
+                                    Rang {rank.id}
                                 </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] text-gray-500">Visible:</span>
-                                    <span className="text-blue-400 font-black text-xs">{visibleRanks.length}</span>
+                                <div style={{ fontSize: '0.8em', color: '#666' }}>
+                                    {rank.name === 'Rank 0' ? 'Gildenleiter' : (rank.name || `Mitglied`)}
                                 </div>
+                            </div>
+
+                            {/* 3. Spalte: Administrator Badge (Style wie "MAIN" Button in Settings.tsx) */}
+                            <div style={{ width: '180px', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                                <div
+                                    onClick={() => rank.id !== 0 && toggleAdminRank(rank.id)}
+                                    style={{
+                                        cursor: rank.id === 0 ? 'default' : 'pointer',
+                                        background: isAdminRank ? 'rgba(163, 48, 201, 0.2)' : 'transparent',
+                                        color: isAdminRank ? '#A330C9' : '#444',
+                                        padding: '6px 15px',
+                                        borderRadius: '20px',
+                                        fontSize: '0.75em',
+                                        fontWeight: '900',
+                                        border: isAdminRank ? '1px solid #A330C9' : '1px solid #444',
+                                        letterSpacing: '1px',
+                                        transition: 'all 0.2s',
+                                        textAlign: 'center',
+                                        minWidth: '120px'
+                                    }}
+                                >
+                                    ADMINISTRATOR
+                                </div>
+                            </div>
+
+                            {/* 4. Spalte: Status-Info */}
+                            <div style={{ flex: 1, paddingLeft: '20px' }}>
+                                {rank.id === 0 ? (
+                                    <span style={{ color: '#666', fontSize: '0.8em', fontStyle: 'italic' }}>Systemleiter (Permanent)</span>
+                                ) : (
+                                    <span style={{ color: '#666', fontSize: '0.8em', fontStyle: 'italic' }}>
+                                        {isAdminRank ? 'Berechtigt zum Editieren' : 'Eingeschränkt'}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* 5. Spalte: Visibility Label */}
+                            <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                                {isVisibleRank ? (
+                                    <span style={{
+                                        color: '#3B82F6', padding: '6px 15px',
+                                        fontSize: '0.75em', fontWeight: '900',
+                                        letterSpacing: '1px'
+                                    }}>SICHTBAR</span>
+                                ) : (
+                                    <span style={{
+                                        color: '#444', padding: '6px 15px',
+                                        fontSize: '0.75em', fontWeight: 'bold'
+                                    }}>VERBORGEN</span>
+                                )}
                             </div>
                         </div>
-                    </div>
+                    );
+                })}
 
-                    <div className="p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl">
-                        <p className="text-[10px] text-gray-500 leading-relaxed italic">
-                            Änderungen werden sofort gespeichert. Sichtbare Ränge werden im Haupt-Roster priorisiert angezeigt.
-                        </p>
+                {/* WoW Path Configuration attached at the bottom */}
+                <div style={{
+                    marginTop: '30px',
+                    background: '#1D1E1F',
+                    padding: '15px 25px',
+                    borderRadius: '10px',
+                    border: '1px solid #333',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '20px'
+                }}>
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.85em', color: '#888', marginBottom: '8px', fontWeight: 'bold' }}>WoW Pfad für Addon-Installation</div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <input
+                                type="text"
+                                value={wowPath}
+                                onChange={(e) => setWowPath(e.target.value)}
+                                placeholder="z.B. C:\Games\World of Warcraft"
+                                style={{
+                                    flex: 1,
+                                    background: 'rgba(0,0,0,0.3)',
+                                    border: '1px solid #444',
+                                    borderRadius: '6px',
+                                    padding: '8px 12px',
+                                    color: '#D1D9E0',
+                                    fontSize: '0.9em',
+                                    outline: 'none',
+                                    fontFamily: 'monospace'
+                                }}
+                            />
+                            <button
+                                onClick={handleSavePath}
+                                style={{
+                                    background: '#A330C9',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    padding: '8px 20px',
+                                    fontWeight: 'bold',
+                                    fontSize: '0.9em',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.2)'}
+                                onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
+                            >
+                                Speichern
+                            </button>
+                        </div>
+                        {pathStatus && <p style={{ marginTop: '8px', fontSize: '0.8em', color: '#1EFF00', fontWeight: 'bold' }}>{pathStatus}</p>}
                     </div>
                 </div>
             </div>
