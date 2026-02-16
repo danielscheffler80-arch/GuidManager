@@ -40,7 +40,7 @@ yarn-error.log*
 webrtc_debug.log
 
 # Updates folder (installer)
-backend/updates/
+# backend/updates/
 
 # Test files
 A1.*.txt

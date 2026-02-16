@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
