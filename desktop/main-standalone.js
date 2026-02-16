@@ -1,6 +1,7 @@
 const { app, BrowserWindow, Menu, nativeImage, ipcMain, shell, desktopCapturer } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
+const { spawn, exec } = require('child_process');
 const fs = require('fs');
 
 const isPackaged = app.isPackaged;
@@ -157,16 +158,22 @@ function createWindow() {
       console.error('Fehler beim Laden des Frontends aus resources:', err);
     });
   } else {
-    // Fallback für Entwicklung
-    const frontendPath = path.join(__dirname, 'frontend', 'index.html');
-    if (fs.existsSync(frontendPath)) {
-      mainWindow.loadFile(frontendPath);
-    } else {
-      const devUrl = process.env.FRONTEND_URL || 'http://localhost:5173/';
-      mainWindow.loadURL(devUrl).catch(() => {
-        mainWindow.loadFile(frontendPath);
+    // In der Entwicklung (Dev): Vite-Server laden
+    const devUrl = process.env.FRONTEND_URL || 'http://localhost:5173/';
+
+    // Öffne DevTools automatisch im Dev-Mode
+    mainWindow.webContents.openDevTools();
+
+    const loadApp = () => {
+      console.log(`[MAIN] Versuche Frontend zu laden: ${devUrl}`);
+      mainWindow.loadURL(devUrl).catch((err) => {
+        console.log(`[MAIN] Frontend noch nicht bereit (${err.code}), probiere in 2s erneut...`);
+        setTimeout(loadApp, 2000);
       });
-    }
+    };
+
+    // Warte kurz bis Vite startet
+    setTimeout(loadApp, 2000);
   }
 
   // Menü erstellen
@@ -206,8 +213,34 @@ function createWindow() {
   });
 }
 
+let frontendProc = null;
+
+function startProcesses() {
+  if (app.isPackaged) return;
+
+  // Frontend IMMER starten im Dev Mode (damit localhost:5173 verfügbar ist)
+  console.log('Starte Frontend...');
+  frontendProc = spawn('npm.cmd', ['run', 'dev'], {
+    cwd: path.join(projectRoot, 'frontend'),
+    shell: true,
+    stdio: 'inherit'
+  });
+}
+
+function killProcesses() {
+  if (process.platform === 'win32') {
+    if (frontendProc) {
+      exec(`taskkill /pid ${frontendProc.pid} /T /F`);
+      frontendProc = null;
+    }
+  } else {
+    if (frontendProc) frontendProc.kill();
+  }
+}
+
 // Starte Watcher und Installer wenn App bereit
 app.on('ready', () => {
+  startProcesses();
   createWindow();
 
   // Addon Installation/Update
@@ -222,11 +255,15 @@ app.on('ready', () => {
   }
 });
 
-
 app.on('window-all-closed', () => {
+  killProcesses();
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+app.on('before-quit', () => {
+  killProcesses();
 });
 
 app.on('activate', () => {

@@ -62,13 +62,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
       const authUrl = `${backendUrl}/auth/battlenet`;
       console.log(`[AUTH] Fetching from ${authUrl}`);
 
-      // Construct dynamic Redirect URI based on current backend URL
-      // Remove trailing slash if present to avoid double slashes
-      const cleanBackendUrl = backendUrl.replace(/\/$/, '');
-      const redirectUri = `${cleanBackendUrl}/auth/callback`;
-      console.log('Using Dynamic Redirect URI:', redirectUri);
-
-      const response = await fetch(`${authUrl}?redirectUri=${encodeURIComponent(redirectUri)}`);
+      const response = await fetch(`${authUrl}`);
       const data = await response.json();
 
       if (!data.success) {

@@ -72,11 +72,20 @@ function createWindow() {
   } else {
     // In der Entwicklung (Dev): Vite-Server laden
     const devUrl = process.env.FRONTEND_URL || 'http://localhost:5173/';
-    setTimeout(() => {
-      win.loadURL(devUrl).catch(() => {
-        setTimeout(() => win.loadURL(devUrl), 3000);
+
+    // Öffne DevTools automatisch im Dev-Mode
+    win.webContents.openDevTools();
+
+    const loadApp = () => {
+      console.log(`[MAIN] Versuche Frontend zu laden: ${devUrl}`);
+      win.loadURL(devUrl).catch((err) => {
+        console.log(`[MAIN] Frontend noch nicht bereit (${err.code}), probiere in 2s erneut...`);
+        setTimeout(loadApp, 2000);
       });
-    }, 3000);
+    };
+
+    // Warte kurz bis Vite startet
+    setTimeout(loadApp, 2000);
   }
 
   const template = [
