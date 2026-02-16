@@ -79,5 +79,32 @@ export const GuildService = {
             headers: getAuthHeader() as HeadersInit
         });
         return response.json();
+    },
+
+    // Promote member
+    promoteMember: async (guildId: number, characterId: number) => {
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/members/${characterId}/promote`, {
+            method: 'POST',
+            headers: getAuthHeader() as HeadersInit
+        });
+        return response.json();
+    },
+
+    // Demote member
+    demoteMember: async (guildId: number, characterId: number) => {
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/members/${characterId}/demote`, {
+            method: 'POST',
+            headers: getAuthHeader() as HeadersInit
+        });
+        return response.json();
+    },
+
+    // Kick member
+    kickMember: async (guildId: number, characterId: number) => {
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/members/${characterId}/kick`, {
+            method: 'POST',
+            headers: getAuthHeader() as HeadersInit
+        });
+        return response.json();
     }
 };

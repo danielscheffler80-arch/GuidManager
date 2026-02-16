@@ -124,7 +124,7 @@ export default function Settings() {
     if (!token) return;
 
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
+      const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
       const response = await fetch(`${backendUrl}/users/characters/main`, {
         method: 'POST',
         headers: {
@@ -147,7 +147,7 @@ export default function Settings() {
     if (!token) return;
 
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
+      const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
       const response = await fetch(`${backendUrl}/auth/favorite-character`, {
         method: 'POST',
         headers: {
@@ -277,13 +277,13 @@ export default function Settings() {
       url = `https://www.warcraftlogs.com/character/eu/${realmLower}/${nameLower}`;
     }
 
-    if (url && window.electronAPI?.openExternal) {
-      window.electronAPI.openExternal(url);
+    if (url && (window as any).electronAPI?.openExternal) {
+      (window as any).electronAPI.openExternal(url);
     }
   };
 
   return (
-    <div style={{ padding: '10px 25px', color: '#D1D9E0', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="page-container">
       <section style={{ marginTop: '5px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '15px' }}>
           <div>
@@ -325,12 +325,15 @@ export default function Settings() {
                 key={char.id}
                 style={{
                   background: '#1D1E1F',
-                  padding: '8px 20px',
+                  padding: '8px 16px',
                   borderRadius: '10px',
                   display: 'flex',
                   alignItems: 'center',
+                  justifyContent: 'space-between',
                   border: char.isMain ? '1px solid #A330C9' : '1px solid #333',
                   transition: 'border-color 0.2s',
+                  width: '100%',
+                  boxSizing: 'border-box'
                 }}
               >
                 {/* 1. Spalte: Favoriten-Stern */}
@@ -430,8 +433,7 @@ export default function Settings() {
                   ))}
                 </div>
 
-                {/* Platzhalter / Spacer */}
-                <div style={{ flex: 1 }}></div>
+                {/* Spacing adjustments for columns if needed */}
 
                 {/* 6. Spalte: Main Character Status / Button */}
                 <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>

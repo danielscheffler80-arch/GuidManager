@@ -337,7 +337,8 @@ export class AuthController {
               guild: {
                 select: {
                   id: true,
-                  name: true
+                  name: true,
+                  adminRanks: true
                 }
               }
             }

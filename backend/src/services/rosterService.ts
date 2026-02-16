@@ -170,16 +170,11 @@ export class RosterService {
                             try {
                                 const raids = await service.getCharacterRaidEncounters(charData.realm.slug, charData.name.toLowerCase());
                                 if (raids && raids.expansions) {
-                                    const CURRENT_RAID_NAME = 'Befreiung von Lorenhall'; // Should be dynamic/constant
+                                    // Use dynamic detection instead of hardcoded name
                                     let targetRaid = null;
-
-                                    // Find current raid
-                                    for (let i = raids.expansions.length - 1; i >= 0; i--) {
-                                        const exp = raids.expansions[i];
-                                        if (exp.instances) {
-                                            const found = exp.instances.find((inst: any) => inst.instance.name === CURRENT_RAID_NAME);
-                                            if (found) { targetRaid = found; break; }
-                                        }
+                                    const latestExp = raids.expansions[raids.expansions.length - 1];
+                                    if (latestExp?.instances?.length > 0) {
+                                        targetRaid = latestExp.instances[latestExp.instances.length - 1];
                                     }
 
                                     if (targetRaid) {
@@ -198,6 +193,13 @@ export class RosterService {
                         }
 
                         // Update detailed stats
+                        const existingChar = await prisma.character.findFirst({
+                            where: {
+                                name: charData.name.toLowerCase(),
+                                realm: charData.realm.slug,
+                            }
+                        });
+
                         await prisma.character.update({
                             where: {
                                 name_realm: {
@@ -209,7 +211,8 @@ export class RosterService {
                                 averageItemLevel,
                                 mythicRating,
                                 raidProgress,
-                                role: role && !prisma.character.findFirst({ where: { id: charData.id, role: { not: null } } }) ? role : undefined
+                                // Only update role if it's currently null or "Unknown"
+                                role: (role && (!existingChar?.role || existingChar.role === 'Unknown')) ? role : undefined
                             }
                         });
 

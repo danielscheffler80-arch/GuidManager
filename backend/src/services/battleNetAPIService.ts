@@ -378,7 +378,11 @@ export class BattleNetAPIService {
     try {
       const encodedName = encodeURIComponent(characterName.toLowerCase());
       return await this.makeAPICall(`/profile/wow/character/${realm}/${encodedName}`);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        console.warn(`[BNET] Character not found: ${characterName}@${realm}`);
+        return null;
+      }
       console.error(`Failed to fetch character details for ${characterName}@${realm}:`, error);
       throw error;
     }
@@ -418,8 +422,12 @@ export class BattleNetAPIService {
   // Ruft Gilden-Roster ab
   async getGuildRoster(realm: string, guildName: string): Promise<any[]> {
     try {
-      // Blizzard API expects a slug: lowercase, spaces replaced by dashes
-      const slug = guildName.toLowerCase().replace(/\s+/g, '-');
+      // Blizzard API expects a slug: lowercase, spaces/dots replaced by dashes
+      const slug = guildName.toLowerCase()
+        .replace(/[\s\.]+/g, '-') // Handle spaces and dots
+        .replace(/-+/g, '-')      // Avoid double dashes
+        .replace(/^-|-$/g, '');   // Trim dashes from start/end
+
       const encodedName = encodeURIComponent(slug);
       const data = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}/roster`);
 

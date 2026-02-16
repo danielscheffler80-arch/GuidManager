@@ -138,15 +138,12 @@ export default function Chat() {
   };
 
   return (
-    <div style={{ padding: '20px', height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', color: '#D1D9E0' }}>
+    <div className="page-container" style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', color: '#D1D9E0' }}>
       <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ color: '#40ff40' }}>●</span> Gilden-Chat (Live)
           </h2>
-          <p style={{ color: '#888', fontSize: '0.9em', margin: '5px 0 0 0' }}>
-            Nachrichten werden live aus WoW via GuildManagerBridge übertragen.
-          </p>
         </div>
 
         {/* Guild Selector */}

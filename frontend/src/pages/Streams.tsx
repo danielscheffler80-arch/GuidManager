@@ -161,7 +161,7 @@ export default function Streams() {
   };
 
   return (
-    <section className="streams-page">
+    <section className="streams-page page-container">
       <header className="streams-header">
         <h1>Live Streams</h1>
         <div className="stream-controls">

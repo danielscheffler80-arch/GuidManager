@@ -271,25 +271,37 @@ export default function Raids() {
   // --- CALENDAR VIEW ---
   if (view === 'calendar') {
     return (
-      <div className="calendar-container">
-        <header className="calendar-header mb-8">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Raid-Kalender</h1>
-            <p className="text-gray-500">Plane deine Raids und verwalte die Anmeldungen.</p>
-          </div>
+      <div className="page-container">
+        <header className="calendar-header mb-4">
           <div className="flex gap-4 items-center">
-            <div className="flex gap-1 bg-[#121214] border border-gray-800 p-1 rounded-lg">
-              <button onClick={prevMonth} className="px-3 py-1 hover:bg-gray-800 rounded">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <div className="flex gap-1 bg-[#121214] p-1 rounded-lg">
+              <button onClick={prevMonth} className="px-2 py-1 hover:bg-gray-800 rounded transition-colors" title="Vorheriger Monat">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
-              <span className="px-4 py-1 font-bold text-sm min-w-[140px] text-center">
+              <span className="px-4 py-1 font-black text-sm min-w-[160px] text-center uppercase tracking-widest text-white/90 flex items-center justify-center">
                 {currentDate.toLocaleString('de-DE', { month: 'long', year: 'numeric' })}
               </span>
-              <button onClick={nextMonth} className="px-3 py-1 hover:bg-gray-800 rounded">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <button onClick={nextMonth} className="px-2 py-1 hover:bg-gray-800 rounded transition-colors" title="Nächster Monat">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
+
+            <select
+              value={selectedGuild?.id || ''}
+              onChange={(e) => {
+                const guild = guilds.find(g => g.id === Number(e.target.value));
+                if (guild) setSelectedGuild(guild);
+              }}
+              className="p-2.5 bg-[#121214] rounded-lg text-xs font-bold text-gray-300 focus:outline-none focus:border-[#A330C9] min-w-[180px] cursor-pointer"
+            >
+              <option value="" disabled>Gilde wählen...</option>
+              {guilds.map(g => (
+                <option key={g.id} value={g.id}>{g.name}</option>
+              ))}
+            </select>
           </div>
+          <div className="flex-1"></div>
+          {/* Platz für weitere Header-Elemente falls nötig */}
         </header>
 
         <div className="calendar-grid">
@@ -377,14 +389,14 @@ export default function Raids() {
   return (
     <div className="raid-detail-page bg-[#08080C] h-screen overflow-hidden text-[#E0E0E0] flex flex-col font-sans">
       {/* Super Compact Global Header */}
-      <div className="px-6 py-1.5 border-b border-white/[0.03] bg-black/60 backdrop-blur-2xl flex items-center justify-between z-30 shrink-0">
+      <div className="px-6 py-1.5 bg-black/60 backdrop-blur-2xl flex items-center justify-between z-30 shrink-0">
         <div className="flex gap-4 items-center">
           <button onClick={() => setView('calendar')} className="flex items-center gap-1.5 text-green-500/80 font-bold hover:text-green-400 text-[10px] uppercase tracking-tighter">
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" /></svg>
             Kalender
           </button>
           <div className="h-3 w-px bg-white/5"></div>
-          <h1 className="text-xs font-black text-white/90 uppercase italic tracking-tight">{selectedRaid.title}</h1>
+          <h1 className="text-xs font-black text-white/90 uppercase tracking-tight">{selectedRaid.title}</h1>
           <span className="text-[9px] text-gray-600 font-bold tabular-nums">
             {new Date(selectedRaid.startTime).toLocaleDateString('de-DE', { month: '2-digit', day: '2-digit' })}
           </span>
@@ -395,7 +407,7 @@ export default function Raids() {
             <span className="text-[8px] font-black text-gray-600 uppercase">Confirmed</span>
             <span className="text-[10px] font-black text-[#A330C9]">{selectedRaid.attendances.filter((a: any) => a.isConfirmed).length}/{selectedRaid.maxPlayers}</span>
           </div>
-          <div className="text-[9px] font-black bg-[#A330C9]/10 text-[#A330C9] px-2 py-0.5 rounded border border-[#A330C9]/20 uppercase">
+          <div className="text-[9px] font-black bg-[#A330C9]/10 text-[#A330C9] px-2 py-0.5 rounded uppercase">
             {selectedRaid.difficulty}
           </div>
         </div>
@@ -406,15 +418,15 @@ export default function Raids() {
         <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
 
           {/* Presence & Dashboard Bar */}
-          <div className="bg-[#12121A] border border-white/[0.03] rounded-2xl p-2 flex items-center gap-4 shrink-0 shadow-lg">
-            <div className="flex gap-1 p-1 bg-black/20 rounded-xl border border-white/5">
+          <div className="bg-[#12121A] rounded-2xl p-2 flex items-center gap-4 shrink-0 shadow-lg">
+            <div className="flex gap-1 p-1 bg-black/20 rounded-xl">
               {['attending', 'late', 'tentative', 'not_attending'].map((status) => (
                 <button
                   key={status}
                   onClick={() => handleSignup(selectedRaid.id, myActiveChar?.id, status)}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${mySignup?.status === status
-                      ? 'bg-[#A330C9] text-white shadow-lg'
-                      : 'text-gray-600 hover:text-gray-300'
+                    ? 'bg-[#A330C9] text-white shadow-lg'
+                    : 'text-gray-600 hover:text-gray-300'
                     }`}
                 >
                   <span className="text-xs">
@@ -431,10 +443,10 @@ export default function Raids() {
               placeholder="Anmerkung..."
               defaultValue={mySignup?.comment || ''}
               onBlur={(e) => handleSignup(selectedRaid.id, myActiveChar?.id, mySignup?.status || 'attending', e.target.value)}
-              className="flex-1 bg-white/[0.02] border border-white/5 rounded-xl px-4 py-1.5 text-xs font-medium placeholder:text-gray-800 outline-none focus:border-[#A330C9]/30 transition-all"
+              className="flex-1 bg-white/[0.02] rounded-xl px-4 py-1.5 text-xs font-medium placeholder:text-gray-800 outline-none focus:border-[#A330C9]/30 transition-all"
             />
             <div className="h-6 w-px bg-white/5"></div>
-            <div className="flex gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+            <div className="flex gap-1 bg-black/20 p-1 rounded-xl">
               <button
                 onClick={() => setActiveTab('roster')}
                 className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'roster' ? 'bg-[#2D2D38] text-white shadow' : 'text-gray-600 hover:text-gray-400'}`}
@@ -455,11 +467,11 @@ export default function Raids() {
             {['Tank', 'Melee', 'Ranged', 'Heal'].map(role => {
               const players = activeTab === 'roster' ? groupedRoster[role].selected : groupedRoster[role].queued;
               return (
-                <div key={role} className="bg-[#12121A]/40 border border-white/[0.03] rounded-2xl flex flex-col overflow-hidden group">
+                <div key={role} className="bg-[#12121A]/40 rounded-2xl flex flex-col overflow-hidden group">
                   <header className="px-4 py-3 flex items-center justify-between border-b border-white/[0.02]">
                     <div className="flex items-center gap-2">
                       <RoleIcon role={role === 'Heal' ? 'Healer' : role} size={14} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 italic">{role}</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{role}</span>
                     </div>
                     <span className="text-[10px] font-black text-[#A330C9] tabular-nums">{players.length}</span>
                   </header>
@@ -480,8 +492,8 @@ export default function Raids() {
         </div>
 
         {/* Micro-Sidebar (Far Right) */}
-        <div className="w-[180px] border-l border-white/[0.03] bg-black/20 flex flex-col overflow-hidden shrink-0">
-          <header className="p-4 border-b border-white/[0.03]">
+        <div className="w-[180px] bg-black/20 flex flex-col overflow-hidden shrink-0">
+          <header className="p-4">
             <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1">Checklist</h3>
             <div className="h-0.5 w-6 bg-[#A330C9]"></div>
           </header>
@@ -494,12 +506,12 @@ export default function Raids() {
                   <div key={c} className="relative group flex justify-center">
                     <img
                       src={getClassIcon(c)}
-                      className={`w-6 h-6 rounded border transition-all ${composition?.classCount[c] > 0 ? 'border-[#A330C9]/50 brightness-110' : 'border-white/5 brightness-[0.25] grayscale'}`}
+                      className={`w-6 h-6 rounded transition-all ${(composition?.classCount?.[c] ?? 0) > 0 ? 'brightness-110 shadow-[0_0_8px_rgba(163,48,201,0.3)]' : 'brightness-[0.25] grayscale'}`}
                       alt={c}
                     />
-                    {composition?.classCount[c] > 0 && (
+                    {(composition?.classCount?.[c] ?? 0) > 0 && (
                       <span className="absolute -top-1 -right-1 bg-[#A330C9] text-[8px] font-black text-white w-3 h-3 rounded-full flex items-center justify-center border border-black">
-                        {composition.classCount[c]}
+                        {composition?.classCount?.[c] || 0}
                       </span>
                     )}
                     <div className="absolute bottom-full mb-1 p-1 bg-black text-[8px] rounded opacity-0 group-hover:opacity-100 pointer-events-none z-50">{c}</div>
@@ -538,11 +550,11 @@ export default function Raids() {
     return (
       <div
         onClick={() => isLeader && handleConfirm(selectedRaid.id, attendance.characterId, !confirmed)}
-        className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/[0.03] transition-colors group cursor-pointer border border-transparent hover:border-white/5"
+        className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/[0.03] transition-colors group cursor-pointer"
       >
         <div className="flex items-center gap-2 min-w-0">
           <div className="relative flex-shrink-0">
-            <img src={getClassIcon(attendance.character.class)} className={`w-5 h-5 rounded border border-black/20 ${confirmed ? 'brightness-110 shadow-sm' : 'brightness-25 grayscale'}`} alt="" />
+            <img src={getClassIcon(attendance.character.class)} className={`w-5 h-5 rounded ${confirmed ? 'brightness-110 shadow-sm' : 'brightness-25 grayscale'}`} alt="" />
             <div className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-black ${statusColor}`}></div>
           </div>
           <span className="text-[10px] font-bold truncate tracking-tight" style={{ color: confirmed ? (classMap[attendance.character.class] || '#fff') : '#444' }}>
@@ -560,9 +572,9 @@ export default function Raids() {
   function CreateRaidModal() {
     return (
       <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4">
-        <div className="bg-[#12121A] border border-white/5 w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-          <header className="p-8 border-b border-white/5">
-            <h2 className="text-sm font-black italic tracking-widest uppercase text-white">Raid-Ereignis planen</h2>
+        <div className="bg-[#12121A] w-full max-w-sm rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
+          <header className="p-8">
+            <h2 className="text-sm font-black tracking-widest uppercase text-white">Raid-Ereignis planen</h2>
           </header>
           <div className="p-8 space-y-4">
             <input
@@ -570,13 +582,13 @@ export default function Raids() {
               value={newRaid.title}
               onChange={e => setNewRaid({ ...newRaid, title: e.target.value })}
               placeholder="Name des Raids..."
-              className="w-full bg-white/[0.02] border border-white/10 rounded-2xl p-4 text-xs font-medium focus:ring-1 focus:ring-[#A330C9]/40 outline-none"
+              className="w-full bg-white/[0.02] rounded-2xl p-4 text-xs font-medium focus:ring-1 focus:ring-[#A330C9]/40 outline-none"
             />
             <div className="grid grid-cols-2 gap-4">
               <select
                 value={newRaid.difficulty}
                 onChange={e => setNewRaid({ ...newRaid, difficulty: e.target.value })}
-                className="w-full bg-white/[0.02] border border-white/10 rounded-xl p-4 text-xs outline-none"
+                className="w-full bg-white/[0.02] rounded-xl p-4 text-xs outline-none"
               >
                 <option value="Normal">Normal</option>
                 <option value="Heroisch">Heroic</option>
@@ -593,7 +605,7 @@ export default function Raids() {
               type="datetime-local"
               value={newRaid.startTime}
               onChange={e => setNewRaid({ ...newRaid, startTime: e.target.value })}
-              className="w-full bg-white/[0.02] border border-white/10 rounded-xl p-4 text-xs outline-none"
+              className="w-full bg-white/[0.02] rounded-xl p-4 text-xs outline-none"
             />
             <button
               onClick={handleCreateRaid}

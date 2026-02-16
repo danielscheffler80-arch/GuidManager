@@ -73,7 +73,7 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
 
   console.log(`[RosterAPI] Guild: ${guild.name}, TotalChars: ${totalInDb}, VisibleRanks: ${JSON.stringify(visibleRanks)}, IncludeFiltered: ${includeFiltered}`);
 
-  const filteredRoster = guild.characters.filter(char =>
+  const filteredRoster = guild.characters.filter((char: any) =>
     char.rank !== null && visibleRanks.includes(char.rank)
   );
 
@@ -210,6 +210,59 @@ router.post('/guilds/:guildId/admin-ranks', authMiddleware, checkPermission('edi
 
 // POST /api/guilds/:guildId/visible-ranks - Update Sichtbare Ränge
 router.post('/guilds/:guildId/visible-ranks', authMiddleware, checkPermission('edit_roster'), GuildController.updateVisibleRanks);
+
+// POST /api/guilds/:guildId/members/:characterId/promote
+router.post('/guilds/:guildId/members/:characterId/promote', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId, characterId } = req.params;
+  try {
+    const character = await prisma.character.findUnique({ where: { id: Number(characterId) } });
+    if (!character) return res.status(404).json({ error: 'Character not found' });
+
+    // In a real scenario with Write API, we would call Blizzard here.
+    // Since it's read-only, we provide the command for the user and maybe update local "expected" rank if desired.
+    res.json({
+      success: true,
+      command: `/gpromote ${character.name}`,
+      message: `Beförderung für ${character.name} vorbereitet. Bitte nutze den Befehl im Spiel.`
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to process promotion' });
+  }
+});
+
+// POST /api/guilds/:guildId/members/:characterId/demote
+router.post('/guilds/:guildId/members/:characterId/demote', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId, characterId } = req.params;
+  try {
+    const character = await prisma.character.findUnique({ where: { id: Number(characterId) } });
+    if (!character) return res.status(404).json({ error: 'Character not found' });
+
+    res.json({
+      success: true,
+      command: `/gdemote ${character.name}`,
+      message: `Degradierung für ${character.name} vorbereitet. Bitte nutze den Befehl im Spiel.`
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to process demotion' });
+  }
+});
+
+// POST /api/guilds/:guildId/members/:characterId/kick
+router.post('/guilds/:guildId/members/:characterId/kick', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId, characterId } = req.params;
+  try {
+    const character = await prisma.character.findUnique({ where: { id: Number(characterId) } });
+    if (!character) return res.status(404).json({ error: 'Character not found' });
+
+    res.json({
+      success: true,
+      command: `/gkick ${character.name}`,
+      message: `Ausschluss für ${character.name} vorbereitet. Bitte nutze den Befehl im Spiel.`
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to process kick' });
+  }
+});
 
 import { getGuildChatHistory } from '../controllers/chatController';
 // GET /api/guilds/:guildId/chat - Lade Chat-Historie

@@ -52,9 +52,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     if (user) {
       const isSuperuser = String(user.battlenetId) === '100379014';
-      const hasLeaderRank = user.guildMemberships?.some(m => m.rank === 0);
-      setIsAdmin(!!(isSuperuser || hasLeaderRank));
-      console.log('[AUTH] Admin Check:', { isSuperuser, hasLeaderRank, bnetId: user.battlenetId });
+
+      const hasAdminPrivileges = user.guildMemberships?.some((m: any) => {
+        // Rank 0 is always Admin (GM)
+        if (m.rank === 0) return true;
+
+        // Check if user's rank is in designated adminRanks for this guild
+        const guildAdminRanks = m.guild?.adminRanks || [];
+        return guildAdminRanks.includes(m.rank);
+      });
+
+      setIsAdmin(!!(isSuperuser || hasAdminPrivileges));
+      console.log('[AUTH] Admin Check:', { isSuperuser, hasAdminPrivileges, bnetId: user.battlenetId });
     } else {
       setIsAdmin(false);
     }

@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.6.0",
+  "version": "0.6.3",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -52,9 +52,9 @@
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Guild Manager Standalone"
@@ -62,7 +62,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "http://192.168.178.65:3334/updates"
+        "url": "http://192.168.178.65:3000/updates"
       }
     ]
   },

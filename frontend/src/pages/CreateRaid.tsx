@@ -75,7 +75,7 @@ export default function CreateRaid() {
     return (
         <div className="max-w-2xl mx-auto py-10 px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <header className="mb-10">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent italic tracking-tight">Raid planen</h1>
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent tracking-tight">Raid planen</h1>
                 <p className="text-gray-500 mt-1 font-medium">Erstelle einen neuen Raid-Termin für deine Gilde.</p>
             </header>
 
@@ -190,7 +190,7 @@ export default function CreateRaid() {
                                     </span>
                                 </label>
                             );
-                        }) : <p className="text-xs text-gray-600 italic p-2">Keine Ränge geladen</p>}
+                        }) : <p className="text-xs text-gray-600 p-2">Keine Ränge geladen</p>}
                     </div>
                 </div>
 

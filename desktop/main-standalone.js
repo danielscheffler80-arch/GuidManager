@@ -8,7 +8,7 @@ const isPackaged = app.isPackaged;
 const projectRoot = path.join(__dirname, '..');
 
 // Config laden - Prüfe Ressourcen-Ordner (Produktion) oder Projekt-Root (Dev)
-let config = { backendUrl: 'http://localhost:3334', mode: 'client' };
+let config = { backendUrl: 'http://localhost:3000', mode: 'client' };
 try {
   const configPath = isPackaged
     ? path.join(process.resourcesPath, 'app-config.json')
@@ -16,12 +16,45 @@ try {
 
   if (fs.existsSync(configPath)) {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    // Fix legacy port if present
+    if (config.backendUrl && config.backendUrl.includes(':3334')) {
+      config.backendUrl = config.backendUrl.replace(':3334', ':3000');
+    }
     console.log(`Config geladen von ${configPath}:`, config);
   } else {
     console.log(`Keine Config gefunden unter ${configPath}, verwende Default.`);
   }
 } catch (err) {
   console.error('Fehler beim Laden der config:', err);
+}
+
+// Update Endpoint Discovery
+const UPDATER_URLS = [
+  'http://localhost:3000/updates',
+  'http://192.168.178.65:3000/updates',
+  'http://93.207.23.221:3000/updates',
+  'https://guild-manager-backend.onrender.com/updates'
+];
+
+async function findUpdateEndpoint() {
+  console.log('[UPDATE] Searching for reachable update server...');
+
+  for (const url of UPDATER_URLS) {
+    try {
+      console.log(`[UPDATE] Checking: ${url}`);
+      const res = await fetch(`${url}/latest.yml`, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(3000)
+      });
+      if (res.ok) {
+        console.log(`[UPDATE] Found reachable endpoint: ${url}`);
+        return url;
+      }
+    } catch (e) {
+      console.log(`[UPDATE] ${url} unreachable or timed out`);
+    }
+  }
+  return null;
 }
 
 // IPC Handler
@@ -45,13 +78,24 @@ ipcMain.handle('get-sources', async (event, types) => {
     thumbnail: source.thumbnail.toDataURL(),
   }));
 });
+
 ipcMain.handle('check-for-updates', async () => {
   if (app.isPackaged) {
-    // Wir returnen nicht das Resultat, da es nicht serialisierbar ist (Error: Object could not be cloned)
-    // Der Status kommt eh über Events
     try {
-      await autoUpdater.checkForUpdatesAndNotify();
-      return { success: true };
+      const endpoint = await findUpdateEndpoint();
+      if (endpoint) {
+        autoUpdater.setFeedURL({
+          provider: 'generic',
+          url: endpoint
+        });
+        console.log(`[UPDATE] Feed URL set to: ${endpoint}`);
+        await autoUpdater.checkForUpdatesAndNotify();
+        return { success: true };
+      } else {
+        console.warn('[UPDATE] No reachable update endpoint found.');
+        if (mainWindow) mainWindow.webContents.send('update-message', 'Kein Update-Server erreichbar.');
+        return { success: false, error: 'No reachable server' };
+      }
     } catch (e) {
       console.error('[UPDATE] Check failed:', e);
       return { success: false, error: e.message };
@@ -79,7 +123,7 @@ autoUpdater.on('update-downloaded', (info) => {
 
 autoUpdater.on('error', (err) => {
   console.error('[UPDATE] Fehler:', err);
-  if (mainWindow) mainWindow.webContents.send('update-message', 'Fehler beim Update-Check.');
+  if (mainWindow) mainWindow.webContents.send('update-message', `Fehler beim Update-Check: ${err.message}`);
 });
 
 ipcMain.handle('restart-and-install', () => {
@@ -132,8 +176,8 @@ function createWindow() {
   });
 
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: 1440,
+    height: 1000,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },

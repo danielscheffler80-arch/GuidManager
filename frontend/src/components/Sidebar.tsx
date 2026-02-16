@@ -198,7 +198,6 @@ export default function Sidebar() {
             <div style={{
               fontSize: '0.65em',
               color: updateStatus.includes('bereit') ? '#00ff00' : '#888',
-              fontStyle: 'italic',
               background: 'rgba(0,0,0,0.2)',
               padding: '4px 6px',
               borderRadius: '4px'

@@ -54,7 +54,7 @@ export default function MythicPlus() {
   const altKeys = keys.filter(k => !k.character?.isMain);
 
   return (
-    <section>
+    <section className="page-container">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Mythic+ Keys</h1>
         <div className="flex gap-4">
@@ -90,7 +90,7 @@ export default function MythicPlus() {
                 <p className="text-2xl font-bold mt-2">+{k.level}</p>
               </div>
             ))}
-            {mainKeys.length === 0 && <p className="text-gray-500 italic">Keine Keys für Main-Charaktere gefunden.</p>}
+            {mainKeys.length === 0 && <p className="text-gray-500">Keine Keys für Main-Charaktere gefunden.</p>}
           </div>
         </div>
 
@@ -104,7 +104,7 @@ export default function MythicPlus() {
                 <p className="text-xl font-bold mt-1">+{k.level}</p>
               </div>
             ))}
-            {altKeys.length === 0 && <p className="text-gray-500 italic">Keine Keys für Alts gefunden.</p>}
+            {altKeys.length === 0 && <p className="text-gray-500">Keine Keys für Alts gefunden.</p>}
           </div>
         </div>
       </div>

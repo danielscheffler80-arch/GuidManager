@@ -262,7 +262,7 @@ export default function StreamSettings() {
                     {isStreaming ? '🚀 Einstellungen jetzt für Zuschauer übernehmen' : '💾 Einstellungen speichern'}
                 </button>
 
-                <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '15px', fontStyle: 'italic' }}>
+                <p style={{ fontSize: '0.8rem', color: '#666', marginTop: '15px' }}>
                     Hinweis: Deine Änderungen werden in Echtzeit auf das Vorschaubild angewendet. Zuschauer sehen die Änderung ebenfalls live.
                 </p>
             </aside>

@@ -1,6 +1,6 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { ThemeProvider } from '../contexts/ThemeContext';
 import { formatRealm, capitalizeName } from '../utils/formatUtils';
 
 interface Character {
@@ -35,7 +35,7 @@ interface HubData {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, syncCharacters } = useAuth();
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [hubData, setHubData] = useState<HubData | null>(null);
@@ -46,7 +46,7 @@ export default function Dashboard() {
     if (!token) return;
 
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
+      const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
       const response = await fetch(`${backendUrl}/users/profile`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -56,7 +56,6 @@ export default function Dashboard() {
         const allChars = data.user?.characters || data.characters || [];
         setCharacters(allChars);
 
-        // Find main character to decide whether to show hub or selection
         const main = allChars.find((c: Character) => c.isMain);
         if (main) {
           fetchHubData();
@@ -75,7 +74,7 @@ export default function Dashboard() {
     if (!token) return;
 
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
+      const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
       const response = await fetch(`${backendUrl}/guild/dashboard`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -98,7 +97,7 @@ export default function Dashboard() {
     if (!token) return;
 
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
+      const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
       const response = await fetch(`${backendUrl}/users/characters/main`, {
         method: 'POST',
         headers: {
@@ -125,18 +124,13 @@ export default function Dashboard() {
     }
   };
 
-  const { syncCharacters } = useAuth();
-
   const handleManualSync = async () => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
     setSyncStatus('syncing');
     try {
-      // Nutze den neuen basic sync für Geschwindigkeit
       await syncCharacters(false);
-
-      // Danach Profile neu laden um Charaktere zu sehen
       await fetchCharacters();
       setSyncStatus('success');
     } catch (err) {
@@ -159,60 +153,69 @@ export default function Dashboard() {
   };
 
   if (isLoading) {
-    return <div style={{ padding: '20px', color: '#D1D9E0' }}>Lade Dashboard...</div>;
+    return (
+      <div className="flex items-center justify-center h-full text-foreground">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin"></div>
+          <p>Lade Dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Falls kein Main Charakter gesetzt ist -> Selection View
+  // View: No Main Character / Character Selection
   if (!hubData?.hasMain) {
     return (
-      <section style={{ padding: '20px', color: '#D1D9E0', maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div className="page-container">
+        <header className="flex justify-between items-center mb-8">
           <div>
-            <h1 style={{ margin: 0 }}>Willkommen bei Xava Guild Manager</h1>
-            <p style={{ margin: '5px 0 0 0' }}>Bitte wähle deinen <strong>Main-Charakter</strong> aus, um fortzufahren.</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Willkommen bei Xava Guild Manager</h1>
+            <p className="text-gray-400">Bitte wähle deinen <strong>Main-Charakter</strong> aus, um fortzufahren.</p>
           </div>
           <button
-            onClick={() => {
-              setSyncStatus('syncing');
-              const { syncCharacters } = useAuth(); // Actually we need to make sure we can call this
-              // Instead of calling from here, we'll just trigger one local fetch
-              handleManualSync();
-            }}
+            onClick={handleManualSync}
             disabled={syncStatus === 'syncing'}
-            style={{
-              background: '#A330C9', color: 'white', border: 'none', padding: '10px 20px',
-              borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
-              opacity: syncStatus === 'syncing' ? 0.5 : 1
-            }}
+            className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${syncStatus === 'syncing'
+              ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+              : 'bg-accent text-white hover:bg-[#b340d9] active:scale-95'
+              }`}
           >
-            {syncStatus === 'syncing' ? 'Synchronisiere...' : '🔄 Charaktere neu laden'}
+            {syncStatus === 'syncing' ? (
+              <>
+                <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin"></div>
+                <span>Synchronisiere...</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Charaktere neu laden</span>
+              </>
+            )}
           </button>
-        </div>
+        </header>
 
-        <div style={{ background: '#1D1E1F', padding: '25px', borderRadius: '12px', border: '1px solid #333' }}>
+        <div className="bg-card rounded-xl p-6">
           {characters.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '40px' }}>
-              <div style={{ fontSize: '3em', marginBottom: '20px' }}>🔍</div>
-              <h3>Keine Charaktere gefunden</h3>
-              <p style={{ color: '#888' }}>Wir konnten keine Charaktere für deinen Account finden. <br />Klicke oben auf den Button "Charaktere neu laden".</p>
+            <div className="text-center py-16">
+              <div className="text-5xl mb-4">🔍</div>
+              <h3 className="text-xl font-bold text-white mb-2">Keine Charaktere gefunden</h3>
+              <p className="text-gray-500">Wir konnten keine Charaktere für deinen Account finden. <br />Klicke oben auf den Button "Charaktere neu laden".</p>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '15px' }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {characters.map(char => (
                 <div
                   key={char.id}
                   onClick={() => setMainCharacter(char.id)}
-                  style={{
-                    background: '#252525', padding: '15px', borderRadius: '8px', border: '1px solid #333',
-                    cursor: 'pointer', transition: 'transform 0.2s', position: 'relative', overflow: 'hidden'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                  className="bg-background p-4 rounded-lg cursor-pointer transition-all hover:scale-[1.02] hover:bg-white/5 group"
                 >
-                  <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: getClassColor(char.classId) }}>
+                  <div
+                    className="font-bold text-lg mb-1 group-hover:drop-shadow-[0_0_8px_rgba(163,48,201,0.5)]"
+                    style={{ color: getClassColor(char.classId) }}
+                  >
                     {capitalizeName(char.name)}
                   </div>
-                  <div style={{ color: '#888', fontSize: '0.9em' }}>
+                  <div className="text-sm text-gray-500">
                     Lvl {char.level} {char.class} • {formatRealm(char.realm)}
                   </div>
                 </div>
@@ -220,115 +223,180 @@ export default function Dashboard() {
             </div>
           )}
         </div>
-      </section>
+      </div>
     );
   }
 
-  // Guild Hub Layout
+  // View: Guild Hub
   return (
-    <section style={{ padding: '20px', color: '#D1D9E0', maxWidth: '1400px', margin: '0 auto' }}>
-      <header style={{ marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <div>
-          <h1 style={{ margin: 0, color: '#A330C9' }}>{hubData.guild?.name || 'Gilden-Zentrale'}</h1>
-          <p style={{ margin: 0, color: '#888' }}>
-            {hubData.guild?.realm ? `${formatRealm(hubData.guild.realm)} • ${hubData.guild.faction}` : 'Noch keine Gilde synchronisiert'}
-          </p>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: getClassColor(hubData.mainCharacter?.classId || 0) }}>
-            {capitalizeName(hubData.mainCharacter?.name)}
-          </div>
-          <div style={{ fontSize: '0.8em', color: '#666' }}>Main Charakter</div>
-        </div>
-      </header>
+    <div className="page-container space-y-8">
+      <style>{`
+        .dash-card {
+          background: #1D1E1F;
+          border: none;
+          border-radius: 20px;
+          padding: 20px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          overflow: hidden;
+        }
+        .dash-card:hover {
+          background: #222324;
+          transform: translateY(-2px);
+          box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        }
+        .dash-card::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(163, 48, 201, 0.3), transparent);
+        }
+        .card-header {
+          font-family: 'Inter', sans-serif;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: -0.5px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 20px;
+          color: #fff;
+          font-size: 1rem;
+        }
+        .stat-badge {
+          background: rgba(163, 48, 201, 0.1);
+          border: 1px solid rgba(163, 48, 201, 0.2);
+          color: #A330C9;
+          padding: 4px 10px;
+          border-radius: 8px;
+          font-size: 10px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+        }
+      `}</style>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+      <div
+        className="grid grid-cols-2"
+        style={{
+          columnGap: '20px',
+          rowGap: '60px',
+          gridTemplateRows: '40vh 40vh',
+          height: 'calc(80vh + 60px)'
+        }}
+      >
         {/* Announcements */}
-        <div style={{ background: '#1D1E1F', padding: '20px', borderRadius: '12px', border: '1px solid #333', minHeight: '200px' }}>
-          <h3 style={{ marginTop: 0, color: '#A330C9', borderBottom: '1px solid #333', paddingBottom: '10px' }}>📢 Announcements</h3>
-          {hubData.announcements && hubData.announcements.length > 0 ? hubData.announcements.map(ann => (
-            <div key={ann.id} style={{ marginBottom: '15px', padding: '10px', background: '#252525', borderRadius: '6px' }}>
-              <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>{ann.title}</div>
-              <div style={{ fontSize: '0.9em', color: '#aaa' }}>{ann.content}</div>
-            </div>
-          )) : (
-            <div style={{ color: '#555', textAlign: 'center', paddingTop: '40px' }}>Keine neuen Ankündigungen</div>
-          )}
+        <div className="dash-card h-full flex flex-col">
+          <div className="card-header">
+            <span className="text-lg">📢</span> Announcements
+          </div>
+          <div className="flex-1 space-y-3">
+            {hubData.announcements && hubData.announcements.length > 0 ? hubData.announcements.map(ann => (
+              <div key={ann.id} className="bg-white/5 p-4 rounded-xl hover:bg-white/10 transition-colors">
+                <div className="font-black text-white text-xs uppercase tracking-wide mb-1 flex items-center justify-between">
+                  {ann.title}
+                  <span className="text-[8px] text-gray-600">HEUTE</span>
+                </div>
+                <div className="text-xs text-gray-400 font-medium leading-relaxed">{ann.content}</div>
+              </div>
+            )) : (
+              <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-2 py-8">
+                <span className="text-2xl opacity-20">📭</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Keine Mitteilungen</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Raids */}
-        <div className="card-premium p-6 border border-gray-800 rounded-2xl">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-bold text-[#A330C9] flex items-center gap-2">
-              <span className="text-xl">⚔️</span> Kommende Raids
-            </h3>
-            <span className="text-xs text-gray-500 font-medium px-2 py-0.5 rounded-full bg-white/5 border border-white/5">
-              {hubData.raids?.length || 0} geplant
-            </span>
+        <div className="dash-card h-full flex flex-col">
+          <div className="flex justify-between items-center mb-5">
+            <div className="card-header mb-0">
+              <span className="text-lg">⚔️</span> Next Raids
+            </div>
+            <div className="stat-badge">
+              {hubData.raids?.length || 0} Aktiv
+            </div>
           </div>
 
-          <div className="space-y-4">
+          <div className="flex-1 space-y-3">
             {hubData.raids && hubData.raids.length > 0 ? hubData.raids.slice(0, 3).map(raid => (
-              <div key={raid.id} className="p-4 bg-white/5 border border-white/5 rounded-xl hover:border-white/10 transition-all flex justify-between items-center">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-white">{raid.title}</span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-[#A330C9] uppercase">{raid.difficulty}</span>
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(raid.startTime).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} • {new Date(raid.startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+              <div key={raid.id} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all cursor-pointer group">
+                <div className="flex justify-between items-start mb-2">
+                  <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-accent transition-colors">{raid.title}</span>
+                  <span className="text-[8px] font-black text-accent uppercase bg-[#A330C9]/10 px-2 py-0.5 rounded">{raid.difficulty}</span>
                 </div>
-                <div className="text-right">
-                  <div className="text-xs font-bold text-gray-300">
-                    {raid.attendances?.length || 0} <span className="text-[10px] text-gray-600">Spieler</span>
+                <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[#A330C9]">📅</span>
+                    {new Date(raid.startTime).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} • {new Date(raid.startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                   </div>
-                  <div className="text-[10px] text-gray-500 mt-1">
-                    {Math.max(0, Math.floor((new Date(raid.startTime).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))}d verbleibend
+                  <div className="flex items-center gap-1">
+                    <span className="text-gray-700">👤</span>
+                    {raid.attendances?.length || 0} / {raid.maxPlayers}
                   </div>
                 </div>
               </div>
             )) : (
-              <div className="text-center py-10 opacity-30">
-                <p className="text-sm">Keine geplanten Raids</p>
+              <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-2 py-8">
+                <span className="text-2xl opacity-20">🛡️</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest">Keine Raids geplant</span>
               </div>
             )}
           </div>
 
           <button
             onClick={() => window.location.href = '#/raids'}
-            className="w-full mt-6 py-2.5 bg-white/5 border border-white/5 rounded-xl text-xs font-bold text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+            className="w-full mt-5 py-3 bg-white/5 rounded-xl text-[10px] font-black text-gray-500 hover:text-white hover:bg-[#A330C9]/10 transition-all uppercase tracking-widest"
           >
-            Alle Raids anzeigen
+            Open Calendar
           </button>
         </div>
 
         {/* Mythic+ */}
-        <div style={{ background: '#1D1E1F', padding: '20px', borderRadius: '12px', border: '1px solid #333', minHeight: '200px' }}>
-          <h3 style={{ marginTop: 0, color: '#A330C9', borderBottom: '1px solid #333', paddingBottom: '10px' }}>💎 Mythic+</h3>
-          {hubData.mythicPlus ? (
-            <div style={{ textAlign: 'center', padding: '20px' }}>
-              <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#0070DE' }}>+{hubData.mythicPlus.level}</div>
-              <div style={{ color: '#aaa' }}>{hubData.mythicPlus.dungeon}</div>
-              <div style={{ fontSize: '0.8em', color: '#666', marginTop: '10px' }}>Wöchentliche Bestleistung</div>
-            </div>
-          ) : (
-            <div style={{ color: '#555', textAlign: 'center', paddingTop: '40px' }}>Noch keine Keys gelaufen</div>
-          )}
+        <div className="dash-card h-full flex flex-col">
+          <div className="card-header">
+            <span className="text-lg">💎</span> Mythic+ Progress
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center text-center py-2">
+            {hubData.mythicPlus ? (
+              <>
+                <div className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-br from-[#0070DE] to-[#69CCF0] mb-2 drop-shadow-[0_0_20px_rgba(0,112,222,0.3)]">
+                  +{hubData.mythicPlus.level}
+                </div>
+                <div className="text-white font-black text-sm uppercase tracking-tight">{hubData.mythicPlus.dungeon}</div>
+                <div className="stat-badge mt-4">Current Week</div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Kein Key registriert</span>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Streams */}
-        <div style={{ background: '#1D1E1F', padding: '20px', borderRadius: '12px', border: '1px solid #333', minHeight: '200px' }}>
-          <h3 style={{ marginTop: 0, color: '#A330C9', borderBottom: '1px solid #333', paddingBottom: '10px' }}>📺 Live Streams</h3>
-          {hubData.streams && hubData.streams.length > 0 ? hubData.streams.map(stream => (
-            <div key={stream.id} style={{ marginBottom: '10px', background: '#252525', padding: '10px', borderRadius: '6px' }}>
-              {/* Stream Item Rendering */}
-            </div>
-          )) : (
-            <div style={{ color: '#555', textAlign: 'center', paddingTop: '40px' }}>Keine aktiven Streams</div>
-          )}
+        {/* Guild Streams */}
+        <div className="dash-card h-full flex flex-col">
+          <div className="card-header">
+            <span className="text-lg">📺</span> Guild Streams
+          </div>
+          <div className="flex-1 space-y-2">
+            {hubData.streams && hubData.streams.length > 0 ? hubData.streams.map(stream => (
+              <div key={stream.id} className="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                  <span className="text-xs font-bold text-white uppercase tracking-tight truncate max-w-[120px]">{stream.title}</span>
+                </div>
+                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Live</span>
+              </div>
+            )) : (
+              <div className="h-full flex flex-col items-center justify-center py-4">
+                <span className="text-[10px] font-bold text-gray-600 uppercase tracking-widest opacity-30">All Content Creators Offline</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </section >
+    </div>
   );
 }

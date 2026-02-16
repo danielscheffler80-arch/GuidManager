@@ -286,18 +286,99 @@ export default function Roster() {
     }
   }, [selectedRosterView]);
 
+  const [actionInProgress, setActionInProgress] = useState<number | null>(null);
+
+  const handleManagementAction = async (action: 'promote' | 'demote' | 'kick', member: Member) => {
+    if (!selectedGuild) return;
+    setActionInProgress(member.id);
+    try {
+      let result;
+      if (action === 'promote') result = await GuildService.promoteMember(selectedGuild.id, member.id);
+      else if (action === 'demote') result = await GuildService.demoteMember(selectedGuild.id, member.id);
+      else result = await GuildService.kickMember(selectedGuild.id, member.id);
+
+      if (result.success && result.command) {
+        // Copy to clipboard
+        await navigator.clipboard.writeText(result.command);
+        alert(`${result.message}\n\nDer Befehl "${result.command}" wurde in deine Zwischenablage kopiert.`);
+      } else {
+        alert('Aktion fehlgeschlagen: ' + (result.error || 'Unbekannter Fehler'));
+      }
+    } catch (err) {
+      alert('Fehler bei der Kommunikation mit dem Server.');
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const isUserAdmin = () => {
+    if (!user || !selectedGuild) return false;
+    if (String(user.battlenetId) === '100379014') return true;
+    const membership = user.guildMemberships?.find((m: any) => m.guildId === selectedGuild.id);
+    if (!membership) return false;
+    return membership.rank === 0 || adminRanks.includes(membership.rank);
+  };
+
+  const getRankName = (rankId: number | null) => {
+    if (rankId === null || rankId === undefined) return 'Kein Rang';
+    const found = availableRanks.find(r => r.id === rankId);
+    return found ? found.name : `Rang ${rankId}`;
+  };
+
   return (
-    <div className="px-8 py-4 max-w-7xl mx-auto">
-      <header className="flex justify-between items-end mb-8">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent">Gilden-Roster</h1>
-          <p className="text-gray-500 mt-1">Verwalte deine Raid-Aufstellung und verfolge den Fortschritt deiner Mitglieder.</p>
-        </div>
-        <div className="flex gap-4 items-center">
+    <div className="page-container">
+      <style>{`
+        .roster-row {
+          background: #1D1E1F;
+          padding: 10px 16px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
+        }
+        .roster-row:hover {
+          background: #232425;
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+        .roster-col-label {
+          font-size: 0.65rem;
+          color: #555;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 4px;
+          font-weight: 800;
+        }
+        .action-btn {
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,0.03);
+          color: #888;
+          transition: all 0.2s;
+        }
+        .action-btn:hover:not(:disabled) {
+          background: rgba(255,255,255,0.1);
+          color: #fff;
+          border-color: rgba(255,255,255,0.2);
+        }
+        .action-btn.kick:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.1);
+          color: #ef4444;
+          border-color: rgba(239, 68, 68, 0.2);
+        }
+      `}</style>
+
+      <header className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex gap-4 items-center bg-black/20 p-2 rounded-xl w-full md:w-auto">
           <select
             value={selectedRosterView}
             onChange={(e) => setSelectedRosterView(e.target.value as 'main' | 'all')}
-            className="p-2.5 bg-[#121214] border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-[#A330C9] min-w-[200px]"
+            className="p-2.5 bg-[#121214] rounded-lg text-xs font-bold text-gray-300 focus:outline-none focus:border-[#A330C9] min-w-[150px] cursor-pointer"
           >
             <option value="main">Main Roster</option>
             <option value="all">Alle Mitglieder</option>
@@ -306,20 +387,20 @@ export default function Roster() {
           <button
             onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
             disabled={isSyncing}
-            className={`p-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${isSyncing
+            className={`px-4 py-2.5 rounded-lg text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg ${isSyncing
               ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-              : 'bg-[#A330C9] text-white hover:bg-[#b340d9] active:scale-95'
+              : 'bg-[#A330C9] text-white hover:bg-[#b340d9] active:scale-95 shadow-[#A330C9]/20'
               }`}
           >
             {isSyncing ? (
               <>
                 <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-white"></div>
-                Syncing...
+                Sync...
               </>
             ) : (
               <>
-                <span className="text-base">🔄</span>
-                Synchronisieren
+                <span className="text-sm">🔄</span>
+                Refresh
               </>
             )}
           </button>
@@ -334,183 +415,212 @@ export default function Roster() {
                 loadRoster(guild.id, showFiltered);
               }
             }}
-            className="p-2.5 bg-[#121214] border border-gray-800 rounded-lg text-sm text-gray-300 focus:outline-none focus:border-[#A330C9] min-w-[200px]"
+            className="p-2.5 bg-[#121214] border border-gray-800 rounded-lg text-xs font-bold text-gray-300 focus:outline-none focus:border-[#A330C9] min-w-[180px] cursor-pointer"
           >
             {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
         </div>
+
+        {selectedGuild && (
+          <div className="px-4 py-2 bg-[#A330C9]/10 rounded-full text-xs font-black text-[#A330C9] uppercase tracking-[0.2em]">
+            {selectedGuild.name}
+          </div>
+        )}
       </header>
 
       {isSyncing && (
-        <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center gap-4 animate-pulse">
-          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-blue-500"></div>
-          <span className="text-sm text-blue-400 font-medium">Synchronisiere alle Gildenmitglieder mit Battle.net... Bitte warten.</span>
+        <div className="mb-6 p-4 bg-[#A330C9]/10 rounded-xl flex items-center gap-4 animate-in fade-in slide-in-from-top-2">
+          <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-[#A330C9]"></div>
+          <span className="text-xs text-[#A330C9] font-black uppercase tracking-widest">Synchronisiere Mitglieder mit Battle.net (Phase 2: Details)...</span>
         </div>
       )}
 
-
       {roster.length === 0 ? (
-        <div className="text-center py-20 bg-[#121214]/50 backdrop-blur-md rounded-2xl border border-dashed border-gray-800">
-          <div className="text-4xl mb-4">👥</div>
-          <h2 className="text-xl font-bold text-white mb-2">Keine Mitglieder gefunden</h2>
+        <div className="text-center py-24 bg-[#121214]/50 backdrop-blur-md rounded-3xl">
+          <div className="text-6xl mb-6">👥</div>
+          <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Keine Mitglieder gefunden</h2>
 
-          <div className="max-w-md mx-auto mb-8 bg-black/20 p-4 rounded-xl border border-white/5">
-            <div className="flex justify-between text-xs mb-2">
-              <span className="text-gray-500">Gilde in Datenbank:</span>
-              <span className="text-gray-300 font-bold">{selectedGuild?.name || 'Keine Gilde ausgewählt'}</span>
+          <div className="max-w-xs mx-auto mb-10 bg-black/40 p-5 rounded-2xl space-y-3">
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-gray-500 font-bold uppercase tracking-wider">Mitglieder (DB):</span>
+              <span className="text-white font-black">{metadata?.totalCount || 0}</span>
             </div>
-            <div className="flex justify-between text-xs mb-2">
-              <span className="text-gray-500">Mitglieder insgesamt (DB):</span>
-              <span className="text-white font-bold">{metadata?.totalCount || 0}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-500">Sichtbare Ränge:</span>
-              <span className="text-[#A330C9] font-bold">[{metadata?.visibleRanks?.join(', ') || '5, 7'}]</span>
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-gray-500 font-bold uppercase tracking-wider">Sichtbare Ränge:</span>
+              <div className="flex gap-1">
+                {(metadata?.visibleRanks || [5, 7]).map((r: number) => (
+                  <span key={r} className="px-1.5 py-0.5 bg-[#A330C9]/20 text-[#A330C9] rounded-md font-black">{r}</span>
+                ))}
+              </div>
             </div>
           </div>
 
-          <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
+          <p className="text-gray-500 mb-8 max-w-sm mx-auto text-sm font-medium leading-relaxed">
             {metadata?.totalCount > 0
-              ? `Es sind ${metadata.totalCount} Charaktere in der Gilde, aber keiner entspricht den aktuell sichtbaren Rängen.`
-              : "Der Roster wurde für diese Gilde noch nicht synchronisiert. Bitte klicke auf 'Synchronisieren'."}
+              ? `Es sind ${metadata.totalCount} Charaktere in der Datenbank, aber keiner entspricht den aktuell sichtbaren Rängen.`
+              : "Der Roster wurde für diese Gilde noch nicht synchronisiert."}
           </p>
 
-          <div className="flex flex-col gap-3 items-center">
+          <div className="flex flex-col gap-4 items-center">
             {metadata?.totalCount > 0 && selectedRosterView === 'main' ? (
               <button
                 onClick={() => setSelectedRosterView('all')}
-                className="px-6 py-3 bg-[#1D1E1F] border border-gray-800 text-white rounded-xl font-bold hover:border-[#A330C9] transition-all active:scale-95"
+                className="px-8 py-4 bg-white/5 border border-white/10 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-white/10 hover:border-[#A330C9] transition-all active:scale-95 text-xs"
               >
-                💾 Alle {metadata.totalCount} Mitglieder anzeigen
+                Alle {metadata.totalCount} anzeigen
               </button>
             ) : (
               <button
                 onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
-                className="px-6 py-3 bg-[#A330C9] text-white rounded-xl font-bold hover:bg-[#b340d9] transition-all active:scale-95 flex items-center gap-2"
+                className="px-8 py-4 bg-[#A330C9] text-white rounded-2xl font-black uppercase tracking-widest hover:bg-[#b340d9] transition-all active:scale-95 flex items-center gap-3 shadow-xl shadow-[#A330C9]/30 text-xs"
               >
                 <span>🔄</span> Jetzt Synchronisieren
               </button>
             )}
 
-            <button
-              onClick={async () => {
-                if (!selectedGuild) return;
-                try {
-                  const token = localStorage.getItem('accessToken');
-                  const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
-                  const res = await fetch(`${backendUrl}/api/guilds/${selectedGuild.id}/roster-debug`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                  });
-                  const data = await res.json();
-                  alert(JSON.stringify(data, null, 2));
-                } catch (e) {
-                  alert("Debug Error: " + e);
-                }
-              }}
-              className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/50 rounded-lg text-xs hover:bg-red-500/30 transition-colors"
-            >
-              🛠️ DEBUG: Test Battle.net API
-            </button>
-            <p className="text-xs text-gray-600 mt-4">
-              Du kannst die sichtbaren Ränge oben über <span className="text-[#A330C9] font-bold">Admin-Einstellungen</span> (Zahnrad) anpassen.
+            <p className="text-[10px] text-gray-600 font-bold uppercase tracking-widest mt-6">
+              Sichtbare Ränge in der <span className="text-[#A330C9]">Admin Zone</span> anpassen.
             </p>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center px-6 py-2 mb-2">
+            <div style={{ width: '70px' }}></div>
+            <div style={{ width: '220px' }} className="text-[10px] font-black text-gray-600 uppercase tracking-widest">Charakter</div>
+            <div style={{ width: '100px' }} className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest">Item Level</div>
+            <div style={{ width: '100px' }} className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest">Score</div>
+            <div style={{ width: '180px' }} className="text-center text-[10px] font-black text-gray-600 uppercase tracking-widest">Raid Progress</div>
+            <div className="flex-1"></div>
+            <div style={{ width: '150px' }} className="text-right text-[10px] font-black text-gray-600 uppercase tracking-widest">Gilden-Rang</div>
+            {isUserAdmin() && <div style={{ width: '120px' }}></div>}
+          </div>
+
           {filteredRosterMembers.map((member) => {
             const rank = (member as any).rank;
-            const rankName = rank !== null && rank !== undefined ? `Rang ${rank}` : 'Kein Rang';
+            const rankName = getRankName(rank);
 
-            // Use classId for robust ID-to-key mapping for icons
             const classIconKeys: Record<number, string> = {
               1: 'warrior', 2: 'paladin', 3: 'hunter', 4: 'rogue',
               5: 'priest', 6: 'deathknight', 7: 'shaman', 8: 'mage',
               9: 'warlock', 10: 'monk', 11: 'druid', 12: 'demonhunter', 13: 'evoker'
             };
 
-            const classKey = member.classId ? classIconKeys[member.classId] : member.class?.toLowerCase().replace(' ', '').replace('-', '');
+            const classKey = member.classId ? classIconKeys[member.classId] : (member.class || '').toLowerCase().replace(' ', '').replace('-', '');
             const classIcon = `https://render.worldofwarcraft.com/us/icons/56/classicon_${classKey}.jpg`;
 
             return (
               <div
                 key={member.id}
-                style={{
-                  background: '#1D1E1F',
-                  padding: '8px 20px',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  border: '1px solid #333',
-                  transition: 'border-color 0.2s',
-                  cursor: 'pointer'
-                }}
-                className="hover:border-gray-500 transition-colors"
+                className="roster-row group"
                 onClick={() => (window as any).electronAPI.openExternal(`https://raider.io/characters/eu/${member.realm.toLowerCase()}/${member.name.toLowerCase()}`)}
               >
-                {/* 1. Spalte: Icons (Rolle & Klasse) */}
+                {/* 1. Spalte: Icons */}
                 <div style={{ width: '70px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                  <RoleIcon role={member.role} size={20} />
-                  <img
-                    src={classIcon}
-                    alt={member.class || 'Unknown'}
-                    style={{ width: '22px', height: '22px', borderRadius: '50%', border: '1px solid #555' }}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_questionmark.jpg';
-                    }}
-                  />
+                  <RoleIcon role={member.role} size={22} />
+                  <div className="relative">
+                    <img
+                      src={classIcon}
+                      alt={member.class || 'Unknown'}
+                      style={{ width: '24px', height: '24px', borderRadius: '50%', border: '2px solid #222', boxShadow: '0 0 10px rgba(0,0,0,0.5)' }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://render.worldofwarcraft.com/us/icons/56/inv_misc_questionmark.jpg';
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* 2. Spalte: Name & Realm */}
                 <div style={{ width: '220px', flexShrink: 0 }}>
-                  <div
-                    style={{
-                      fontWeight: 'bold',
-                      fontSize: '1.1em',
-                      color: getClassColor(member.classId || member.class),
-                      display: 'inline-block'
-                    }}
-                  >
-                    {capitalizeName(member.name)}
+                  <div className="flex items-center gap-2">
+                    <span
+                      style={{
+                        fontWeight: '900',
+                        fontSize: '1em',
+                        color: getClassColor(member.classId || member.class),
+                        textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                      }}
+                    >
+                      {capitalizeName(member.name)}
+                    </span>
+                    {(member as any).isMain && (
+                      <span className="px-1.5 py-0.5 bg-[#A330C9] text-white text-[8px] font-black rounded uppercase tracking-tighter">Main</span>
+                    )}
                   </div>
-                  <div style={{ fontSize: '0.8em', color: '#666' }}>{formatRealm(member.realm)}</div>
+                  <div style={{ fontSize: '0.75rem', color: '#555', fontWeight: 'bold' }}>{formatRealm(member.realm)}</div>
                 </div>
 
                 {/* 3. Spalte: Item Level */}
                 <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ilvl</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(member.averageItemLevel) }}>{member.averageItemLevel || '-'}</div>
+                  <div style={{ fontWeight: '900', fontSize: '1.1em', color: getIlvlColor(member.averageItemLevel) }}>
+                    {member.averageItemLevel || '-'}
+                  </div>
                 </div>
 
-                {/* 4. Spalte: RIO / Mythic Rating */}
-                <div
-                  style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}
-                >
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>RIO</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(member.mythicRating) }}>{member.mythicRating?.toFixed(0) || '-'}</div>
+                {/* 4. Spalte: RIO */}
+                <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ fontWeight: '900', fontSize: '1.1em', color: getRIOColor(member.mythicRating) }}>
+                    {member.mythicRating?.toFixed(0) || '-'}
+                  </div>
                 </div>
 
                 {/* 5. Spalte: Raid Progress */}
-                <div
-                  style={{ width: '180px', flexShrink: 0, textAlign: 'center' }}
-                >
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Raid Progress</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.95em', color: getDifficultyColor(member.raidProgress || '') }}>{member.raidProgress || '-'}</div>
+                <div style={{ width: '180px', flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ fontWeight: '900', fontSize: '0.9em', color: getDifficultyColor(member.raidProgress || '') }}>
+                    {member.raidProgress || '-'}
+                  </div>
                 </div>
 
-                {/* Platzhalter / Spacer */}
                 <div style={{ flex: 1 }}></div>
 
                 {/* 6. Spalte: Rank Badge */}
-                <div style={{ width: '150px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ width: '150px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
                   <span style={{
-                    background: 'rgba(255, 255, 255, 0.05)', color: '#ccc', padding: '6px 15px',
-                    borderRadius: '20px', fontSize: '0.75em', fontWeight: 'bold', border: '1px solid #444',
+                    background: rank === 0 ? 'rgba(163, 48, 201, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                    color: rank === 0 ? '#A330C9' : '#888',
+                    padding: '5px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.7rem',
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
                     letterSpacing: '0.5px'
                   }}>
                     {rankName}
                   </span>
                 </div>
+
+                {/* 7. Spalte: Admin Actions */}
+                {isUserAdmin() && (
+                  <div
+                    style={{ width: '120px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: '6px' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      title="Promote"
+                      disabled={actionInProgress === member.id}
+                      onClick={() => handleManagementAction('promote', member)}
+                      className="action-btn"
+                    >
+                      {actionInProgress === member.id ? '...' : '🔼'}
+                    </button>
+                    <button
+                      title="Demote"
+                      disabled={actionInProgress === member.id}
+                      onClick={() => handleManagementAction('demote', member)}
+                      className="action-btn"
+                    >
+                      {actionInProgress === member.id ? '...' : '🔽'}
+                    </button>
+                    <button
+                      title="Kick"
+                      disabled={actionInProgress === member.id}
+                      onClick={() => handleManagementAction('kick', member)}
+                      className="action-btn kick"
+                    >
+                      {actionInProgress === member.id ? '...' : '🚫'}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

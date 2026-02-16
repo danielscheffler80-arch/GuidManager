@@ -112,21 +112,23 @@ export default function AdminSettings() {
     if (loading) return <div className="p-20 flex justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#A330C9]"></div></div>;
 
     return (
-        <div className="max-w-6xl mx-auto py-10 px-6">
-            <header className="mb-8 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-white to-gray-500 bg-clip-text text-transparent italic tracking-tight">Ränge & Admins</h1>
-                    <p className="text-gray-500 mt-1">Verwalte Berechtigungen und Roster-Sichtbarkeit.</p>
+        <div className="page-container">
+            <header className="mb-6 flex flex-wrap items-center justify-between gap-4 p-2 bg-black/20 rounded-2xl">
+                <div className="flex items-center gap-3 px-3">
+                    <span className="text-lg">⚙️</span>
+                    <span className="text-xs font-black uppercase tracking-[0.2em] text-white/90">Gilden-Verwaltung</span>
                 </div>
-                <div className="flex flex-col gap-1 min-w-[240px]">
-                    <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest ml-1">Gilde wählen</label>
-                    <select
-                        value={selectedGuild?.id || ''}
-                        onChange={(e) => handleGuildSelect(guilds.find(g => g.id === Number(e.target.value)))}
-                        className="p-3 bg-[#121214] border border-gray-800 rounded-xl text-sm text-gray-300 outline-none focus:border-[#A330C9] transition-all"
-                    >
-                        {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
+                <div className="flex gap-4 items-center">
+                    <div className="flex flex-col gap-1 min-w-[240px]">
+                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest ml-1">Gilde wählen</label>
+                        <select
+                            value={selectedGuild?.id || ''}
+                            onChange={(e) => handleGuildSelect(guilds.find(g => g.id === Number(e.target.value)))}
+                            className="p-3 bg-[#121214] rounded-xl text-sm text-gray-300 outline-none focus:border-[#A330C9] transition-all cursor-pointer"
+                        >
+                            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                        </select>
+                    </div>
                 </div>
             </header>
 
@@ -140,12 +142,14 @@ export default function AdminSettings() {
                             key={rank.id}
                             style={{
                                 background: '#1D1E1F',
-                                padding: '8px 20px',
+                                padding: '8px 16px',
                                 borderRadius: '10px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                border: rank.id === 0 ? '1px solid #A330C9' : '1px solid #333',
+                                justifyContent: 'space-between',
                                 transition: 'border-color 0.2s',
+                                width: '100%',
+                                boxSizing: 'border-box'
                             }}
                         >
                             {/* 1. Spalte: Sichtbarkeit-Checkbox (Position des Sterns) */}
@@ -197,7 +201,6 @@ export default function AdminSettings() {
                                         borderRadius: '20px',
                                         fontSize: '0.75em',
                                         fontWeight: '900',
-                                        border: isAdminRank ? '1px solid #A330C9' : '1px solid #444',
                                         letterSpacing: '1px',
                                         transition: 'all 0.2s',
                                         textAlign: 'center',
@@ -211,9 +214,9 @@ export default function AdminSettings() {
                             {/* 4. Spalte: Status-Info */}
                             <div style={{ flex: 1, paddingLeft: '20px' }}>
                                 {rank.id === 0 ? (
-                                    <span style={{ color: '#666', fontSize: '0.8em', fontStyle: 'italic' }}>Systemleiter (Permanent)</span>
+                                    <span style={{ color: '#666', fontSize: '0.8em' }}>Systemleiter (Permanent)</span>
                                 ) : (
-                                    <span style={{ color: '#666', fontSize: '0.8em', fontStyle: 'italic' }}>
+                                    <span style={{ color: '#666', fontSize: '0.8em' }}>
                                         {isAdminRank ? 'Berechtigt zum Editieren' : 'Eingeschränkt'}
                                     </span>
                                 )}
@@ -244,7 +247,6 @@ export default function AdminSettings() {
                     background: '#1D1E1F',
                     padding: '15px 25px',
                     borderRadius: '10px',
-                    border: '1px solid #333',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '20px'
@@ -260,7 +262,6 @@ export default function AdminSettings() {
                                 style={{
                                     flex: 1,
                                     background: 'rgba(0,0,0,0.3)',
-                                    border: '1px solid #444',
                                     borderRadius: '6px',
                                     padding: '8px 12px',
                                     color: '#D1D9E0',
