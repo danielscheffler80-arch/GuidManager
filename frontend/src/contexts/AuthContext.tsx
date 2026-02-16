@@ -98,8 +98,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               setUser(result.user);
               // Update localStorage with fresh data
               localStorage.setItem('user', JSON.stringify(result.user));
-              // Trigger initial sync on start (Detailed!)
-              setTimeout(() => syncCharacters(true), 1000);
+              // Trigger LIGHT initial sync in background
+              setTimeout(() => syncCharacters(false), 2000);
             } else {
               // Token ungültig, lösche alles
               localStorage.removeItem('user');
@@ -185,9 +185,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (userData: User) => {
     setUser(userData);
     localStorage.setItem('user', JSON.stringify(userData));
-    // Sofortiger Sync nach Login (Detailed!)
-    console.log('[AUTH] Triggering post-login sync...');
-    await syncCharacters(true);
+    // Start background sync after login
+    syncCharacters(false);
   };
 
   const logout = async () => {

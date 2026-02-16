@@ -231,10 +231,19 @@ export class UserController {
         return res.status(404).json({ success: false, error: 'Character not found' });
       }
 
+      // Role Normalization (tank -> Tank, dps -> DPS, healer -> Healer)
+      let normalizedRole = role;
+      if (role) {
+        const r = role.toLowerCase();
+        if (r === 'tank') normalizedRole = 'Tank';
+        else if (r === 'healer') normalizedRole = 'Healer';
+        else if (r === 'dps') normalizedRole = 'DPS';
+      }
+
       const updated = await prisma.character.update({
         where: { id: characterId },
         data: {
-          role: role !== undefined ? role : character.role,
+          role: normalizedRole !== undefined ? normalizedRole : character.role,
           class: className !== undefined ? className : character.class,
           isActive: isActive !== undefined ? isActive : character.isActive
         }
