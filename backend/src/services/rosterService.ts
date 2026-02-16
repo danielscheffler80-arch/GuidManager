@@ -4,6 +4,12 @@
 import prisma from '../prisma';
 import { BattleNetAPIService } from './battleNetAPIService';
 
+// Helper to process in chunks to avoid rate limits / timeouts
+const chunk = <T>(arr: T[], size: number): T[][] =>
+    Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+        arr.slice(i * size, i * size + size)
+    );
+
 export class RosterService {
     // Synchronisiert den kompletten Roster einer Gilde
     static async syncRoster(guildId: number, accessToken: string): Promise<any> {
@@ -19,12 +25,13 @@ export class RosterService {
             console.log(`[RosterService] Starting sync for guild: ${guild.name} (${guild.realm})`);
 
             const service = new BattleNetAPIService(accessToken);
+            console.log(`[RosterService] Fetching roster from API...`);
             const members = await service.getGuildRoster(guild.realm, guild.name);
-
             console.log(`[RosterService] Fetched ${members.length} members from Battle.net API`);
 
             // Fetch Guild Ranks
             try {
+                console.log(`[RosterService] Fetching guild ranks...`);
                 const ranks = await service.getGuildRanks(guild.realm, guild.name);
                 if (ranks && ranks.length > 0) {
                     console.log(`[RosterService] Updated guild ranks: ${ranks.length} found`);
@@ -32,6 +39,8 @@ export class RosterService {
                         where: { id: guildId },
                         data: { ranks: ranks }
                     });
+                } else {
+                    console.log(`[RosterService] No ranks returned by API.`);
                 }
             } catch (rankError) {
                 console.error(`[RosterService] Failed to update ranks:`, rankError);
@@ -45,90 +54,84 @@ export class RosterService {
             };
 
             // PHASE 1: Quick Sync - Upsert all members with basic info (Rank, Class, Level)
-            // This ensures the roster list is populated immediately even if details fail.
-            const statsPromises = members.map(async (member) => {
-                try {
-                    const charData = member.character;
-                    const rank = member.rank;
+            // Using chunks to avoid overwhelming the DB connection pool
+            const PHASE1_CHUNK_SIZE = 50;
+            const phase1Chunks = chunk(members, PHASE1_CHUNK_SIZE);
 
-                    // Check if this character belongs to a registered user
-                    const existingUserChar = await prisma.character.findFirst({
-                        where: {
-                            name: charData.name.toLowerCase(),
-                            realm: charData.realm.slug,
-                            userId: { not: null } // Only check if it has a user
-                        },
-                        select: { userId: true }
-                    });
+            console.log(`[RosterService] Phase 1: Processing ${members.length} members in ${phase1Chunks.length} chunks...`);
 
-                    const assignedUserId = existingUserChar?.userId ?? undefined;
+            for (let i = 0; i < phase1Chunks.length; i++) {
+                const batch = phase1Chunks[i];
+                await Promise.all(batch.map(async (member) => {
+                    try {
+                        const charData = member.character;
+                        const rank = member.rank;
 
-                    // Basic upsert without external API calls for details
-                    const upsertedChar = await prisma.character.upsert({
-                        where: {
-                            name_realm: {
+                        // Check if this character belongs to a registered user
+                        const existingUserChar = await prisma.character.findFirst({
+                            where: {
                                 name: charData.name.toLowerCase(),
                                 realm: charData.realm.slug,
-                            }
-                        },
-                        update: {
-                            level: charData.level,
-                            guildId: guildId,
-                            class: charData.playable_class?.name?.de_DE || charData.playable_class?.name || 'Unknown',
-                            classId: charData.playable_class?.id || null,
-                            race: charData.playable_race?.name?.de_DE || charData.playable_race?.name || 'Unknown',
-                            faction: guild.faction, // Assume guild faction
-                            rank: rank,
-                            lastSync: new Date(),
-                            userId: assignedUserId, // Keep existing user link if any
-                        },
-                        create: {
-                            userId: assignedUserId, // Optional now!
-                            battleNetId: charData.id.toString(),
-                            name: charData.name.toLowerCase(),
-                            realm: charData.realm.slug,
-                            level: charData.level,
-                            guildId: guildId,
-                            class: charData.playable_class?.name?.de_DE || charData.playable_class?.name || 'Unknown',
-                            classId: charData.playable_class?.id || null,
-                            race: charData.playable_race?.name?.de_DE || charData.playable_race?.name || 'Unknown',
-                            faction: guild.faction,
-                            rank: rank,
-                            averageItemLevel: 0, // Default
-                            mythicRating: 0,     // Default
-                            raidProgress: '-',   // Default
-                            lastSync: new Date(),
-                            isActive: true,
-                        }
-                    });
-
-                    // Link to User if exists (and userId is present)
-                    if (upsertedChar.userId) {
-                        await prisma.userGuild.upsert({
-                            where: { userId_guildId: { userId: upsertedChar.userId, guildId: guildId } },
-                            update: { rank: rank },
-                            create: { userId: upsertedChar.userId, guildId: guildId, rank: rank }
+                                userId: { not: null }
+                            },
+                            select: { userId: true }
                         });
-                    }
-                    syncStats.updated++;
-                } catch (err) {
-                    console.error(`Error processing member ${member.character.name}:`, err);
-                    syncStats.errors++;
-                }
-            });
 
-            // Wait for basic sync to finish
-            await Promise.all(statsPromises);
+                        const assignedUserId = existingUserChar?.userId ?? undefined;
+
+                        await prisma.character.upsert({
+                            where: {
+                                name_realm: {
+                                    name: charData.name.toLowerCase(),
+                                    realm: charData.realm.slug,
+                                }
+                            },
+                            update: {
+                                level: charData.level,
+                                guildId: guildId,
+                                class: charData.playable_class?.name?.de_DE || charData.playable_class?.name || 'Unknown',
+                                classId: charData.playable_class?.id || null,
+                                race: charData.playable_race?.name?.de_DE || charData.playable_race?.name || 'Unknown',
+                                faction: guild.faction,
+                                rank: rank,
+                                lastSync: new Date(),
+                                userId: assignedUserId,
+                            },
+                            create: {
+                                userId: assignedUserId,
+                                battleNetId: charData.id.toString(),
+                                name: charData.name.toLowerCase(),
+                                realm: charData.realm.slug,
+                                level: charData.level,
+                                guildId: guildId,
+                                class: charData.playable_class?.name?.de_DE || charData.playable_class?.name || 'Unknown',
+                                classId: charData.playable_class?.id || null,
+                                race: charData.playable_race?.name?.de_DE || charData.playable_race?.name || 'Unknown',
+                                faction: guild.faction,
+                                rank: rank,
+                                averageItemLevel: 0,
+                                mythicRating: 0,
+                                raidProgress: '-',
+                                lastSync: new Date(),
+                                isActive: true,
+                            }
+                        });
+
+                        syncStats.updated++;
+                        syncStats.updated++;
+                    } catch (err) {
+                        console.error(`[RosterService] Error in Phase 1 for ${member?.character?.name}:`, err);
+                        syncStats.errors++;
+                    }
+                }));
+                // console.log(`[RosterService] Phase 1 Progress: ${Math.min((i + 1) * PHASE1_CHUNK_SIZE, members.length)}/${members.length}`);
+            }
+
+            console.log(`[RosterService] Phase 1 complete: ${syncStats.updated} updated, ${syncStats.errors} errors.`);
             console.log(`[RosterService] Phase 1 complete: ${syncStats.updated} members upserted.`);
 
             // PHASE 2: Detailed Stats (Background / Incremental)
             console.log(`[RosterService] Phase 2: Fetching details for ${members.length} members...`);
-
-            // Helper to process in chunks to avoid rate limits / timeouts
-            const chunk = <T>(arr: T[], size: number): T[][] =>
-                Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
-                    arr.slice(i * size, i * size + size)
-                );
 
             const chunks = chunk(members, 5); // Process 5 at a time
             let processedCount = 0;

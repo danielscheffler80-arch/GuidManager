@@ -427,7 +427,13 @@ export class BattleNetAPIService {
     try {
       const encodedName = encodeURIComponent(guildName.toLowerCase());
       const data = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}/roster`);
-      return data.members || [];
+
+      // LOGGING RAW KEYS
+      const { members, ...meta } = data;
+      console.log(`[BNET] Roster Response Meta Keys: ${Object.keys(meta).join(', ')}`);
+      if (members) console.log(`[BNET] Roster Member Count: ${members.length}`);
+
+      return members || [];
     } catch (error) {
       console.error(`Failed to fetch guild roster for ${guildName}@${realm}:`, error);
       // Re-throw error so the caller knows it failed
