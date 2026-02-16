@@ -371,17 +371,27 @@ export default function Roster() {
 
           <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
             {metadata?.totalCount > 0
-              ? `Es sind ${metadata.totalCount} Charaktere in der Datenbank, aber keiner entspricht den aktuell sichtbaren Rängen.`
+              ? `Es sind ${metadata.totalCount} Charaktere in der Gilde, aber keiner entspricht den aktuell sichtbaren Rängen.`
               : "Der Roster wurde für diese Gilde noch nicht synchronisiert. Bitte klicke auf 'Synchronisieren'."}
           </p>
 
           <div className="flex flex-col gap-3 items-center">
-            <button
-              onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
-              className="px-6 py-3 bg-[#A330C9] text-white rounded-xl font-bold hover:bg-[#b340d9] transition-all active:scale-95 flex items-center gap-2"
-            >
-              <span>🔄</span> Jetzt Synchronisieren
-            </button>
+            {metadata?.totalCount > 0 && selectedRosterView === 'main' ? (
+              <button
+                onClick={() => setSelectedRosterView('all')}
+                className="px-6 py-3 bg-[#1D1E1F] border border-gray-800 text-white rounded-xl font-bold hover:border-[#A330C9] transition-all active:scale-95"
+              >
+                💾 Alle {metadata.totalCount} Mitglieder anzeigen
+              </button>
+            ) : (
+              <button
+                onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
+                className="px-6 py-3 bg-[#A330C9] text-white rounded-xl font-bold hover:bg-[#b340d9] transition-all active:scale-95 flex items-center gap-2"
+              >
+                <span>🔄</span> Jetzt Synchronisieren
+              </button>
+            )}
+
             <button
               onClick={async () => {
                 if (!selectedGuild) return;
@@ -397,12 +407,12 @@ export default function Roster() {
                   alert("Debug Error: " + e);
                 }
               }}
-              className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/50 rounded-lg text-xs hover:bg-red-500/30 transition-colors"
+              className="px-4 py-2 bg-red-500/10 text-red-400 border border-red-500/50 rounded-lg text-xs hover:bg-red-500/30 transition-colors"
             >
               🛠️ DEBUG: Test Battle.net API
             </button>
             <p className="text-xs text-gray-600 mt-4">
-              Du kannst die sichtbaren Ränge oben über <span className="text-[#A330C9] font-bold">Gilde verwalten</span> anpassen.
+              Du kannst die sichtbaren Ränge oben über <span className="text-[#A330C9] font-bold">Admin-Einstellungen</span> (Zahnrad) anpassen.
             </p>
           </div>
         </div>
