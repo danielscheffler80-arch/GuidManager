@@ -1,0 +1,73 @@
+{
+  "name": "guild-manager-standalone",
+  "version": "0.6.0",
+  "author": "Xava",
+  "description": "Guild Manager - Standalone Desktop App",
+  "main": "main-standalone.js",
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
+  "scripts": {
+    "dev": "electron .",
+    "start": "electron . --standalone",
+    "build": "electron-builder",
+    "build:standalone": "electron-builder --config electron-builder-standalone.json",
+    "icons:gen": "node scripts/gen-icon.js",
+    "icons:frompng": "node scripts/ico-from-png.js"
+  },
+  "build": {
+    "appId": "com.guildsys.app.standalone",
+    "productName": "Guild Manager Standalone",
+    "directories": {
+      "output": "dist-standalone"
+    },
+    "files": [
+      "main-standalone.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "frontend",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../app-config.json",
+        "to": "app-config.json"
+      },
+      {
+        "from": "assets/addon",
+        "to": "addon"
+      }
+    ],
+    "icon": "assets/app-icon.png",
+    "win": {
+      "icon": "assets/app-icon.ico",
+      "target": [
+        "nsis"
+      ],
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Guild Manager Standalone"
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "http://192.168.178.65:3334/updates"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.9.1"
+  }
+}

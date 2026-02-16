@@ -1,0 +1,212 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Battle.net OAuth User Model
+model User {
+  id              Int         @id @default(autoincrement())
+  battleNetId     String      @unique
+  name            String      @map("battletag")
+  accessToken     String?
+  refreshToken    String?
+  tokenExpiresAt  DateTime?
+  discordId       String?     @unique
+  discordTag      String?
+  lastLogin       DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  characters      Character[]
+  guildMemberships UserGuild[]
+  streams         Stream[]
+  
+  @@map("users")
+}
+
+// Character Model für Main/Twink Verwaltung
+model Character {
+  id              Int         @id @default(autoincrement())
+  userId          Int?        // Optional, da Roster-Chars keinem User gehören müssen
+  battleNetId     String?     @unique
+  name            String
+  realm           String
+  level           Int         @default(1)
+  class           String      // Klassenname (Warrior, Mage, etc.)
+  classId         Int?        // Battle.net Class ID für sprachunabhängige Logik
+  race            String      // Rassenname (Human, Orc, etc.)
+  faction         String      // Alliance/Horde
+  gender          String?     // Geschlecht
+  isMain          Boolean     @default(false)
+  isFavorite      Boolean     @default(false)
+  isActive        Boolean     @default(true)
+  role            String?     // Tank/DPS/Healer
+  averageItemLevel Int?       // Aktuelles Itemlevel
+  mythicRating    Float?      // Blizzard Mythic Rating (RIO Equivalent)
+  raidProgress    String?     // Raid Fortschritt (z.B. 8/8 H)
+  rank            Int?        // Gildenrang (0-9)
+  lastSync        DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  guildId         Int?
+  
+  // Relations
+  user            User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild           Guild?      @relation(fields: [guildId], references: [id])
+  mythicKeys      MythicKey[]
+  attendances     Attendance[]
+  
+  // Unique Constraint für Name + Realm
+  @@unique([name, realm])
+  @@map("characters")
+}
+
+// Guild Model
+model Guild {
+  id              Int         @id @default(autoincrement())
+  name            String      @unique
+  realm           String
+  faction         String      // Alliance/Horde
+  description     String?
+  lastSync        DateTime    @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  characters      Character[]
+  members         UserGuild[]
+  raids           Raid[]
+  messages        GuildChat[]
+  
+  // Permissions & Ranks
+  adminRanks      Int[]       @default([0]) // Standardmäßig hat nur Gildenleiter (0) Admin-Rechte
+  visibleRanks    Int[]       @default([5, 7]) // Ränge, die im Roster angezeigt werden
+  ranks           Json?       // Speichert Blizzard Ranks (id, name, order)
+  
+  @@map("guilds")
+}
+
+// Guild Chat History
+model GuildChat {
+  id        Int      @id @default(autoincrement())
+  guildId   Int
+  sender    String
+  content   String
+  timestamp DateTime @default(now())
+
+  guild     Guild    @relation(fields: [guildId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@map("guild_chats")
+}
+
+// User-Guild Membership (für Gildenmitgliedschaft)
+model UserGuild {
+  id              Int         @id @default(autoincrement())
+  userId          Int
+  guildId         Int
+  rank            Int         @default(0)
+  joinedAt        DateTime    @default(now())
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  guild           Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, guildId])
+  @@map("user_guilds")
+}
+
+// Raid Model für Raid-Planung
+model Raid {
+  id              Int         @id @default(autoincrement())
+  guildId         Int
+  title           String
+  description     String?
+  startTime       DateTime
+  endTime         DateTime?
+  maxPlayers      Int         @default(20)
+  difficulty      String      // Normal/Heroic/Mythic
+  status          String      @default("scheduled") // scheduled/ongoing/completed/cancelled
+  recruitmentType String      @default("everyone") // everyone/main_only
+  allowedRanks    Int[]       @default([]) // Ranks allowed to signup (empty = everyone)
+  recurringId     String?     // UUID for group of recurring events
+  imageUrl        String?     // Background image for the raid card
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  guild           Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  attendances     Attendance[]
+  
+  @@map("raids")
+}
+
+// Attendance Model für Raid-Teilnahme
+model Attendance {
+  id              Int         @id @default(autoincrement())
+  raidId          Int
+  characterId     Int
+  status          String      @default("unknown") // attending/not_attending/late/tentative
+  comment         String?
+  roleSlot        String      @default("main") // main/twink1/twink2/twink3
+  isConfirmed     Boolean     @default(false)
+  signedUpAt      DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  raid            Raid        @relation(fields: [raidId], references: [id], onDelete: Cascade)
+  character       Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  
+  @@unique([raidId, characterId])
+  @@map("attendances")
+}
+
+// Mythic Key Model für Mythic+ Verfolgung
+model MythicKey {
+  id              Int         @id @default(autoincrement())
+  characterId     Int
+  dungeon         String
+  level           Int
+  affixes         String      // JSON Array mit Affix-IDs
+  completed       Boolean     @default(false)
+  completedAt     DateTime?
+  weeklyBest      Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  character       Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  
+  @@map("mythic_keys")
+}
+
+// Stream Model für Gilden-Streams
+model Stream {
+  id              Int         @id @default(autoincrement())
+  userId          Int
+  title           String
+  description     String?
+  platform        String      // twitch/youtube/etc
+  streamUrl       String
+  isLive          Boolean     @default(false)
+  isPublic        Boolean     @default(true)
+  accessCode      String?     // Für private Streams
+  viewerCount     Int         @default(0)
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("streams")
+}

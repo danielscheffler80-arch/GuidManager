@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+dist-standalone/
+build/
+*.log
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Database
+*.sqlite
+*.db
+
+# Electron
+desktop/dist/
+desktop/dist-standalone/
+
+# Prisma
+prisma/migrations/*.sql
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+webrtc_debug.log
+
+# Updates folder (installer)
+backend/updates/
+
+# Test files
+A1.*.txt
