@@ -220,13 +220,6 @@ export default function Roster() {
     }
   };
 
-  // Auto-Sync Effect: Only sync if roster is completely empty
-  useEffect(() => {
-    if (selectedGuild && !sessionSyncs.includes(selectedGuild.id) && !isSyncing && roster.length === 0 && !loading) {
-      console.log(`[Roster] Initial sync for guild ${selectedGuild.id} (Roster empty)`);
-      triggerSync(selectedGuild.id);
-    }
-  }, [selectedGuild, sessionSyncs, isSyncing, roster.length, loading]);
 
   const toggleShowFiltered = () => {
     const newState = !showFiltered;
@@ -314,8 +307,8 @@ export default function Roster() {
             onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
             disabled={isSyncing}
             className={`p-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${isSyncing
-                ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                : 'bg-[#A330C9] text-white hover:bg-[#b340d9] active:scale-95'
+              ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
+              : 'bg-[#A330C9] text-white hover:bg-[#b340d9] active:scale-95'
               }`}
           >
             {isSyncing ? (
@@ -379,12 +372,16 @@ export default function Roster() {
           <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
             {metadata?.totalCount > 0
               ? `Es sind ${metadata.totalCount} Charaktere in der Datenbank, aber keiner entspricht den aktuell sichtbaren Rängen.`
-              : isSyncing
-                ? "Der Roster wird gerade synchronisiert. Bitte hab einen Moment Geduld..."
-                : "Der Roster wurde für diese Gilde scheinbar noch nie vollständig synchronisiert."}
+              : "Der Roster wurde für diese Gilde noch nicht synchronisiert. Bitte klicke auf 'Synchronisieren'."}
           </p>
 
           <div className="flex flex-col gap-3 items-center">
+            <button
+              onClick={() => selectedGuild && triggerSync(selectedGuild.id)}
+              className="px-6 py-3 bg-[#A330C9] text-white rounded-xl font-bold hover:bg-[#b340d9] transition-all active:scale-95 flex items-center gap-2"
+            >
+              <span>🔄</span> Jetzt Synchronisieren
+            </button>
             <button
               onClick={async () => {
                 if (!selectedGuild) return;
