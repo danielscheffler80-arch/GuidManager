@@ -398,22 +398,15 @@ export class BattleNetAPIService {
   // Ruft Gilden-Ranks ab
   async getGuildRanks(realm: string, guildName: string): Promise<any[]> {
     try {
-      const encodedName = encodeURIComponent(guildName.toLowerCase());
-      // Updated endpoint for Dragonflight/The War Within (modern profile API)
+      // Blizzard API expects a slug: lowercase, spaces replaced by dashes
+      const slug = guildName.toLowerCase().replace(/\s+/g, '-');
+      const encodedName = encodeURIComponent(slug);
       // /data/wow/guild/{realmSlug}/{nameSlug}/roster returns members which have rank, 
       // but to get rank definitions we need another endpoint or extract it from somewhere else.
       // Actually, standard Guild API has 'achievement/criteria' etc.
-      // But the profile API '/data/wow/guild/{realm}/{name}' returns basic info.
-      // Let's try the 'roster' endpoint if it has rank info? No, it has rank integers.
-      // We need '/data/wow/guild/{realm}/{name}/activity' or similar?
-      // Wait, there isn't a direct "guild ranks" endpoint in the new Profile API easily found.
-      // HOWEVER, the `guild` document itself often contains `ranks` field?
-      // Let's check `getGuildInfo`.
-
-      // If we can't find a direct endpoint, we might have to rely on what we have or just use the integer.
-      // BUT, old Community API had it. New Profile API... let's check `data/wow/guild/...`.
 
       // Attempt to fetch from guild info directly, maybe it's there.
+
       const guildData = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}`);
       return guildData.ranks || []; // Hope it's there
     } catch (error) {
@@ -425,7 +418,9 @@ export class BattleNetAPIService {
   // Ruft Gilden-Roster ab
   async getGuildRoster(realm: string, guildName: string): Promise<any[]> {
     try {
-      const encodedName = encodeURIComponent(guildName.toLowerCase());
+      // Blizzard API expects a slug: lowercase, spaces replaced by dashes
+      const slug = guildName.toLowerCase().replace(/\s+/g, '-');
+      const encodedName = encodeURIComponent(slug);
       const data = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}/roster`);
 
       // LOGGING RAW KEYS
