@@ -4,7 +4,7 @@ function resolveBase(): string {
   }
   const ls = typeof window !== 'undefined' ? window.localStorage.getItem('apiBaseUrl') : null;
   if (ls) return ls;
-  return 'http://localhost:3334';
+  return 'https://guild-manager-backend.onrender.com';
 }
 export const API_BASE_URL = resolveBase();
 

@@ -8,7 +8,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/auth': {
-        target: 'http://localhost:3000',
+        target: 'https://guild-manager-backend.onrender.com',
         changeOrigin: true,
       },
     },

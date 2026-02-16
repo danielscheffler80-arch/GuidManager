@@ -39,8 +39,26 @@ app.use(cors({
 app.use(express.json());
 
 // Health
-app.get('/health', (_req, res) => {
-  res.json({ ok: true, time: new Date().toISOString() });
+app.get('/health', async (_req, res) => {
+  try {
+    // Kurzer Prisma-Check
+    const { PrismaClient } = require('@prisma/client');
+    const prisma = new PrismaClient();
+    const userCount = await prisma.user.count();
+    res.json({
+      ok: true,
+      database: 'connected',
+      userCount,
+      time: new Date().toISOString()
+    });
+  } catch (err) {
+    res.json({
+      ok: true,
+      database: 'error',
+      message: (err as Error).message,
+      time: new Date().toISOString()
+    });
+  }
 });
 
 // API Routes
