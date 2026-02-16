@@ -24,7 +24,6 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.23",
     "@types/jsonwebtoken": "^9.0.2",
