@@ -15,10 +15,17 @@ const BNET_REGION = process.env.BNET_REGION || 'eu';
 
 const BNET_USERINFO_URL = process.env.BNET_USERINFO_URL || 'https://eu.battle.net/oauth/userinfo';
 
-console.log(`Battle.net OAuth initialized with Refresh URI: ${BNET_REDIRECT_URI}`);
+console.log(`Battle.net OAuth initialization:
+- BNET_CLIENT_ID: ${BNET_CLIENT_ID ? 'SET' : 'MISSING'}
+- BNET_CLIENT_SECRET: ${BNET_CLIENT_SECRET ? 'SET' : 'MISSING'}
+- BNET_REDIRECT_URI: ${BNET_REDIRECT_URI}
+`);
 
 if (!BNET_CLIENT_ID || !BNET_CLIENT_SECRET) {
-  throw new Error('Battle.net OAuth Credentials fehlen in .env Datei');
+  const missing = [];
+  if (!BNET_CLIENT_ID) missing.push('BNET_CLIENT_ID');
+  if (!BNET_CLIENT_SECRET) missing.push('BNET_CLIENT_SECRET');
+  throw new Error(`Kritische Battle.net OAuth Credentials fehlen: ${missing.join(', ')}. Bitte prüfe die Render Environment Variables.`);
 }
 
 export class BattleNetOAuthService {
