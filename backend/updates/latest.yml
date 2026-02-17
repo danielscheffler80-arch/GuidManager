@@ -1,14 +1,14 @@
-version: 0.6.9
+version: 0.7.0
 files:
-  - url: Guild Manager Standalone Web Setup 0.6.9.exe
-    sha512: o33nz4hvoeYP/eJekwViP3Jjq28COqsJUZGr+mupaN9IOcajkU2Zufx/8yse2BUZqeLYNQmndystV3b0cdjebA==
-path: Guild Manager Standalone Web Setup 0.6.9.exe
-sha512: o33nz4hvoeYP/eJekwViP3Jjq28COqsJUZGr+mupaN9IOcajkU2Zufx/8yse2BUZqeLYNQmndystV3b0cdjebA==
+  - url: Guild Manager Standalone Web Setup 0.7.0.exe
+    sha512: ylUL5UsAqS1ZsPX0WVR6tZO6ugvYbuutLTf+ESFe7bgS6UgLf6ag2umNR42qniGrJ0gtoCN0f9ZYwNYazkF44Q==
+path: Guild Manager Standalone Web Setup 0.7.0.exe
+sha512: ylUL5UsAqS1ZsPX0WVR6tZO6ugvYbuutLTf+ESFe7bgS6UgLf6ag2umNR42qniGrJ0gtoCN0f9ZYwNYazkF44Q==
 packages:
   x64:
-    size: 78774369
-    sha512: C48mu3+dy6b4psoTfQXDvAuEi94IkbR72Grcy6MQqkR+z9v7O8MX9GrMVSPHGo+jK87rKtCG3Zj5CuQy7+57rg==
-    blockMapSize: 83586
-    path: guild-manager-standalone-0.6.9-x64.nsis.7z
-    file: guild-manager-standalone-0.6.9-x64.nsis.7z
-releaseDate: '2026-02-17T21:14:02.823Z'
+    size: 78774161
+    sha512: P4aYQzlXAcWokeUWilAzfcxxo8fSfC5bKZiyVh5vG5Cnywf50QxGnNAWFu+h1g2Bk/B9df4Is4514CFXw+Iy5w==
+    blockMapSize: 83654
+    path: guild-manager-standalone-0.7.0-x64.nsis.7z
+    file: guild-manager-standalone-0.7.0-x64.nsis.7z
+releaseDate: '2026-02-17T21:19:31.792Z'

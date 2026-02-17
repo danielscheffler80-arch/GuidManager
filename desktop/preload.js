@@ -85,5 +85,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   onGuildChat: (callback) => {
     ipcRenderer.on('guild-chat', (event, data) => callback(data));
+  },
+  toggleWindowFullscreen: () => {
+    return ipcRenderer.invoke('toggle-window-fullscreen');
   }
 });

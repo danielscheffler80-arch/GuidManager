@@ -16,5 +16,5 @@ copy "%BUILD_DIR%\*.7z" "%TARGET_DIR%\"
 
 echo.
 echo [ERFOLG] Update-Daten wurden in den Backend-Server kopiert.
-echo Clients können nun Version 0.6.9 automatisch anfragen.
+echo Clients können nun Version 0.7.0 automatisch anfragen.
 pause

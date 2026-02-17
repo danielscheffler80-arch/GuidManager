@@ -74,14 +74,30 @@ export default function Streams() {
     }
   }, [viewingId, activeStreams]);
 
-  const toggleFullscreen = () => {
+  const toggleFullscreen = async () => {
+    // If we're in Electron, we can use the native fullscreen mode for the whole window
+    // This is often more reliable than DOM fullscreen when hardware acceleration is off.
+    if ((window as any).electronAPI?.toggleWindowFullscreen) {
+      try {
+        await (window as any).electronAPI.toggleWindowFullscreen();
+        return;
+      } catch (err) {
+        console.error('[Streams] Native fullscreen failed, falling back to DOM:', err);
+      }
+    }
+
     if (playerRef.current) {
-      if (!document.fullscreenElement) {
-        playerRef.current.requestFullscreen().catch(err => {
-          console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-        });
-      } else {
-        document.exitFullscreen();
+      try {
+        if (!document.fullscreenElement) {
+          await playerRef.current.requestFullscreen();
+        } else {
+          if (document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
+        }
+      } catch (err: any) {
+        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+        alert('Vollbild konnte nicht aktiviert werden. Falls du im Browser bist, klicke erst einmal in das Video-Fenster.');
       }
     }
   };
