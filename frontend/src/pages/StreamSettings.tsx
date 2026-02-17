@@ -161,6 +161,18 @@ export default function StreamSettings() {
     }, [joinCode]);
 
     useEffect(() => {
+        storage.set('stream-privacy-public', isPublic);
+    }, [isPublic]);
+
+    useEffect(() => {
+        storage.set('stream-privacy-guild-id', privacyGuildId);
+    }, [privacyGuildId]);
+
+    useEffect(() => {
+        storage.set('stream-privacy-code', joinCode);
+    }, [joinCode]);
+
+    useEffect(() => {
         const detectGpu = async () => {
             try {
                 if ((window as any).electronAPI?.getGPUInfo) {
@@ -249,10 +261,10 @@ export default function StreamSettings() {
             fps: fps,
             isHdr: window.matchMedia?.('(dynamic-range: high)').matches || false,
             hdrSettings: window.matchMedia?.('(dynamic-range: high)').matches ? currentHdr : null,
-            isPublic: isPublicVal,
-            guildId: privacyGuildIdVal ? Number(privacyGuildIdVal) : undefined,
-            hasJoinCode: !!streamJoinCode,
-            joinCode: streamJoinCode
+            isPublic: isPublic,
+            guildId: privacyGuildId ? Number(privacyGuildId) : undefined,
+            hasJoinCode: !!joinCode && joinCode.trim().length > 0,
+            joinCode: joinCode
         };
 
         const resMap: Record<string, { w: number, h: number }> = {
@@ -373,15 +385,16 @@ export default function StreamSettings() {
                                 />
                             </div>
                             <div className="setting-group">
-                                <label>Optimierung</label>
+                                <label>Optimierung & Bildschärfe</label>
                                 <select
                                     value={defaultOptimization}
-                                    onChange={e => setDefaultOptimization(e.target.value)}
-                                    style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '6px', borderRadius: '4px', fontSize: '0.9rem' }}
+                                    onChange={(e) => setDefaultOptimization(e.target.value)}
+                                    style={{ background: '#333', border: '1px solid #444', color: 'white', padding: '10px', borderRadius: '8px', fontSize: '0.9rem' }}
                                 >
-                                    <option value="motion">Flüssigkeit (Motion)</option>
-                                    <option value="detail">Bildschärfe (Detail)</option>
-                                    <option value="text">Textlesbarkeit</option>
+                                    <option value="detail">🎯 Max. Schärfe (Static/Desktop)</option>
+                                    <option value="balanced">⚖️ Ausgeglichen (Allround)</option>
+                                    <option value="motion">🎬 Flüssige Bewegung (Action/Movies)</option>
+                                    <option value="gaming">🎮 Gaming (Priorität FPS)</option>
                                 </select>
                             </div>
                         </div>

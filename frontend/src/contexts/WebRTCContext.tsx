@@ -157,7 +157,8 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             if (pc.connectionState === 'connected') {
                 if (!isInitiator) {
                     const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
-                    setVideoBitrate(pc, targetBitrate);
+                    const targetMode = currentConstraintsRef.current?.optimizationMode || 'detail';
+                    setVideoBitrate(pc, targetBitrate, targetMode);
                 }
             }
             if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
@@ -178,11 +179,19 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         return pc;
     };
 
-    const setVideoBitrate = async (pc: RTCPeerConnection, bitrate: number) => {
+    const setVideoBitrate = async (pc: RTCPeerConnection, bitrate: number, optimizationMode?: string) => {
         try {
             const senders = pc.getSenders();
             const videoSender = senders.find(s => s.track?.kind === 'video');
             if (videoSender) {
+                // Determine degradation preference
+                let degradationPreference: RTCDegradationPreference = 'balanced';
+                if (optimizationMode === 'detail') {
+                    degradationPreference = 'maintain-resolution';
+                } else if (optimizationMode === 'gaming' || optimizationMode === 'motion') {
+                    degradationPreference = 'maintain-framerate';
+                }
+
                 const parameters = videoSender.getParameters();
                 if (!parameters.encodings || parameters.encodings.length === 0) {
                     parameters.encodings = [{}];
@@ -193,11 +202,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                 // Enforce CBR by setting minBitrate equal to maxBitrate (if supported)
                 (parameters.encodings[0] as any).minBitrate = bps;
 
+                // Apply degradation preference
+                parameters.degradationPreference = degradationPreference;
+
                 await videoSender.setParameters(parameters);
-                console.log(`[WebRTC] CBR set to ${bitrate}kbps for user`);
+                console.log(`[WebRTC] Bitrate set to ${bitrate}kbps (${degradationPreference}) for user`);
             }
         } catch (err) {
-            console.warn('[WebRTC] Could not set bitrate:', err);
+            console.warn('[WebRTC] Could not set bitrate/parameters:', err);
         }
     };
 
@@ -555,24 +567,28 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         currentConstraintsRef.current = { ...currentConstraintsRef.current, ...constraints };
 
         if (isStreaming && localStreamRef.current) {
-            // Update track optimization (contentHint)
-            if (constraints.optimizationMode) {
-                localStreamRef.current.getVideoTracks().forEach(track => {
-                    if ((track as any).contentHint !== undefined) {
-                        (track as any).contentHint = constraints.optimizationMode;
-                    }
-                });
-            }
+            const mode = currentConstraintsRef.current.optimizationMode || 'detail';
+            const bitrate = currentConstraintsRef.current.bitrate || 6000;
 
-            // Apply new bitrate to all active peer connections
-            if (constraints.bitrate) {
-                const results = Array.from(outgoingPCs.current.entries()).map(async ([userId, pc]) => {
-                    if (pc.connectionState === 'connected') {
-                        await setVideoBitrate(pc, constraints.bitrate);
-                    }
-                });
-                await Promise.all(results);
-            }
+            // Update track optimization (contentHint)
+            let contentHint = 'motion';
+            if (mode === 'detail') contentHint = 'detail';
+            else if (mode === 'balanced') contentHint = 'motion';
+            else if (mode === 'motion' || mode === 'gaming') contentHint = 'motion';
+
+            localStreamRef.current.getVideoTracks().forEach(track => {
+                if ((track as any).contentHint !== undefined) {
+                    (track as any).contentHint = contentHint;
+                }
+            });
+
+            // Apply to all active peer connections
+            const results = Array.from(outgoingPCs.current.entries()).map(async ([userId, pc]) => {
+                if (pc.connectionState === 'connected') {
+                    await setVideoBitrate(pc, bitrate, mode);
+                }
+            });
+            await Promise.all(results);
         }
     };
 

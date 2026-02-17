@@ -4,6 +4,9 @@ const path = require('path');
 const { spawn, exec } = require('child_process');
 const fs = require('fs');
 
+// Hardware-Beschleunigung deaktivieren (hilft gegen lila Streifen/Grafikfehler/White-Screen)
+app.disableHardwareAcceleration();
+
 const isPackaged = app.isPackaged;
 const projectRoot = path.join(__dirname, '..');
 
