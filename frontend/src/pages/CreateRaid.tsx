@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RaidService } from '../api/raidService';
+import { GuildService } from '../api/guildService';
 import { useAuth } from '../contexts/AuthContext';
-import { usePreferredGuild } from '../hooks/usePreferredGuild';
+import { useGuild } from '../contexts/GuildContext';
 
 export default function CreateRaid() {
     const { user, isAdmin } = useAuth();
     const navigate = useNavigate();
-    const {
-        guilds,
-        selectedGuild,
-        setSelectedGuild,
-        loading: guildLoading
-    } = usePreferredGuild();
+    const { guilds, selectedGuild, loading: guildLoading } = useGuild();
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [availableRanks, setAvailableRanks] = useState<any[]>([]);
 
     const [newRaid, setNewRaid] = useState({
         title: '',
@@ -55,6 +52,23 @@ export default function CreateRaid() {
         }
     }, [isAdmin, guildLoading]);
 
+    useEffect(() => {
+        if (selectedGuild) {
+            fetchRanks(selectedGuild.id);
+        }
+    }, [selectedGuild]);
+
+    const fetchRanks = async (guildId: number) => {
+        try {
+            const data = await GuildService.getRanks(guildId);
+            if (data.success) {
+                setAvailableRanks(data.ranks || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch ranks');
+        }
+    };
+
 
     const handleCreateRaid = async () => {
         if (!selectedGuild) return;
@@ -83,21 +97,6 @@ export default function CreateRaid() {
                 <div className="absolute top-0 right-0 w-48 h-48 bg-[#A330C9]/5 blur-3xl rounded-full -mr-24 -mt-24 group-hover:bg-[#A330C9]/10 transition-colors pointer-events-none"></div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
-                    <div className="md:col-span-2">
-                        <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Gilde auswählen</label>
-                        <select
-                            value={selectedGuild?.id || ''}
-                            onChange={(e) => {
-                                const guild = guilds.find(g => g.id === Number(e.target.value));
-                                setSelectedGuild(guild);
-                                if (guild) localStorage.setItem('selectedGuildId', guild.id.toString());
-                            }}
-                            className="w-full bg-black/40 border border-gray-800 rounded-xl p-3.5 text-sm text-gray-200 focus:border-[#A330C9] outline-none transition-all hover:border-gray-700"
-                        >
-                            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                        </select>
-                    </div>
-
                     <div className="md:col-span-2">
                         <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2 ml-1">Raid Titel</label>
                         <input
@@ -167,7 +166,7 @@ export default function CreateRaid() {
                 <div className="relative z-10">
                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">Berechtigte Ränge</label>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-4 bg-black/20 border border-gray-800 rounded-2xl max-h-48 overflow-y-auto custom-scrollbar">
-                        {selectedGuild?.ranks ? (selectedGuild.ranks as any[]).map((rank: any) => {
+                        {availableRanks.length > 0 ? availableRanks.map((rank: any) => {
                             const isSelected = newRaid.allowedRanks.includes(rank.id);
                             return (
                                 <label key={rank.id} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer group/rank ${isSelected ? 'bg-[#A330C9]/10 border-[#A330C9]/40 text-white' : 'bg-transparent border-transparent text-gray-500 hover:border-gray-800 hover:bg-white/5'}`}>

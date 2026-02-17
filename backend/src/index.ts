@@ -76,7 +76,7 @@ app.use('/updates', express.static(path.join(__dirname, '../updates')));
 initSocketService(io);
 
 // Fallback
-const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3334;
 server.listen(port, () => {
   console.log(`Backend listening on http://localhost:${port} (PID: ${process.pid})`);
   console.log(`BNET_REDIRECT_URI at runtime: ${process.env.BNET_REDIRECT_URI}`);

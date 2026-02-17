@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     // Initialize input with current URL
     const currentUrl = (window as any).electronAPI?.getBackendUrl?.() ||
       localStorage.getItem('backendUrl') ||
-      'http://localhost:3334';
+      'https://guild-manager-backend.onrender.com';
     setBackendInput(currentUrl);
   }, []);
 

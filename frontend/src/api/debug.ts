@@ -1,9 +1,9 @@
 import { API_BASE_URL } from './client';
+import { storage } from '../utils/storage';
 
 export async function logWebRTC(event: string, data: any) {
     try {
-        const storedUser = localStorage.getItem('guild-manager-user');
-        const user = storedUser ? JSON.parse(storedUser) : null;
+        const user = storage.get<any>('guild-manager-user', null);
         const userId = user?.battletag || 'unknown';
 
         await fetch(`${API_BASE_URL}/api/debug/webrtc-logs`, {

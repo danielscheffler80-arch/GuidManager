@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { GuildService } from '../api/guildService';
 import { io, Socket } from 'socket.io-client';
+import { useGuild } from '../contexts/GuildContext';
 
 interface ChatMessage {
   sender: string;
@@ -21,51 +22,8 @@ export default function Chat() {
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [guilds, setGuilds] = useState<Guild[]>([]);
-  const [selectedGuild, setSelectedGuild] = useState<Guild | null>(null);
+  const { guilds, selectedGuild, setSelectedGuild } = useGuild();
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Lade Gilden des Users
-  useEffect(() => {
-    const loadGuilds = async () => {
-      let availableGuilds: Guild[] = [];
-
-      // 1. Versuch: Über Account-Daten (schneller & zuverlässiger wenn gesynced)
-      if (user?.guildMemberships && user.guildMemberships.length > 0) {
-        // Map memberships to Guild objects
-        availableGuilds = user.guildMemberships.map((m: any) => ({
-          id: m.guildId,
-          name: m.guild?.name || `Guild ${m.guildId}`,
-          icon: m.guild?.icon
-        }));
-      }
-
-      // 2. Versuch: Fallback über API wenn leer
-      if (availableGuilds.length === 0) {
-        try {
-          const apiGuilds = await GuildService.getGuilds();
-          if (apiGuilds && apiGuilds.length > 0) {
-            availableGuilds = apiGuilds;
-          }
-        } catch (err) {
-          console.error('Failed to load guilds via API', err);
-        }
-      }
-
-      if (availableGuilds.length > 0) {
-        // Remove duplicates based on ID
-        const uniqueGuilds = Array.from(new Map(availableGuilds.map(g => [g.id, g])).values());
-
-        setGuilds(uniqueGuilds);
-
-        // Restore selection or default to first
-        const savedGuildId = localStorage.getItem('chat_selected_guild');
-        const found = uniqueGuilds.find(g => g.id.toString() === savedGuildId);
-        setSelectedGuild(found || uniqueGuilds[0]);
-      }
-    };
-    loadGuilds();
-  }, [user]);
 
   // Socket Connection & Room Management
   useEffect(() => {
@@ -78,7 +36,12 @@ export default function Chat() {
       try {
         const history = await GuildService.getChatHistory(selectedGuild.id);
         if (Array.isArray(history)) {
-          setMessages(history);
+          // Normalize names in history fallback (Strip #1234)
+          const normalizedHistory = history.map((m: ChatMessage) => ({
+            ...m,
+            sender: m.sender.includes('#') ? m.sender.split('#')[0] : m.sender
+          }));
+          setMessages(normalizedHistory);
         } else {
           setMessages([]);
         }
@@ -89,7 +52,7 @@ export default function Chat() {
     };
     fetchHistory();
 
-    const backendUrl = window.electronAPI?.getBackendUrl() || 'http://localhost:3334';
+    const backendUrl = (window as any).electronAPI?.getBackendUrl() || 'http://localhost:3334';
     const newSocket = io(backendUrl);
     setSocket(newSocket);
 
@@ -98,25 +61,34 @@ export default function Chat() {
       newSocket.emit('join-guild', selectedGuild.id);
     });
 
-    newSocket.on('guild-chat', (msg: ChatMessage) => {
-      // Nur Nachrichten anzeigen, die zu dieser Gilde gehören (oder System-Nachrichten)
-      if (!msg.guildId || msg.guildId === selectedGuild.id) {
+    const handleIncomingMessage = (msg: ChatMessage) => {
+      console.log('[Chat] Incoming:', msg.sender, msg.guildId);
+      // Type-safe check (Number) for guildId mismatch
+      if (!msg.guildId || Number(msg.guildId) === Number(selectedGuild.id)) {
         setMessages(prev => {
-          // Check for duplicates (by timestamp + content + sender) to avoid double entry from history + live
+          // Resolve name fallback (Strip #1234) if not already resolved by backend
+          const cleanSender = msg.sender.includes('#') ? msg.sender.split('#')[0] : msg.sender;
+          const cleanMsg = { ...msg, sender: cleanSender };
+
+          // Better duplicate check: sender (clean) + content + timestamp
           const isDuplicate = prev.some(m =>
             m.timestamp === msg.timestamp &&
             m.content === msg.content &&
-            m.sender === msg.sender
+            (m.sender === cleanSender || m.sender === msg.sender)
           );
+
           if (isDuplicate) return prev;
-          return [...prev.slice(-99), msg];
+          return [...prev.slice(-99), cleanMsg];
         });
       }
-    });
+    };
+
+    newSocket.on('guild-chat', handleIncomingMessage);
+    newSocket.on('guild-chat-resolved', handleIncomingMessage);
 
     // Listen for messages from Electron Log Watcher (Your own outgoing messages via Relay)
-    if (window.electronAPI?.onGuildChat) {
-      window.electronAPI.onGuildChat((data: ChatMessage) => {
+    if ((window as any).electronAPI?.onGuildChat) {
+      (window as any).electronAPI.onGuildChat((data: ChatMessage) => {
         // Relay to backend with Current Guild ID
         newSocket.emit('guild-chat', { ...data, guildId: selectedGuild.id });
       });
@@ -133,43 +105,18 @@ export default function Chat() {
     }
   }, [messages]);
 
-  const getTime = (iso: string) => {
-    return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const getTimestamp = (iso: string) => {
+    const date = new Date(iso);
+    const datePart = date.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    const timePart = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    // datePart looks like "Di., 17.02." -> remove the dot and comma or format manually
+    const weekday = date.toLocaleDateString('de-DE', { weekday: 'short' });
+    const dayMonth = date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+    return `[${weekday} ${dayMonth}][${timePart}]`;
   };
 
   return (
     <div className="page-container" style={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', color: '#D1D9E0' }}>
-      <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ color: '#40ff40' }}>●</span> Gilden-Chat (Live)
-          </h2>
-        </div>
-
-        {/* Guild Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ color: '#888', fontSize: '0.9em' }}>Gilde:</span>
-          <select
-            value={selectedGuild?.id || ''}
-            onChange={(e) => {
-              const g = guilds.find(g => g.id === Number(e.target.value));
-              if (g) setSelectedGuild(g);
-            }}
-            style={{
-              padding: '8px',
-              borderRadius: '6px',
-              background: '#252526',
-              color: '#fff',
-              border: '1px solid #444',
-              outline: 'none'
-            }}
-          >
-            {guilds.map(g => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
 
       <div
         ref={scrollRef}
@@ -200,7 +147,7 @@ export default function Chat() {
 
         {messages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', gap: '10px', fontSize: '0.95rem' }}>
-            <span style={{ color: '#666', minWidth: '50px' }}>[{getTime(msg.timestamp)}]</span>
+            <span style={{ color: '#666', minWidth: '125px' }}>{getTimestamp(msg.timestamp)}</span>
             <span style={{ color: '#A330C9', fontWeight: 'bold' }}>{msg.sender}:</span>
             <span style={{ color: '#D1D9E0', wordBreak: 'break-word' }}>{msg.content}</span>
           </div>

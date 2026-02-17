@@ -1,15 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { MythicPlusService } from '../api/mythicPlusService';
 import { capitalizeName } from '../utils/formatUtils';
-import { usePreferredGuild } from '../hooks/usePreferredGuild';
+import { useGuild } from '../contexts/GuildContext';
+import { storage } from '../utils/storage';
 
 export default function MythicPlus() {
-  const {
-    guilds,
-    selectedGuild,
-    setSelectedGuild,
-    loading: guildLoading
-  } = usePreferredGuild();
+  const { guilds, selectedGuild, setSelectedGuild, loading: guildLoading } = useGuild();
 
   const [keys, setKeys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,6 +13,12 @@ export default function MythicPlus() {
 
   useEffect(() => {
     if (selectedGuild) {
+      // SWR: Load from cache
+      const cachedKeys = storage.get(`cache_mythic_keys_${selectedGuild.id}`, []);
+      if (cachedKeys.length > 0) {
+        setKeys(cachedKeys);
+        setLoading(false);
+      }
       loadKeys(selectedGuild.id);
       setLoading(false);
     } else if (!guildLoading) {
@@ -28,7 +30,9 @@ export default function MythicPlus() {
   const loadKeys = async (guildId: number) => {
     try {
       const data = await MythicPlusService.getGuildKeys(guildId);
-      setKeys(data.keys || []);
+      const keysData = data.keys || [];
+      setKeys(keysData);
+      storage.set(`cache_mythic_keys_${guildId}`, keysData);
     } catch (error) {
       console.error('Failed to load keys');
     }
@@ -58,17 +62,6 @@ export default function MythicPlus() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Mythic+ Keys</h1>
         <div className="flex gap-4">
-          <select
-            value={selectedGuild?.id || ''}
-            onChange={(e) => {
-              const guild = guilds.find(g => g.id === Number(e.target.value));
-              setSelectedGuild(guild);
-              loadKeys(guild.id);
-            }}
-            className="p-2 border rounded"
-          >
-            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </select>
           <button
             onClick={handleSync}
             disabled={syncing}

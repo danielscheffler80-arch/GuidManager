@@ -20,6 +20,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { WebRTCProvider } from './contexts/WebRTCContext';
 import { useAuth } from './contexts/AuthContext';
+import { GuildProvider } from './contexts/GuildContext';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
@@ -129,7 +130,9 @@ export default function App() {
       <ThemeProvider>
         <WebRTCProvider>
           <HashRouter>
-            <AppContent />
+            <GuildProvider>
+              <AppContent />
+            </GuildProvider>
           </HashRouter>
         </WebRTCProvider>
       </ThemeProvider>

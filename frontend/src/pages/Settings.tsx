@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { formatRealm, capitalizeName } from '../utils/formatUtils';
 import { CharacterService } from '../api/characterService';
 import { GuildService } from '../api/guildService';
+import { useGuild } from '../contexts/GuildContext';
+import { storage } from '../utils/storage';
 
 interface Character {
   id: number;
@@ -24,10 +26,10 @@ type SortField = 'ilvl' | 'rio' | 'progress';
 
 export default function Settings() {
   const { user } = useAuth();
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { settingsSortField } = useGuild();
+  const [characters, setCharacters] = useState<Character[]>(() => storage.get('cache_settings_characters', []));
+  const [isLoading, setIsLoading] = useState(!storage.get('cache_settings_characters', null));
   const [updatingChars, setUpdatingChars] = useState<number[]>([]);
-  const [sortField, setSortField] = useState<SortField>('ilvl');
 
   // Permissions & Ranks state
   const [availableRanks, setAvailableRanks] = useState<{ id: number, name: string }[]>([]);
@@ -92,6 +94,7 @@ export default function Settings() {
       const data = await CharacterService.getMyCharacters();
       const allChars = data.user?.characters || data.characters || [];
       setCharacters(allChars);
+      storage.set('cache_settings_characters', allChars);
     } catch (err) {
       console.error('Failed to fetch characters:', err);
     } finally {
@@ -109,10 +112,10 @@ export default function Settings() {
     if (!a.isFavorite && b.isFavorite) return 1;
 
     // 3. Innerhalb der Gruppen nach gewähltem Feld sortieren
-    if (sortField === 'ilvl') {
+    if (settingsSortField === 'ilvl') {
       return (b.averageItemLevel || 0) - (a.averageItemLevel || 0);
     }
-    if (sortField === 'rio') {
+    if (settingsSortField === 'rio') {
       return (b.mythicRating || 0) - (a.mythicRating || 0);
     }
     // Progress sortiert alphabetisch als Fallback
@@ -285,37 +288,6 @@ export default function Settings() {
   return (
     <div className="page-container">
       <section style={{ marginTop: '5px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '15px' }}>
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.5em' }}>Charakter-Verwaltung</h2>
-            <p style={{ color: '#888', margin: '2px 0 0 0', fontSize: '0.9em' }}>Main festlegen und Twink-Favoriten sortieren.</p>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ color: '#666', fontSize: '0.85em', marginRight: '5px' }}>Sortieren nach:</span>
-            <button
-              onClick={() => setSortField('ilvl')}
-              style={{
-                background: sortField === 'ilvl' ? '#A330C9' : '#1D1E1F',
-                border: '1px solid #333', color: 'white', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer'
-              }}
-            >Itemlevel</button>
-            <button
-              onClick={() => setSortField('rio')}
-              style={{
-                background: sortField === 'rio' ? '#A330C9' : '#1D1E1F',
-                border: '1px solid #333', color: 'white', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer'
-              }}
-            >RIO Score</button>
-            <button
-              onClick={() => setSortField('progress')}
-              style={{
-                background: sortField === 'progress' ? '#A330C9' : '#1D1E1F',
-                border: '1px solid #333', color: 'white', padding: '5px 15px', borderRadius: '4px', cursor: 'pointer'
-              }}
-            >Progress</button>
-          </div>
-        </div>
-
         {isLoading ? (
           <p>Lade Charaktere...</p>
         ) : (

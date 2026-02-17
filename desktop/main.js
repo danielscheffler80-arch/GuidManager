@@ -39,6 +39,10 @@ ipcMain.handle('get-config', () => {
   return config;
 });
 
+ipcMain.handle('get-gpu-info', async () => {
+  return await app.getGPUInfo('basic');
+});
+
 let backendProc = null;
 let frontendProc = null;
 
