@@ -32,9 +32,10 @@ interface WebRTCContextType {
     socket: Socket | null;
     startStream: (sourceId: string, constraints: any, metadata: any) => Promise<void>;
     stopStream: () => void;
-    viewStream: (streamId: string) => Promise<void>;
+    viewStream: (streamId: string, joinCode?: string) => Promise<void>;
     clearView: () => void;
     updateMetadata: (metadata: any) => void;
+    updateConstraints: (constraints: any) => Promise<void>;
     filter: string;
     setFilter: (f: string) => void;
 }
@@ -323,6 +324,12 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
 
         const destination = audioContext.createMediaStreamDestination();
 
+        // Ensure AudioContext is active (browsers often suspend it until interaction)
+        if (audioContext.state === 'suspended') {
+            await audioContext.resume();
+            console.log('[WebRTC] AudioContext resumed');
+        }
+
         try {
             log('start_stream_requested', { sourceId, constraints });
 
@@ -431,15 +438,16 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                         let extraStream: MediaStream | null = null;
                         if (audioId === 'default') {
                             console.log('[WebRTC] Capturing System Sound (desktop)...');
-                            extraStream = await navigator.mediaDevices.getUserMedia({
+                            const systemAudioConstraints: any = {
                                 audio: {
                                     mandatory: {
                                         chromeMediaSource: 'desktop',
                                         chromeMediaSourceId: sourceId
                                     }
-                                } as any,
+                                },
                                 video: false
-                            });
+                            };
+                            extraStream = await navigator.mediaDevices.getUserMedia(systemAudioConstraints as any);
                         } else {
                             // First attempt to capture as is (might be input or virtual loopback)
                             extraStream = await navigator.mediaDevices.getUserMedia({
@@ -505,7 +513,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         setIsConnecting(false);
     };
 
-    const viewStream = async (streamId: string) => {
+    const viewStream = async (streamId: string, joinCode?: string) => {
         if (incomingPC.current) {
             incomingPC.current.pc.close();
             candidateQueues.current.delete(incomingPC.current.id);
@@ -520,7 +528,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            socket?.emit('signal', { to: streamId, signal: offer, connectionRole: 'viewer' });
+            socket?.emit('signal', { to: streamId, signal: offer, connectionRole: 'viewer', joinCode });
         } catch (e) {
             console.error('[WebRTC] ViewStream: Failed to create offer:', e);
             setIsConnecting(false);
@@ -543,10 +551,35 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         log('metadata_updated', metadata);
     };
 
+    const updateConstraints = async (constraints: any) => {
+        currentConstraintsRef.current = { ...currentConstraintsRef.current, ...constraints };
+
+        if (isStreaming && localStreamRef.current) {
+            // Update track optimization (contentHint)
+            if (constraints.optimizationMode) {
+                localStreamRef.current.getVideoTracks().forEach(track => {
+                    if ((track as any).contentHint !== undefined) {
+                        (track as any).contentHint = constraints.optimizationMode;
+                    }
+                });
+            }
+
+            // Apply new bitrate to all active peer connections
+            if (constraints.bitrate) {
+                const results = Array.from(outgoingPCs.current.entries()).map(async ([userId, pc]) => {
+                    if (pc.connectionState === 'connected') {
+                        await setVideoBitrate(pc, constraints.bitrate);
+                    }
+                });
+                await Promise.all(results);
+            }
+        }
+    };
+
     return (
         <WebRTCContext.Provider value={{
             activeStreams, isStreaming, isConnecting, localStream, remoteStream, socket,
-            startStream, stopStream, viewStream, clearView, updateMetadata,
+            startStream, stopStream, viewStream, clearView, updateMetadata, updateConstraints,
             filter, setFilter
         }}>
             {children}

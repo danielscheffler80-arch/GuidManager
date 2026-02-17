@@ -64,7 +64,7 @@ export default function Streams() {
         } else {
           // If viewing someone else, prioritize their settings
           setIsHdrFix(!!streamMeta.isHdr);
-          if (streamMeta.hdrSettings) {
+          if (streamMeta.hdrSettings && typeof streamMeta.hdrSettings === 'object') {
             setActiveHdrSettings(streamMeta.hdrSettings);
           } else {
             setActiveHdrSettings(DEFAULT_HDR);
@@ -124,7 +124,7 @@ export default function Streams() {
 
                 return user?.guildMemberships && user.guildMemberships.length > 0;
               })
-              .map(stream => (
+              .map((stream: any) => (
                 <li
                   key={stream.id}
                   className={`stream-item ${viewingId === stream.id ? 'active' : ''}`}
@@ -135,13 +135,19 @@ export default function Streams() {
                       return;
                     }
 
+                    let code: string | undefined = undefined;
                     if (stream.hasJoinCode) {
-                      const code = prompt('Dieser Stream ist geschützt. Bitte gib den Beitritts-Code ein:');
-                      if (code === null) return;
+                      const input = prompt('Dieser Stream ist geschützt. Bitte gib den Beitritts-Code ein:');
+                      if (input === null) return;
+                      code = input.toUpperCase();
                     }
 
                     setViewingId(stream.id);
-                    viewStream(stream.id);
+                    try {
+                      await viewStream(stream.id, code);
+                    } catch (err: any) {
+                      alert(err.message || 'Fehler beim Laden des Streams.');
+                    }
                   }}
                 >
                   <div className="stream-info">
@@ -167,7 +173,7 @@ export default function Streams() {
                 <video
                   autoPlay
                   muted
-                  ref={video => {
+                  ref={(video: HTMLVideoElement | null) => {
                     if (video) video.srcObject = localStream;
                     localVideoRef.current = video;
                   }}
@@ -181,7 +187,7 @@ export default function Streams() {
                 <video
                   autoPlay
                   muted={isMuted}
-                  ref={video => {
+                  ref={(video: HTMLVideoElement | null) => {
                     if (video) {
                       video.srcObject = remoteStream;
                       video.volume = isMuted ? 0 : volume;

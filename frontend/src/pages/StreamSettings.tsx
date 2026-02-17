@@ -15,19 +15,22 @@ export default function StreamSettings() {
         socket,
         startStream,
         stopStream,
-        updateMetadata
+        updateMetadata,
+        updateConstraints
     } = useWebRTC();
     const videoRef = useRef<HTMLVideoElement | null>(null);
 
     const [sources, setSources] = useState<any[]>([]);
     const [selectedSource, setSelectedSource] = useState('');
     const [resolution, setResolution] = useState(() => {
+        const stored = storage.get('guild-manager-stream-resolution', '');
+        if (stored) return stored;
         const height = window.screen.height;
         if (height >= 1440) return '1440';
         if (height >= 1080) return '1080';
         return '720';
     });
-    const [fps, setFps] = useState(60);
+    const [fps, setFps] = useState(() => storage.get('guild-manager-stream-fps', 60));
 
     const [hdrSettings, setHdrSettings] = useState(() => {
         return storage.get('guild-manager-hdr-settings', {
@@ -121,8 +124,29 @@ export default function StreamSettings() {
     }, [encoderMode]);
 
     useEffect(() => {
+        storage.set('guild-manager-stream-resolution', resolution);
+    }, [resolution]);
+
+    useEffect(() => {
+        storage.set('guild-manager-stream-fps', fps);
+    }, [fps]);
+
+    useEffect(() => {
         storage.set('guild-manager-stream-cpu-preset', cpuPreset);
-    }, [cpuPreset]);
+        if (isStreaming && encoderMode === 'cpu') {
+            updateConstraints({ cpuPreset });
+        }
+    }, [cpuPreset, isStreaming, encoderMode, updateConstraints]);
+
+    useEffect(() => {
+        if (isStreaming) {
+            updateConstraints({
+                bitrate: defaultBitrate,
+                optimizationMode: defaultOptimization,
+                encoder: encoderMode
+            });
+        }
+    }, [defaultBitrate, defaultOptimization, encoderMode, isStreaming, updateConstraints]);
 
     useEffect(() => {
         storage.set('stream-privacy-public', isPublic);
@@ -138,8 +162,8 @@ export default function StreamSettings() {
 
     useEffect(() => {
         const detectGpu = async () => {
-            if ((window as any).electronAPI?.getGPUInfo) {
-                try {
+            try {
+                if ((window as any).electronAPI?.getGPUInfo) {
                     const info = await (window as any).electronAPI.getGPUInfo();
                     const gpu = info?.gpuDevice?.[0];
                     if (gpu) {
@@ -150,13 +174,15 @@ export default function StreamSettings() {
                         else if (vendorId === 32902 || vendorId === 0x8086) vendor = 'Intel';
 
                         setGpuName(`${vendor} (${gpu.renderer || 'Generic'})`);
+                    } else {
+                        setGpuName('Wird erkannt...');
                     }
-                } catch (e) {
-                    console.error('GPU Detection failed:', e);
-                    setGpuName('Fehler bei Erkennung');
+                } else {
+                    setGpuName('Browser (Standard)');
                 }
-            } else {
-                setGpuName('Browser (Standard)');
+            } catch (e) {
+                console.error('GPU Detection failed:', e);
+                setGpuName('Hardware-Erkennung n.v.');
             }
         };
         detectGpu();
@@ -180,7 +206,7 @@ export default function StreamSettings() {
                 console.error('[StreamSettings] Failed to fetch cameras:', err);
             }
 
-            const desktopSources = src.map(s => ({
+            const desktopSources = src.map((s: any) => ({
                 ...s,
                 type: s.id.startsWith('screen') ? 'screen' : 'window'
             }));
@@ -269,7 +295,7 @@ export default function StreamSettings() {
         const fetchDevices = async () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                const filtered = devices.filter(d => d.kind === 'audioinput' || d.kind === 'audiooutput');
+                const filtered = devices.filter(d => d.kind === 'audioinput');
                 setAudioSources(filtered);
             } catch (err) {
                 console.error('Error fetching devices:', err);
@@ -400,6 +426,12 @@ export default function StreamSettings() {
                     {/* 2. Audio Mixer */}
                     <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
                         <h2 style={{ fontSize: '1.1rem', marginBottom: '20px', color: '#00aaff' }}>🎙️ Audio-Mixer</h2>
+
+                        <div style={{ background: 'rgba(0, 170, 255, 0.1)', border: '1px solid rgba(0, 170, 255, 0.3)', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', color: '#ccc', lineHeight: '1.4' }}>
+                            <strong style={{ color: '#00aaff', display: 'block', marginBottom: '4px' }}>💡 Profi-Tipp: Spiel-Sound übertragen</strong>
+                            Wähle <strong>"System-Sound"</strong>, um alles zu übertragen, was du gerade hörst (Spiel, Musik, Windows). Physische Lautsprecher können techn. bedingt nicht direkt ausgewählt werden.
+                        </div>
+
                         <div style={{ display: 'grid', gap: '15px' }}>
                             {/* Microphone */}
                             <div style={{ background: '#252525', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #00ff88' }}>
@@ -411,8 +443,8 @@ export default function StreamSettings() {
                                         style={{ flex: 1, background: '#1a1a1a', border: '1px solid #444', color: 'white', padding: '5px', borderRadius: '4px', fontSize: '0.85rem' }}
                                     >
                                         <option value="">(Deaktiviert)</option>
-                                        {audioSources.filter(as => as.kind === 'audioinput').map(as => (
-                                            <option key={as.deviceId} value={as.deviceId}>{as.label || `In ${as.deviceId.slice(0, 3)}`}</option>
+                                        {audioSources.map(as => (
+                                            <option key={as.deviceId} value={as.deviceId}>{as.label || `Eingang ${as.deviceId.slice(0, 3)}`}</option>
                                         ))}
                                     </select>
                                     <button
@@ -442,8 +474,7 @@ export default function StreamSettings() {
                                             <option value="default">System-Sound</option>
                                             {audioSources.map(as => (
                                                 <option key={as.deviceId} value={as.deviceId}>
-                                                    {as.kind === 'audiooutput' ? '🔈 ' : '🎙️ '}
-                                                    {as.label ? (as.label.length > 25 ? as.label.slice(0, 25) + '...' : as.label) : `Gerät ${as.deviceId.slice(0, 3)}`}
+                                                    🎙️ {as.label ? (as.label.length > 25 ? as.label.slice(0, 25) + '...' : as.label) : `Eingang ${as.deviceId.slice(0, 3)}`}
                                                 </option>
                                             ))}
                                         </select>
