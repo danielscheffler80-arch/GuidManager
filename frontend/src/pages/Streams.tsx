@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWebRTC } from '../hooks/useWebRTC';
+import { storage } from '../utils/storage';
+import { useGuild } from '../contexts/GuildContext';
 
 /**
  * Streams Page:
@@ -9,6 +11,8 @@ import { useWebRTC } from '../hooks/useWebRTC';
  */
 
 export default function Streams() {
+  const { user } = useAuth();
+  const { guilds, selectedGuild } = useGuild();
   const {
     activeStreams,
     isStreaming,
@@ -19,24 +23,19 @@ export default function Streams() {
     startStream,
     stopStream,
     viewStream,
-    clearView
+    clearView,
+    filter,
+    setFilter
   } = useWebRTC();
 
-  const [sources, setSources] = useState<any[]>([]);
-  const [selectedSource, setSelectedSource] = useState('');
-  const [resolution, setResolution] = useState(() => {
-    const height = window.screen.height;
-    if (height >= 1440) return '1440';
-    if (height >= 1080) return '1080';
-    return '720';
-  });
-  const [fps, setFps] = useState(60);
   const [viewingId, setViewingId] = useState<string | null>(null);
+
+  const DEFAULT_HDR = { brightness: 0.8, contrast: 1.15, saturation: 1.25 };
 
   // Player UI state (Settings are loaded from localStorage when starting, but player needs local state for viewing)
   const [isHdrFix, setIsHdrFix] = useState(false);
-  const [hdrSettings, setHdrSettings] = useState({ brightness: 0.8, contrast: 1.15, saturation: 1.25 });
-  const [activeHdrSettings, setActiveHdrSettings] = useState({ brightness: 0.8, contrast: 1.15, saturation: 1.25 });
+  const [hdrSettings, setHdrSettings] = useState(() => storage.get('guild-manager-hdr-settings', DEFAULT_HDR));
+  const [activeHdrSettings, setActiveHdrSettings] = useState(() => storage.get('guild-manager-hdr-settings', DEFAULT_HDR));
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [playerQuality, setPlayerQuality] = useState('original');
@@ -47,112 +46,9 @@ export default function Streams() {
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
 
-  const refreshSources = async () => {
-    if (window.electronAPI) {
-      const src = await window.electronAPI.getSources(['window', 'screen']);
-
-      // Also fetch camera sources
-      let cameraSources: any[] = [];
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        cameraSources = devices
-          .filter(d => d.kind === 'videoinput')
-          .map(d => ({
-            id: d.deviceId,
-            name: `📷 ${d.label || 'Kamera ' + d.deviceId.slice(0, 5)}`,
-            type: 'camera'
-          }));
-      } catch (err) {
-        console.error('[Streams] Failed to fetch cameras:', err);
-      }
-
-      const desktopSources = src.map(s => ({
-        ...s,
-        type: s.id.startsWith('screen') ? 'screen' : 'window'
-      }));
-
-      const allSources = [...desktopSources, ...cameraSources];
-      setSources(allSources);
-
-      if (allSources.length > 0 && !selectedSource) {
-        setSelectedSource(allSources[0].id);
-      }
-    }
-  };
-
   useEffect(() => {
-    refreshSources();
-    const savedHdr = localStorage.getItem('guild-manager-hdr-settings');
-    if (savedHdr) setHdrSettings(JSON.parse(savedHdr));
+    setHdrSettings(storage.get('guild-manager-hdr-settings', DEFAULT_HDR));
   }, []);
-
-  const { user } = useAuth();
-  const handleStartStream = async () => {
-    // Load latest settings from localStorage
-    const savedHdr = localStorage.getItem('guild-manager-hdr-settings');
-    const currentHdr = savedHdr ? JSON.parse(savedHdr) : { brightness: 0.8, contrast: 1.15, saturation: 1.25 };
-
-    const micId = localStorage.getItem('guild-manager-mic-id') || '';
-    const micMuted = localStorage.getItem('guild-manager-mic-muted') === 'true';
-
-    const savedChannels = localStorage.getItem('guild-manager-audio-channels');
-    const channels: { id: string, muted: boolean }[] = savedChannels ? JSON.parse(savedChannels) : [{ id: 'default', muted: false }, { id: '', muted: false }];
-
-    const userName = user?.battletag ? user.battletag.split('#')[0] : 'Gast';
-    const metadata = {
-      userName: userName,
-      title: 'Gaming Session',
-      quality: resolution + 'p',
-      fps: fps,
-      isHdr: window.matchMedia?.('(dynamic-range: high)').matches || false,
-      hdrSettings: window.matchMedia?.('(dynamic-range: high)').matches ? currentHdr : null
-    };
-
-    const resMap: Record<string, { w: number, h: number }> = {
-      '720': { w: 1280, h: 720 },
-      '1080': { w: 1920, h: 1080 },
-      '1440': { w: 2560, h: 1440 }
-    };
-
-    const currentSource = sources.find(s => s.id === selectedSource);
-    const sourceType = currentSource?.type === 'camera' ? 'camera' : 'desktop';
-
-    console.warn('[Streams] handleStartStream:', {
-      selectedSource,
-      sourceType,
-      resolution,
-      fps,
-      availableSources: sources.map(s => ({ id: s.id, name: s.name, type: s.type }))
-    });
-
-    const constraints = {
-      width: resMap[resolution].w,
-      height: resMap[resolution].h,
-      fps: fps,
-      micId: micId,
-      micMuted: micMuted,
-      audioIds: channels.map(c => c.id),
-      mutedAudio: channels.map(c => c.muted),
-      sourceType: sourceType
-    };
-
-    try {
-      await startStream(selectedSource, constraints, metadata);
-      setViewingId(socket?.id || null);
-      setIsHdrFix(metadata.isHdr);
-      if (metadata.hdrSettings) {
-        setHdrSettings(metadata.hdrSettings);
-        setActiveHdrSettings(metadata.hdrSettings);
-      }
-    } catch (err: any) {
-      console.error('[Streams] Start failed:', err);
-      const errorMsg = `Fehler beim Starten des Streams:
-      Typ: ${sourceType}
-      Quelle: ${selectedSource}
-      Fehler: ${err.message || 'Unbekannter Fehler'} (${err.name || 'Ohne Name'})`;
-      alert(errorMsg);
-    }
-  };
 
   useEffect(() => {
     if (viewingId) {
@@ -162,8 +58,7 @@ export default function Streams() {
 
         // If it's our own stream, use our local calibrated settings
         if (viewingId === socket?.id) {
-          const savedHdr = localStorage.getItem('guild-manager-hdr-settings');
-          const localSettings = savedHdr ? JSON.parse(savedHdr) : hdrSettings;
+          const localSettings = storage.get('guild-manager-hdr-settings', DEFAULT_HDR);
           setActiveHdrSettings(localSettings);
           setIsHdrFix(!!streamMeta.isHdr);
         } else {
@@ -171,6 +66,8 @@ export default function Streams() {
           setIsHdrFix(!!streamMeta.isHdr);
           if (streamMeta.hdrSettings) {
             setActiveHdrSettings(streamMeta.hdrSettings);
+          } else {
+            setActiveHdrSettings(DEFAULT_HDR);
           }
         }
       }
@@ -193,93 +90,77 @@ export default function Streams() {
     if (!isHdrFix) return 'none';
 
     // Use active settings (either remote streamer's or our current preview settings)
-    const b = activeHdrSettings.brightness;
-    const c = activeHdrSettings.contrast;
-    const s = activeHdrSettings.saturation;
+    const b = activeHdrSettings?.brightness ?? DEFAULT_HDR.brightness;
+    const c = activeHdrSettings?.contrast ?? DEFAULT_HDR.contrast;
+    const s = activeHdrSettings?.saturation ?? DEFAULT_HDR.saturation;
 
     return `brightness(${b}) contrast(${c}) saturate(${s})`;
   };
 
   return (
     <section className="streams-page page-container">
-      <header className="streams-header">
-        <h1>Live Streams</h1>
-        <div className="stream-controls">
-          {!isStreaming ? (
-            <div className="start-stream-form">
-              <select value={selectedSource} onChange={(e) => setSelectedSource(e.target.value)}>
-                <optgroup label="Bildschirme">
-                  {sources.filter(s => s.type === 'screen').map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Fenster">
-                  {sources.filter(s => s.type === 'window').map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="Kameras (OBS/Meld)">
-                  {sources.filter(s => s.type === 'camera').map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </optgroup>
-              </select>
-              <select value={resolution} onChange={(e) => setResolution(e.target.value)}>
-                <option value="720">720p</option>
-                <option value="1080">1080p</option>
-                <option value="1440">1440p</option>
-              </select>
-              <select value={fps} onChange={(e) => setFps(Number(e.target.value))}>
-                <option value="30">30 FPS</option>
-                <option value="60">60 FPS</option>
-              </select>
-              <button onClick={handleStartStream} className="btn-primary">Stream starten</button>
-              <button onClick={refreshSources} className="btn-secondary">🔄</button>
-            </div>
-          ) : (
-            <button onClick={stopStream} className="btn-danger">Stream stoppen</button>
-          )}
-        </div>
-      </header>
-
-      {!isStreaming && sources.find(s => s.id === selectedSource)?.type === 'camera' && (
-        <div style={{ background: 'rgba(0, 170, 255, 0.1)', borderLeft: '4px solid #00aaff', padding: '10px', borderRadius: '4px', fontSize: '0.85rem', marginBottom: '10px' }}>
-          <strong>💡 Tipp:</strong> Falls du <strong>OBS</strong> oder <strong>Meld</strong> verwendest, stelle sicher, dass du dort die <strong>"Virtual Camera"</strong> gestartet hast, bevor du hier auf "Stream starten" klickst.
-        </div>
-      )}
-
-
       <div className="streams-content">
         <aside className="streams-sidebar">
           <h3>Aktive Streams</h3>
           <ul className="streams-list">
             {activeStreams.length === 0 && <li>Keine aktiven Streams</li>}
-            {activeStreams.map(stream => (
-              <li
-                key={stream.id}
-                className={`stream-item ${viewingId === stream.id ? 'active' : ''}`}
-                onClick={() => {
-                  setViewingId(stream.id);
-                  if (stream.id !== socket?.id) {
+            {activeStreams
+              .filter((stream: any) => {
+                // Apply Privacy/Type Filter
+                if (filter === 'public' && !stream.isPublic) return false;
+                if (filter === 'private' && stream.isPublic) return false;
+                if (filter === 'protected' && !stream.hasJoinCode) return false;
+
+                // Own stream always visible
+                if (stream.id === socket?.id) return true;
+
+                // Public streams always visible
+                if (stream.isPublic) return true;
+
+                // Private streams: Check if user is in the specific guild
+                if (stream.guildId) {
+                  return user?.guildMemberships?.some((m: any) => m.guildId === stream.guildId);
+                }
+
+                return user?.guildMemberships && user.guildMemberships.length > 0;
+              })
+              .map(stream => (
+                <li
+                  key={stream.id}
+                  className={`stream-item ${viewingId === stream.id ? 'active' : ''}`}
+                  onClick={async () => {
+                    if (stream.id === socket?.id) {
+                      setViewingId(stream.id);
+                      clearView();
+                      return;
+                    }
+
+                    if (stream.hasJoinCode) {
+                      const code = prompt('Dieser Stream ist geschützt. Bitte gib den Beitritts-Code ein:');
+                      if (code === null) return;
+                    }
+
+                    setViewingId(stream.id);
                     viewStream(stream.id);
-                  } else {
-                    clearView();
-                  }
-                }}
-              >
-                <div className="stream-info">
-                  <span className="stream-user">{stream.userName}</span>
-                  <span className="stream-meta">{stream.quality} @ {stream.fps}fps</span>
-                </div>
-              </li>
-            ))}
+                  }}
+                >
+                  <div className="stream-info">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span className="stream-user">{stream.userName}</span>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        {stream.hasJoinCode && <span title="Passwortgeschützt">🔒</span>}
+                        {stream.isPublic ? <span title="Öffentlich" style={{ fontSize: '0.7rem', color: '#888' }}>🌐</span> : <span title="Gilden-intern" style={{ fontSize: '0.7rem', color: '#00aaff' }}>🛡️</span>}
+                      </div>
+                    </div>
+                    <span className="stream-meta">{stream.quality} @ {stream.fps}fps</span>
+                  </div>
+                </li>
+              ))}
           </ul>
         </aside>
 
         <main className="streams-viewer" ref={playerRef}>
-          {/* Large Main View */}
           <div className="main-video-area">
-            {/* Show local stream ONLY if explicitly selected */}
             {isStreaming && localStream && viewingId === socket?.id && (
               <div className="video-container" style={{ filter: getHdrFilter() }}>
                 <span className="video-badge">Mein Stream</span>
@@ -294,7 +175,6 @@ export default function Streams() {
               </div>
             )}
 
-            {/* Show remote stream if a DIFFERENT stream is selected */}
             {remoteStream && viewingId !== socket?.id && (
               <div className="video-container" style={{ filter: getHdrFilter() }}>
                 <span className="video-badge live">LIVE</span>
@@ -303,7 +183,6 @@ export default function Streams() {
                   muted={isMuted}
                   ref={video => {
                     if (video) {
-                      console.log('[Streams] Setting remoteVideo srcObject:', remoteStream?.id);
                       video.srcObject = remoteStream;
                       video.volume = isMuted ? 0 : volume;
                     }
@@ -316,7 +195,6 @@ export default function Streams() {
               </div>
             )}
 
-            {/* Placeholder if nothing or something inactive is selected */}
             {(!viewingId || (viewingId === socket?.id && !isStreaming) || (viewingId !== socket?.id && !remoteStream)) && (
               <div className="viewer-placeholder">
                 {isConnecting ? (
@@ -330,7 +208,6 @@ export default function Streams() {
               </div>
             )}
 
-            {/* Player Overlay Controls */}
             {(remoteStream || (isStreaming && viewingId === socket?.id)) && (
               <div className="player-controls-overlay">
                 <div className="controls-left">
@@ -387,73 +264,69 @@ export default function Streams() {
                     display: flex;
                     flex-direction: column;
                     height: 100%;
-                    gap: 20px;
                     color: white;
-                }
-                .streams-header {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    padding: 10px 0;
-                    border-bottom: 1px solid #333;
-                }
-                .start-stream-form {
-                    display: flex;
-                    gap: 10px;
                 }
                 .streams-content {
                     display: grid;
-                    grid-template-columns: 250px 1fr;
-                    gap: 20px;
+                    grid-template-columns: 280px 1fr;
+                    gap: 24px;
                     flex: 1;
                     min-height: 0;
                 }
                 .streams-sidebar {
-                    background: #1a1a1a;
-                    padding: 15px;
-                    border-radius: 8px;
+                    background: #111;
+                    padding: 20px;
+                    border-radius: 12px;
                     overflow-y: auto;
+                    border: 1px solid #222;
                 }
                 .streams-list {
                     list-style: none;
                     padding: 0;
-                    margin-top: 15px;
+                    margin-top: 20px;
                 }
                 .stream-item {
-                    padding: 10px;
-                    border-radius: 4px;
+                    padding: 12px;
+                    border-radius: 8px;
                     cursor: pointer;
-                    background: #2a2a2a;
-                    margin-bottom: 10px;
-                    transition: background 0.2s;
+                    background: #1a1a1a;
+                    margin-bottom: 12px;
+                    transition: all 0.2s;
+                    border: 1px solid transparent;
                 }
                 .stream-item:hover {
-                    background: #3a3a3a;
+                    background: #222;
+                    border-color: #333;
                 }
                 .stream-item.active {
-                    border: 1px solid #00aaff;
-                    background: #253340;
+                    border-color: #00aaff;
+                    background: #00aaff10;
                 }
                 .stream-info {
                     display: flex;
                     flex-direction: column;
+                    gap: 4px;
                 }
                 .stream-user {
-                    font-weight: bold;
+                    font-size: 0.9rem;
+                    font-weight: 700;
+                    color: #fff;
                 }
                 .stream-meta {
-                    font-size: 0.8rem;
-                    color: #aaa;
+                    font-size: 0.75rem;
+                    color: #666;
+                    font-weight: 500;
                 }
                 .streams-viewer {
                     background: #000;
-                    border-radius: 8px;
+                    border-radius: 12px;
                     display: flex;
                     flex-direction: column;
                     position: relative;
                     overflow: hidden;
                     width: 100%;
                     height: 100%;
+                    border: 1px solid #222;
                 }
                 .main-video-area {
                     width: 100%;
@@ -461,28 +334,6 @@ export default function Streams() {
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                }
-                .pip-container {
-                    position: absolute;
-                    bottom: 20px;
-                    right: 20px;
-                    width: 240px;
-                    aspect-ratio: 16/9;
-                    background: #000;
-                    border: 2px solid #00aaff;
-                    border-radius: 8px;
-                    z-index: 100;
-                    overflow: hidden;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-                }
-                .pip-label {
-                    position: absolute;
-                    top: 5px;
-                    left: 5px;
-                    font-size: 0.6rem;
-                    background: rgba(0,0,0,0.7);
-                    padding: 2px 5px;
-                    border-radius: 3px;
                 }
                 .video-container {
                     width: 100%;
@@ -499,21 +350,25 @@ export default function Streams() {
                 }
                 .video-badge {
                     position: absolute;
-                    top: 10px;
-                    left: 10px;
-                    background: rgba(0,0,0,0.6);
-                    padding: 4px 8px;
-                    border-radius: 4px;
-                    font-size: 0.8rem;
+                    top: 15px;
+                    left: 15px;
+                    background: rgba(0,0,0,0.7);
+                    backdrop-filter: blur(4px);
+                    padding: 5px 10px;
+                    border-radius: 6px;
+                    font-size: 0.75rem;
+                    font-weight: 700;
                     z-index: 10;
+                    border: 1px solid rgba(255,255,255,0.1);
                 }
                 .video-badge.live {
-                    background: #cc0000;
+                    background: #ef4444;
                     color: white;
+                    border: none;
                 }
                 .viewer-placeholder {
                     text-align: center;
-                    color: #666;
+                    color: #444;
                 }
                 .connecting-spinner {
                     display: flex;
@@ -524,89 +379,88 @@ export default function Streams() {
                 .spinner {
                     width: 40px;
                     height: 40px;
-                    border: 4px solid rgba(0, 170, 255, 0.1);
-                    border-top: 4px solid #00aaff;
+                    border: 3px solid rgba(0, 170, 255, 0.1);
+                    border-top: 3px solid #00aaff;
                     border-radius: 50%;
-                    animation: spin 1s linear infinite;
+                    animation: spin 0.8s linear infinite;
                 }
                 @keyframes spin {
                     0% { transform: rotate(0deg); }
                     100% { transform: rotate(360deg); }
                 }
 
-                /* New Player Controls Styles */
                 .player-controls-overlay {
                     position: absolute;
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    background: linear-gradient(transparent, rgba(0,0,0,0.8));
-                    padding: 15px 20px;
+                    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+                    padding: 20px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
                     opacity: 0;
-                    transition: opacity 0.3s;
+                    transition: all 0.3s;
                     z-index: 100;
+                    pointer-events: none;
                 }
                 .streams-viewer:hover .player-controls-overlay {
                     opacity: 1;
+                    pointer-events: auto;
                 }
                 .controls-left, .controls-right, .controls-center {
                     display: flex;
                     align-items: center;
-                    gap: 15px;
+                    gap: 16px;
                 }
                 .icon-btn {
                     background: none;
                     border: none;
                     color: white;
-                    font-size: 1.2rem;
+                    font-size: 1.25rem;
                     cursor: pointer;
-                    padding: 5px;
+                    padding: 8px;
                     display: flex;
                     align-items: center;
                     justify-content: center;
-                    transition: transform 0.1s;
+                    transition: all 0.2s;
+                    border-radius: 50%;
                 }
                 .icon-btn:hover {
+                    background: rgba(255,255,255,0.1);
                     transform: scale(1.1);
                 }
                 .volume-slider {
-                    width: 80px;
+                    width: 100px;
                     accent-color: #00aaff;
                     cursor: pointer;
                 }
                 .quality-select {
-                    background: rgba(0,0,0,0.5);
-                    border: 1px solid #444;
+                    background: rgba(0,0,0,0.6);
+                    border: 1px solid #333;
                     color: white;
-                    border-radius: 4px;
-                    padding: 2px 5px;
-                    font-size: 0.8rem;
-                }
-                .btn-filter {
-                    background: #333;
-                    border: 1px solid #555;
-                    color: #aaa;
+                    border-radius: 6px;
                     padding: 4px 10px;
-                    border-radius: 4px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                }
+                .btn-filter-hdr {
+                    background: #1a1a1a;
+                    border: 1px solid #333;
+                    color: #666;
+                    padding: 6px 12px;
+                    border-radius: 6px;
                     font-size: 0.75rem;
                     cursor: pointer;
-                    font-weight: bold;
+                    font-weight: 700;
                     transition: all 0.2s;
                 }
-                .btn-filter.active {
-                    background: #0088cc;
-                    border-color: #00aaff;
-                    color: white;
-                    box-shadow: 0 0 10px rgba(0, 170, 255, 0.3);
+                .btn-filter-hdr.active {
+                    background: #a330c920;
+                    border-color: #a330c9;
+                    color: #d8b4fe;
+                    box-shadow: 0 0 15px rgba(163, 48, 201, 0.2);
                 }
-
-                 .btn-primary { background: #00aaff; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
-                .btn-secondary { background: #444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-                .btn-danger { background: #ff4444; color: white; border: none; padding: 5px 15px; border-radius: 4px; cursor: pointer; }
-                select { background: #333; color: white; border: 1px solid #444; padding: 5px; border-radius: 4px; }
             `}</style>
     </section>
   );

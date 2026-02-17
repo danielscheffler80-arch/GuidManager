@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { GuildService } from '../api/guildService';
 import { CharacterService } from '../api/characterService';
+import { useAuth } from '../contexts/AuthContext';
 
 export function usePreferredGuild() {
+    const { user } = useAuth();
     const [guilds, setGuilds] = useState<any[]>([]);
     const [selectedGuild, setSelectedGuild] = useState<any>(null);
     const [myCharacters, setMyCharacters] = useState<any[]>([]);
@@ -15,9 +17,23 @@ export function usePreferredGuild() {
         try {
             // 1. Fetch Guilds
             const gData = await GuildService.getGuilds();
-            const allGuilds = gData.guilds || [];
-            console.log('[usePreferredGuild] Guilds loaded:', allGuilds.length);
-            setGuilds(allGuilds);
+            const allGuildsFromApi = gData.guilds || [];
+
+            // FILTER: Only show guilds where user has a membership
+            let filteredGuilds = allGuildsFromApi;
+            if (user?.guildMemberships && user.guildMemberships.length > 0) {
+                const myGuildIds = user.guildMemberships.map((m: any) => m.guildId);
+                filteredGuilds = allGuildsFromApi.filter((g: any) => myGuildIds.includes(g.id));
+            } else if (user) {
+                // If user is logged in but has no memberships in context, show empty to be safe
+                // (Unless it's a superuser check, but usually memberships are synced)
+                filteredGuilds = [];
+            }
+
+            console.log('[usePreferredGuild] Guilds loaded:', filteredGuilds.length, ' (Total API:', allGuildsFromApi.length, ')');
+            setGuilds(filteredGuilds);
+
+            const allGuilds = filteredGuilds;
 
             // 2. Fetch Characters to find Main
             const cData = await CharacterService.getMyCharacters();

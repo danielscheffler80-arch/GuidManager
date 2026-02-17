@@ -2,6 +2,7 @@
 // Verwaltet User Authentication State
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { storage } from '../utils/storage';
 
 interface User {
   id: number;
@@ -47,6 +48,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'waiting' | 'ready'>('checking');
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,20 +82,29 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (window.electronAPI && window.electronAPI.isBackendReady) {
           console.log('[AUTH] Waiting for backend check...');
           let checks = 0;
-          while (!window.electronAPI.isBackendReady() && checks < 50) { // Max 5s wait
+          while (!window.electronAPI.isBackendReady() && checks < 600) {
+            if (checks > 30) setConnectionStatus('waiting'); // Show message after 3 seconds
             await new Promise(resolve => setTimeout(resolve, 100));
             checks++;
           }
+          setConnectionStatus('ready');
           console.log(`[AUTH] Backend ready after ${checks * 100}ms`);
         }
 
         if (storedUser && token) {
-          const userData = JSON.parse(storedUser);
+          const userData = storage.get<User | null>('user', null);
+          if (!userData) {
+            // Data corrupted in localStorage
+            localStorage.removeItem('user');
+            localStorage.removeItem('accessToken');
+            setIsLoading(false);
+            return;
+          }
 
           // Validiere Token mit Backend
           const backendUrl = window.electronAPI?.getBackendUrl?.() ||
             localStorage.getItem('backendUrl') ||
-            'http://localhost:3334';
+            'https://guild-manager-backend.onrender.com';
 
           const response = await fetch(`${backendUrl}/auth/me`, {
             headers: {
@@ -106,7 +117,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             if (result.success) {
               setUser(result.user);
               // Update localStorage with fresh data
-              localStorage.setItem('user', JSON.stringify(result.user));
+              storage.set('user', result.user);
               // Trigger LIGHT initial sync in background
               setTimeout(() => syncCharacters(false), 2000);
             } else {
@@ -178,7 +189,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const meResult = await meResponse.json();
           if (meResult.success) {
             setUser(meResult.user);
-            localStorage.setItem('user', JSON.stringify(meResult.user));
+            storage.set('user', meResult.user);
           }
         }
       } else {
@@ -193,7 +204,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (userData: User) => {
     setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    storage.set('user', userData);
     // Start background sync after login
     syncCharacters(false);
   };
@@ -240,7 +251,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       return response.ok;
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('CheckAuth error:', error);
+      setConnectionError('Server nicht erreichbar.');
       return false;
     }
   };
@@ -278,7 +290,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             animation: 'spin 1s linear infinite',
             margin: '0 auto'
           }}></div>
-          <p style={{ marginTop: '16px' }}>Suche nach Server Verbindung...</p>
+          <p style={{ marginTop: '16px', fontWeight: 'bold' }}>Suche nach Server Verbindung...</p>
+          {connectionStatus === 'waiting' && (
+            <p style={{ fontSize: '0.85rem', color: '#888', marginTop: '8px', maxWidth: '300px', margin: '8px auto' }}>
+              Cloud-Server wird geweckt. Dies kann beim ersten Start bis zu 60 Sekunden dauern...
+            </p>
+          )}
         </div>
       </div>
     );

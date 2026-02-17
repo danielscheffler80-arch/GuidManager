@@ -9,6 +9,10 @@ interface StreamMetadata {
     quality: string;
     fps: number;
     startedAt: string;
+    isPublic: boolean;
+    guildId?: number;
+    hasJoinCode: boolean;
+    joinCode?: string; // Keep on server for validation
 }
 
 const activeStreams = new Map<string, StreamMetadata>();
@@ -99,6 +103,33 @@ export function initSocketService(io: Server) {
             }
 
             io.to(`guild_${data.guildId}`).emit('guild-chat', data);
+
+            // Resolve character name for live broadcast
+            let displaySender = data.sender;
+            try {
+                const userWithMain = await prisma.user.findFirst({
+                    where: { name: data.sender },
+                    include: {
+                        characters: {
+                            where: { isMain: true },
+                            take: 1
+                        }
+                    }
+                });
+
+                if (userWithMain && userWithMain.characters && userWithMain.characters.length > 0) {
+                    displaySender = userWithMain.characters[0].name;
+                } else {
+                    // Fallback to name part of BattleTag
+                    displaySender = data.sender.split('#')[0];
+                }
+            } catch (err) {
+                console.error('[Socket] Name resolution failed:', err);
+                displaySender = data.sender.split('#')[0];
+            }
+
+            // Emit again with resolved name for display
+            io.to(`guild_${data.guildId}`).emit('guild-chat-resolved', { ...data, sender: displaySender });
         });
 
         // Debug Logging via Socket

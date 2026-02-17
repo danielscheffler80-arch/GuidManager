@@ -6,43 +6,76 @@ export class GuildController {
     // Holt Zusammenfassung für das Dashboard
     static async getDashboardSummary(req: Request, res: Response) {
         const userId = (req as any).user?.userId;
+        const requestedGuildId = req.query.guildId ? Number(req.query.guildId) : null;
 
         try {
-            // 1. Finde Main Charakter
-            const mainChar = await prisma.character.findFirst({
-                where: { userId, isMain: true },
-                include: { guild: true }
+            // 1. Finde Main Charakter oder alle Charaktere des Users
+            const userChars = await prisma.character.findMany({
+                where: { userId }
             });
 
-            if (!mainChar) {
+            const mainChar = userChars.find(c => c.isMain) || userChars[0];
+
+            if (!mainChar && !requestedGuildId) {
                 return res.json({
                     success: true,
                     hasMain: false,
-                    message: 'Kein Main-Charakter ausgewählt.'
+                    message: 'Kein Charakter gefunden.'
                 });
             }
 
-            // 2. Hole Gilden-Info
-            const guild = mainChar.guild;
+            // 2. Bestimme die anzuzeigende Gilde
+            let guildId = requestedGuildId;
+            if (!guildId && mainChar) {
+                guildId = mainChar.guildId;
+            }
+
+            const guild = guildId ? await prisma.guild.findUnique({ where: { id: guildId } }) : null;
 
             // 3. Hole anstehende Raids (nächste 7 Tage)
             const upcomingRaids = await prisma.raid.findMany({
                 where: {
-                    guildId: mainChar.guildId || -1,
+                    guildId: guildId || -1,
                     startTime: { gte: new Date() }
+                },
+                include: {
+                    attendances: {
+                        where: {
+                            characterId: { in: userChars.map(c => c.id) }
+                        }
+                    }
                 },
                 take: 3,
                 orderBy: { startTime: 'asc' }
             });
 
-            // 4. Hole M+ Daten des Users (aktuelle ID-Woche - vereinfacht)
-            const myKeys = await prisma.mythicKey.findMany({
+            // Raids mit User-Status anreichern
+            const raidsWithStatus = upcomingRaids.map(raid => {
+                const userAttendance = raid.attendances[0]; // Da wir nach userChars gefiltert haben
+                let userStatus = 'none'; // Gelb
+
+                if (userAttendance) {
+                    if (['attending', 'late', 'tentative'].includes(userAttendance.status)) {
+                        userStatus = 'accepted'; // Grün
+                    } else if (userAttendance.status === 'not_attending') {
+                        userStatus = 'declined'; // Rot
+                    }
+                }
+
+                return {
+                    ...raid,
+                    userStatus
+                };
+            });
+
+            // 4. Hole M+ Daten des Users
+            const myKeys = mainChar ? await prisma.mythicKey.findMany({
                 where: { characterId: mainChar.id },
                 orderBy: { level: 'desc' },
                 take: 1
-            });
+            }) : [];
 
-            // 5. Dummy Announcements (Später aus DB)
+            // 5. Dummy Announcements
             const announcements = [
                 { id: 1, title: 'Raid-Vorbereitung', content: 'Bitte denkt an Flasks und Food für Mittwoch.', date: new Date() },
                 { id: 2, title: 'Gilden-Treffen', content: 'Nächsten Sonntag im Discord.', date: new Date() }
@@ -50,22 +83,22 @@ export class GuildController {
 
             res.json({
                 success: true,
-                hasMain: true,
-                mainCharacter: {
+                hasMain: !!mainChar,
+                mainCharacter: mainChar ? {
                     name: mainChar.name,
                     class: mainChar.class,
                     classId: mainChar.classId,
                     level: mainChar.level
-                },
+                } : null,
                 guild: {
                     name: guild?.name,
                     realm: guild?.realm,
                     faction: guild?.faction
                 },
                 announcements,
-                raids: upcomingRaids,
+                raids: raidsWithStatus,
                 mythicPlus: myKeys[0] || null,
-                streams: [] // Später implementieren
+                streams: []
             });
 
         } catch (error) {

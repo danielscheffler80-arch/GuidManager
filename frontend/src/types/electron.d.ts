@@ -6,6 +6,7 @@ declare global {
       openExternal?: (url: string) => void;
       isBackendReady?: () => boolean;
       getSources: (types: string[]) => Promise<any[]>;
+      getGPUInfo: () => Promise<any>;
       checkForUpdates: () => Promise<any>;
       onUpdateMessage: (callback: (message: string) => void) => void;
       restartAndInstall: () => Promise<void>;

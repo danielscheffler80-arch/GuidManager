@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { GuildService } from '../api/guildService';
 import { useAuth } from '../contexts/AuthContext';
-import { usePreferredGuild } from '../hooks/usePreferredGuild';
+import { useGuild } from '../contexts/GuildContext';
 
 export default function AdminSettings() {
     const { user, isAdmin } = useAuth();
-    const {
-        guilds,
-        selectedGuild,
-        setSelectedGuild,
-        loading: guildLoading
-    } = usePreferredGuild();
+    const { guilds, selectedGuild, setSelectedGuild, loading: guildLoading } = useGuild();
 
     const [availableRanks, setAvailableRanks] = useState<{ id: number, name: string }[]>([]);
     const [adminRanks, setAdminRanks] = useState<number[]>([]);
@@ -119,16 +114,7 @@ export default function AdminSettings() {
                     <span className="text-xs font-black uppercase tracking-[0.2em] text-white/90">Gilden-Verwaltung</span>
                 </div>
                 <div className="flex gap-4 items-center">
-                    <div className="flex flex-col gap-1 min-w-[240px]">
-                        <label className="text-[10px] font-bold text-gray-600 uppercase tracking-widest ml-1">Gilde wählen</label>
-                        <select
-                            value={selectedGuild?.id || ''}
-                            onChange={(e) => handleGuildSelect(guilds.find(g => g.id === Number(e.target.value)))}
-                            className="p-3 bg-[#121214] rounded-xl text-sm text-gray-300 outline-none focus:border-[#A330C9] transition-all cursor-pointer"
-                        >
-                            {guilds.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                        </select>
-                    </div>
+                    {/* Gilden-Auswahl wurde in die Topbar verschoben */}
                 </div>
             </header>
 

@@ -34,31 +34,25 @@ body {
 
 /* Custom Scrollbar - Pixel Perfect Design */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.3);
+  /* Increased opacity */
   border-radius: 10px;
-  border: 2px solid transparent;
-  background-clip: content-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background-clip: padding-box;
+  transition: background 0.2s;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
-  background-clip: content-box;
-}
-
-.mainframe::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.mainframe::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
 }
 
@@ -67,7 +61,16 @@ body {
   display: grid;
   grid-template-columns: 260px 1fr;
   height: 100vh;
+  width: 100vw;
   overflow: hidden;
+}
+
+.main-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
 }
 
 .sidebar {
@@ -160,15 +163,23 @@ body {
 }
 
 .sidebar-profile-section {
-  padding: 15px;
+  height: 80px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
   position: relative;
+  box-sizing: border-box;
 }
 
 .sidebar-trigger {
+  width: 100%;
   padding: 10px;
   background: rgba(255, 255, 255, 0.03);
-  border: none;
+  border: 1px solid transparent;
   border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .sidebar-trigger:hover {
@@ -187,7 +198,7 @@ body {
 .sidebar-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.05);
-  margin: 10px 15px;
+  margin: 0 15px;
 }
 
 .nav-list {
@@ -210,15 +221,15 @@ body {
 }
 
 .mainframe {
-  padding: 0;
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  /* Essential for flex-box scrolling */
-  scrollbar-gutter: stable;
   background: var(--bg);
   display: flex;
   flex-direction: column;
+  position: relative;
+  /* Ensure it fills available height correctly */
+  width: 100%;
 }
 
 .header.slim-header {
@@ -666,14 +677,14 @@ th {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  max-height: 80px;
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
 }
 
 /* Raid Card - WoW Audit Style */
 .raid-event-card {
   position: relative;
-  height: 48px;
+  height: 70px;
   border-radius: 8px;
   overflow: hidden;
   cursor: pointer;
@@ -711,7 +722,7 @@ th {
 .raid-card-content {
   position: relative;
   height: 100%;
-  padding: 0.5rem;
+  padding: 0.4rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

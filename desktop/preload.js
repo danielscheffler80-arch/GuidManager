@@ -4,19 +4,23 @@ const { contextBridge, ipcRenderer } = require('electron');
 let workingBackendUrl = 'http://localhost:3334';
 let backendCheckComplete = false;
 
-async function verifyBackendUrl(url) {
-  try {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 5000); // 5 Sek. Timeout
-    const response = await fetch(`${url}/health`, {
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(id);
-    return response.ok;
-  } catch (err) {
-    return false;
+async function verifyBackendUrl(url, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), 15000); // 15 Sek. Timeout pro Versuch
+      const response = await fetch(`${url}/health`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(id);
+      if (response.ok) return true;
+    } catch (err) {
+      console.log(`[PRELOAD] Try ${i + 1} failed for ${url}`);
+      if (i < retries) await new Promise(r => setTimeout(r, 2000));
+    }
   }
+  return false;
 }
 
 // Initialisierung
@@ -60,6 +64,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   getSources: (types) => {
     return ipcRenderer.invoke('get-sources', types);
+  },
+  getGPUInfo: () => {
+    return ipcRenderer.invoke('get-gpu-info');
   },
   isBackendReady: () => {
     return backendCheckComplete;

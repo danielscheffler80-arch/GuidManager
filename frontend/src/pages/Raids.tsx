@@ -1,19 +1,14 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { RaidService } from '../api/raidService';
 import { capitalizeName } from '../utils/formatUtils';
+import { storage } from '../utils/storage';
 import { useAuth } from '../contexts/AuthContext';
-import { usePreferredGuild } from '../hooks/usePreferredGuild';
+import { useGuild } from '../contexts/GuildContext';
 import { getCompositionStats, CLASS_LIST } from '../utils/raidUtils';
 
 export default function Raids() {
   const { user } = useAuth();
-  const {
-    guilds,
-    selectedGuild,
-    setSelectedGuild,
-    myCharacters,
-    loading: guildLoading
-  } = usePreferredGuild();
+  const { guilds, selectedGuild, setSelectedGuild, myCharacters, loading: guildLoading } = useGuild();
 
   const [raids, setRaids] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,14 +35,20 @@ export default function Raids() {
 
   const RAID_IMAGES = [
     { name: 'Nerub-ar Palace', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg' },
-    { name: 'Amirdrassil', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1126780.jpg' },
-    { name: 'Aberrus', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1105423.jpg' },
-    { name: 'Vault of the Incarnates', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1083424.jpg' },
-    { name: 'Generic', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg' }
+    { name: 'Liberation of Undermine', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1186178.jpg' },
+    { name: 'Siren Isle', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1183318.jpg' },
+    { name: 'The War Within', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg' },
+    { name: 'Xal\'atath\'s Shadow', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167438.jpg' }
   ];
 
   useEffect(() => {
     if (selectedGuild) {
+      // SWR: Load from cache
+      const cachedRaids = storage.get(`cache_raids_data_${selectedGuild.id}`, []);
+      if (cachedRaids.length > 0) {
+        setRaids(cachedRaids);
+        setLoading(false);
+      }
       loadRaids(selectedGuild.id);
     } else if (!guildLoading) {
       setLoading(false);
@@ -59,6 +60,21 @@ export default function Raids() {
       checkLeaderStatus(user, selectedGuild);
     }
   }, [user, selectedGuild]);
+
+  // Handle auto-selection from Dashboard
+  useEffect(() => {
+    if (raids.length > 0) {
+      const autoRaidId = localStorage.getItem('auto_select_raid_id');
+      if (autoRaidId) {
+        const found = raids.find(r => String(r.id) === autoRaidId);
+        if (found) {
+          setSelectedRaid(found);
+          setView('detail');
+          localStorage.removeItem('auto_select_raid_id');
+        }
+      }
+    }
+  }, [raids]);
 
 
   const checkLeaderStatus = (user: any, currentGuild: any) => {
@@ -76,6 +92,8 @@ export default function Raids() {
       const data = await RaidService.getRaids(guildId);
       const allRaids = data.raids || [];
       setRaids(allRaids);
+      storage.set(`cache_raids_data_${guildId}`, allRaids);
+
       if (selectedRaid) {
         const updated = allRaids.find((r: any) => r.id === selectedRaid.id);
         if (updated) setSelectedRaid(updated);
@@ -266,7 +284,11 @@ export default function Raids() {
     return getCompositionStats(selectedRaid.attendances);
   }, [selectedRaid]);
 
-  if (loading) return <div className="flex items-center justify-center p-20"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#A330C9]"></div></div>;
+  // No longer blocking the whole page with a loading spinner
+  // Only show empty state if guild is missing and loading is finished
+  if (!selectedGuild && !loading && !guildLoading) {
+    return <div className="page-container text-center text-gray-500 py-20">Keine Gilde ausgewählt.</div>;
+  }
 
   // --- CALENDAR VIEW ---
   if (view === 'calendar') {
@@ -285,20 +307,9 @@ export default function Raids() {
                 <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </div>
-
-            <select
-              value={selectedGuild?.id || ''}
-              onChange={(e) => {
-                const guild = guilds.find(g => g.id === Number(e.target.value));
-                if (guild) setSelectedGuild(guild);
-              }}
-              className="p-2.5 bg-[#121214] rounded-lg text-xs font-bold text-gray-300 focus:outline-none focus:border-[#A330C9] min-w-[180px] cursor-pointer"
-            >
-              <option value="" disabled>Gilde wählen...</option>
-              {guilds.map(g => (
-                <option key={g.id} value={g.id}>{g.name}</option>
-              ))}
-            </select>
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-[#A330C9] opacity-50"></div>
+            )}
           </div>
           <div className="flex-1"></div>
           {/* Platz für weitere Header-Elemente falls nötig */}
@@ -337,7 +348,7 @@ export default function Raids() {
                       <div
                         key={raid.id}
                         onClick={() => { setSelectedRaid(raid); setView('detail'); }}
-                        className="raid-event-card h-[110px]"
+                        className="raid-event-card h-[70px]"
                       >
                         <img
                           src={raid.imageUrl || 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg'}
@@ -345,24 +356,24 @@ export default function Raids() {
                           alt=""
                         />
                         <div className="raid-card-overlay opacity-60"></div>
-                        <div className="raid-card-content p-2">
-                          <div className="raid-card-top mb-1">
-                            <span className="raid-time-badge text-[9px]">
+                        <div className="raid-card-content p-1.5 flex flex-col">
+                          <div className="raid-card-top flex justify-between items-center">
+                            <span className="raid-time-badge text-[8px]">
                               {new Date(raid.startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                             </span>
                             {isSignedUp && (
-                              <div className="raid-signed-indicator w-3 h-3">
-                                <svg className="w-2 h-2 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                              <div className="raid-signed-indicator w-2.5 h-2.5">
+                                <svg className="w-1.5 h-1.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
                               </div>
                             )}
                           </div>
-                          <div>
-                            <p className="raid-card-title text-xs leading-tight mb-1">{raid.title}</p>
-                            <div className="raid-card-footer">
-                              <span className={`raid-difficulty-tag text-[8px] diff-${raid.difficulty.toLowerCase()}`}>
+                          <div className="flex flex-col gap-0.5 relative top-[-7px]">
+                            <p className="raid-card-title text-[10px] leading-tight font-black">{raid.title}</p>
+                            <div className="raid-card-footer flex justify-between items-center">
+                              <span className={`raid-difficulty-tag text-[7px] font-black px-1 rounded-sm diff-${raid.difficulty.toLowerCase()}`}>
                                 {raid.difficulty}
                               </span>
-                              <span className="raid-count-badge text-[9px]">
+                              <span className="raid-count-badge text-[9px] font-black text-white/90 bg-black/40 px-1 rounded-sm border border-white/5 tabular-nums">
                                 {confirmedCount}/{raid.maxPlayers}
                               </span>
                             </div>
@@ -378,7 +389,7 @@ export default function Raids() {
         </div>
 
         {showCreateModal && <CreateRaidModal />}
-      </div>
+      </div >
     );
   }
 

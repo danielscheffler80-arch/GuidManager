@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { formatRealm, capitalizeName } from '../utils/formatUtils';
+import { storage } from '../utils/storage';
+import { useGuild } from '../contexts/GuildContext';
 
 interface Character {
   id: number;
@@ -36,10 +38,11 @@ interface HubData {
 
 export default function Dashboard() {
   const { user, syncCharacters } = useAuth();
+  const { selectedGuild } = useGuild();
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
-  const [characters, setCharacters] = useState<Character[]>([]);
-  const [hubData, setHubData] = useState<HubData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [characters, setCharacters] = useState<Character[]>(() => storage.get('cache_dashboard_characters', []));
+  const [hubData, setHubData] = useState<HubData | null>(() => storage.get('cache_dashboard_hub', null));
+  const [isLoading, setIsLoading] = useState(!storage.get('cache_dashboard_characters', null));
 
   const fetchCharacters = async () => {
     const token = localStorage.getItem('accessToken');
@@ -55,11 +58,10 @@ export default function Dashboard() {
         const data = await response.json();
         const allChars = data.user?.characters || data.characters || [];
         setCharacters(allChars);
+        storage.set('cache_dashboard_characters', allChars);
 
         const main = allChars.find((c: Character) => c.isMain);
-        if (main) {
-          fetchHubData();
-        } else {
+        if (!main) {
           setIsLoading(false);
         }
       }
@@ -69,13 +71,16 @@ export default function Dashboard() {
     }
   };
 
-  const fetchHubData = async () => {
+  const fetchHubData = async (guildId?: number) => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
 
     try {
       const backendUrl = (window as any).electronAPI?.getBackendUrl?.() || 'http://localhost:3334';
-      const response = await fetch(`${backendUrl}/guild/dashboard`, {
+      const url = guildId
+        ? `${backendUrl}/guild/dashboard?guildId=${guildId}`
+        : `${backendUrl}/guild/dashboard`;
+      const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -83,6 +88,7 @@ export default function Dashboard() {
         const data = await response.json();
         if (data.success) {
           setHubData(data);
+          storage.set('cache_dashboard_hub', data);
         }
       }
     } catch (err) {
@@ -117,7 +123,7 @@ export default function Dashboard() {
           const allChars = charData.user?.characters || charData.characters || [];
           setCharacters(allChars);
         }
-        await fetchHubData();
+        setIsLoading(false);
       }
     } catch (err) {
       console.error('Failed to set main character:', err);
@@ -142,6 +148,20 @@ export default function Dashboard() {
   useEffect(() => {
     fetchCharacters();
   }, []);
+
+  // Update Hub Data whenever the selected guild changes
+  useEffect(() => {
+    // We only fetch hub data if characters were already loaded (to know if we have a main)
+    // or if a specific guild is requested
+    if (selectedGuild) {
+      console.log(`[Dashboard] Selected guild changed to ${selectedGuild.name}, fetching hub data...`);
+      fetchHubData(selectedGuild.id);
+    } else if (hubData?.hasMain) {
+      // If we have a main but no guild selected yet, wait for GuildContext
+      // or try a default fetch
+      fetchHubData();
+    }
+  }, [selectedGuild, hubData?.hasMain]);
 
   const getClassColor = (classId: number) => {
     const colors: Record<number, string> = {
@@ -274,8 +294,18 @@ export default function Dashboard() {
           text-transform: uppercase;
           letter-spacing: 1px;
         }
+        .status-dot-indicator {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          display: inline-block;
+          margin-right: 8px;
+          box-shadow: 0 0 8px currentColor;
+        }
+        .status-dot-accepted, .status-dot-waiting, .status-dot-tentative { color: #4ade80; background: #4ade80; }
+        .status-dot-declined { color: #f87171; background: #f87171; }
+        .status-dot-none { color: #fbbf24; background: #fbbf24; }
       `}</style>
-
       <div
         className="grid grid-cols-2"
         style={{
@@ -319,38 +349,54 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="flex-1 space-y-3">
-            {hubData.raids && hubData.raids.length > 0 ? hubData.raids.slice(0, 3).map(raid => (
-              <div key={raid.id} className="p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all cursor-pointer group">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-black text-white uppercase tracking-tight group-hover:text-accent transition-colors">{raid.title}</span>
-                  <span className="text-[8px] font-black text-accent uppercase bg-[#A330C9]/10 px-2 py-0.5 rounded">{raid.difficulty}</span>
-                </div>
-                <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold uppercase tracking-tighter">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[#A330C9]">📅</span>
-                    {new Date(raid.startTime).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} • {new Date(raid.startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+          <div className="flex-1" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {hubData.raids && hubData.raids.length > 0 ? hubData.raids.slice(0, 4).map(raid => {
+              const isMythic = raid.difficulty?.toLowerCase().includes('mythic') || raid.difficulty?.toLowerCase().includes('mythisch');
+
+              return (
+                <div
+                  key={raid.id}
+                  className="p-5 bg-[#121212] border border-[#A330C9]/20 rounded-2xl hover:bg-[#181818] hover:border-[#A330C9]/50 hover:shadow-[0_8px_30px_rgba(163,48,201,0.1)] transition-all duration-300 cursor-pointer group"
+                  onClick={() => {
+                    localStorage.setItem('auto_select_raid_id', String(raid.id));
+                    window.location.hash = '/raids';
+                  }}
+                >
+                  <div className="flex justify-between items-start mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className={`status-dot-indicator status-dot-${raid.userStatus || 'none'}`} style={{ width: '10px', height: '10px' }}></span>
+                      <span className="text-sm font-black text-white uppercase tracking-tight group-hover:text-accent transition-colors">{raid.title}</span>
+                    </div>
+                    <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border transition-all ${isMythic
+                      ? 'bg-[#A330C9] text-white border-[#A330C9] shadow-[0_0_10px_rgba(163,48,201,0.4)]'
+                      : 'bg-[#A330C9]/10 text-accent border-accent/20'
+                      }`}>
+                      {raid.difficulty}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-gray-700">👤</span>
-                    {raid.attendances?.length || 0} / {raid.maxPlayers}
+                  <div className="flex justify-between items-center text-xs text-gray-500 font-bold uppercase tracking-tight">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[#A330C9] text-base opacity-70">📅</span>
+                      <span className="group-hover:text-gray-300 transition-colors">
+                        {new Date(raid.startTime).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} • {new Date(raid.startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-xl">
+                      <span className="text-gray-600">👤</span>
+                      <span className="text-white font-black">{raid.attendances?.length || 0}</span>
+                      <span className="text-gray-700">/</span>
+                      <span className="text-gray-500">{raid.maxPlayers}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )) : (
+              );
+            }) : (
               <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-2 py-8">
                 <span className="text-2xl opacity-20">🛡️</span>
                 <span className="text-[10px] font-bold uppercase tracking-widest">Keine Raids geplant</span>
               </div>
             )}
           </div>
-
-          <button
-            onClick={() => window.location.href = '#/raids'}
-            className="w-full mt-5 py-3 bg-white/5 rounded-xl text-[10px] font-black text-gray-500 hover:text-white hover:bg-[#A330C9]/10 transition-all uppercase tracking-widest"
-          >
-            Open Calendar
-          </button>
         </div>
 
         {/* Mythic+ */}
@@ -397,6 +443,6 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }

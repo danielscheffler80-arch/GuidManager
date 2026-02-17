@@ -16,33 +16,8 @@ export default function Sidebar() {
   const { user, logout, isSyncing, syncCharacters, isAdmin } = useAuth();
   const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [updateStatus, setUpdateStatus] = useState<string | null>(null);
-  const [appVersion, setAppVersion] = useState<string>('0.2.34');
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (window.electronAPI?.getVersion) {
-      window.electronAPI.getVersion().then(setAppVersion);
-    }
-
-    if (window.electronAPI?.onUpdateMessage) {
-      window.electronAPI.onUpdateMessage((msg) => {
-        if (msg === 'UPDATE_READY') {
-          const confirm = window.confirm('Update bereit! Möchtest du die App jetzt neu starten und aktualisieren?');
-          if (confirm) {
-            window.electronAPI.restartAndInstall();
-          }
-          setUpdateStatus('Update bereit zum Installieren');
-        } else {
-          setUpdateStatus(msg);
-          // Auto-clear success messages after 5 seconds
-          if (msg === 'Deine Version ist aktuell.') {
-            setTimeout(() => setUpdateStatus(null), 5000);
-          }
-        }
-      });
-    }
-  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -164,49 +139,6 @@ export default function Sidebar() {
 
       <div className="sidebar-divider"></div>
 
-      {/* App Update Section */}
-      <div style={{ padding: '0 15px', marginBottom: '15px' }}>
-        <div style={{
-          background: '#1D1E1F',
-          borderRadius: '10px',
-          padding: '12px',
-          border: '1px solid #333',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75em', color: '#666', fontWeight: 'bold' }}>VERSION {appVersion}</span>
-            <button
-              onClick={() => {
-                setUpdateStatus('Prüfe auf Updates...');
-                window.electronAPI?.checkForUpdates?.().catch((err: any) => setUpdateStatus('Fehler: ' + err));
-              }}
-              style={{
-                background: '#00aaff',
-                color: 'white',
-                border: 'none',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                fontSize: '0.65em',
-                cursor: 'pointer',
-                fontWeight: 'bold'
-              }}
-            >Update prüfen</button>
-          </div>
-          {updateStatus && (
-            <div style={{
-              fontSize: '0.65em',
-              color: updateStatus.includes('bereit') ? '#00ff00' : '#888',
-              background: 'rgba(0,0,0,0.2)',
-              padding: '4px 6px',
-              borderRadius: '4px'
-            }}>
-              {updateStatus}
-            </div>
-          )}
-        </div>
-      </div>
 
       {/* Admin Management Panel */}
       {isAdmin && (

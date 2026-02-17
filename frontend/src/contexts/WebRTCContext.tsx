@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { logWebRTC } from '../api/debug';
+import { storage } from '../utils/storage';
 
 interface StreamMetadata {
     id: string;
@@ -17,6 +18,9 @@ interface StreamMetadata {
         saturation: number;
     } | null;
     sourceType?: 'desktop' | 'camera';
+    isPublic: boolean;
+    guildId?: number;
+    hasJoinCode: boolean;
 }
 
 interface WebRTCContextType {
@@ -31,6 +35,8 @@ interface WebRTCContextType {
     viewStream: (streamId: string) => Promise<void>;
     clearView: () => void;
     updateMetadata: (metadata: any) => void;
+    filter: string;
+    setFilter: (f: string) => void;
 }
 
 const WebRTCContext = createContext<WebRTCContextType | undefined>(undefined);
@@ -42,16 +48,17 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
+    const [filter, setFilter] = useState('all');
 
     const outgoingPCs = useRef<Map<string, RTCPeerConnection>>(new Map());
     const incomingPC = useRef<{ id: string, pc: RTCPeerConnection } | null>(null);
     const candidateQueues = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
     const localStreamRef = useRef<MediaStream | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
+    const currentConstraintsRef = useRef<any>({ bitrate: 8000, optimizationMode: 'detail' });
 
     const log = useCallback((event: string, data: any) => {
-        const storedUser = localStorage.getItem('guild-manager-user');
-        const user = storedUser ? JSON.parse(storedUser) : null;
+        const user = storage.get<any>('guild-manager-user', null);
         const userId = user?.battletag || 'unknown';
 
         if (socket?.connected) {
@@ -62,7 +69,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     }, [socket]);
 
     useEffect(() => {
-        const backendUrl = window.electronAPI ? window.electronAPI.getBackendUrl() : 'http://localhost:3334';
+        const backendUrl = (window as any).electronAPI ? (window as any).electronAPI.getBackendUrl() : 'http://localhost:3334';
         console.log('[WebRTC] Connecting to signaling server:', backendUrl);
         const newSocket = io(backendUrl, {
             transports: ['websocket'],
@@ -141,12 +148,16 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                 pc.addTrack(track, localStreamRef.current!);
             });
             // Initial bitrate setting
-            setVideoBitrate(pc, 8000); // 8 Mbps high quality
+            const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
+            setVideoBitrate(pc, targetBitrate);
         }
 
         pc.onconnectionstatechange = () => {
             if (pc.connectionState === 'connected') {
-                if (!isInitiator) setVideoBitrate(pc, 8000);
+                if (!isInitiator) {
+                    const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
+                    setVideoBitrate(pc, targetBitrate);
+                }
             }
             if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
                 if (incomingPC.current?.id === userId) {
@@ -166,7 +177,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         return pc;
     };
 
-    const setVideoBitrate = async (pc: RTCPeerConnection, maxBitrate: number) => {
+    const setVideoBitrate = async (pc: RTCPeerConnection, bitrate: number) => {
         try {
             const senders = pc.getSenders();
             const videoSender = senders.find(s => s.track?.kind === 'video');
@@ -175,13 +186,42 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                 if (!parameters.encodings || parameters.encodings.length === 0) {
                     parameters.encodings = [{}];
                 }
-                parameters.encodings[0].maxBitrate = maxBitrate * 1000;
+
+                const bps = bitrate * 1000;
+                parameters.encodings[0].maxBitrate = bps;
+                // Enforce CBR by setting minBitrate equal to maxBitrate (if supported)
+                (parameters.encodings[0] as any).minBitrate = bps;
+
                 await videoSender.setParameters(parameters);
-                console.log(`[WebRTC] Bitrate set to ${maxBitrate}kbps for user`);
+                console.log(`[WebRTC] CBR set to ${bitrate}kbps for user`);
             }
         } catch (err) {
             console.warn('[WebRTC] Could not set bitrate:', err);
         }
+    };
+
+    const preferCodec = (sdp: string, codec: string) => {
+        const lines = sdp.split('\r\n');
+        const mLineIndex = lines.findIndex(line => line.startsWith('m=video'));
+        if (mLineIndex === -1) return sdp;
+
+        const payloadRE = new RegExp(`a=rtpmap:(\\d+) ${codec}/90000`);
+        const payloads: string[] = [];
+        for (let i = 0; i < lines.length; i++) {
+            const match = lines[i].match(payloadRE);
+            if (match) payloads.push(match[1]);
+        }
+
+        if (payloads.length === 0) return sdp;
+
+        const mLine = lines[mLineIndex];
+        const parts = mLine.split(' ');
+        const media = parts.slice(0, 3);
+        const remainingPayloads = parts.slice(3).filter(p => !payloads.includes(p));
+
+        // Reconstruct m-line with preferred payloads first
+        lines[mLineIndex] = [...media, ...payloads, ...remainingPayloads].join(' ');
+        return lines.join('\r\n');
     };
 
     const processCandidateQueue = async (userId: string, pc: RTCPeerConnection) => {
@@ -213,7 +253,17 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         outgoingPCs.current.set(from, pc);
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         await processCandidateQueue(from, pc);
-        const answer = await pc.createAnswer();
+        let answer = await pc.createAnswer();
+
+        // Encoder-Präferenz anwenden (H.264 für GPU/Hardware)
+        const encoder = currentConstraintsRef.current?.encoder || 'gpu';
+        if (encoder === 'gpu') {
+            answer.sdp = preferCodec(answer.sdp || '', 'H264');
+            console.log('[WebRTC] GPU Mode: Preferred H264 in Answer');
+        } else {
+            console.log('[WebRTC] CPU Mode: Using default codec priority');
+        }
+
         await pc.setLocalDescription(answer);
         currentSocket.emit('signal', { to: from, signal: answer, connectionRole: 'streamer' });
     };
@@ -256,8 +306,21 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
 
     const startStream = async (sourceId: string, constraints: any, metadata: any) => {
         let stream: MediaStream;
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        audioContextRef.current = audioContext;
+        let audioContext: AudioContext;
+
+        // Save constraints for future peer connections
+        currentConstraintsRef.current = constraints;
+
+        try {
+            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            audioContextRef.current = audioContext;
+        } catch (e: any) {
+            console.error('[WebRTC] Failed to initialize AudioContext:', e);
+            log('audiocontext_init_failed', { error: e.message });
+            // If AudioContext fails, we can still proceed with video only
+            throw new Error('Audio-System konnte nicht initialisiert werden. Bitte lade die Seite neu.');
+        }
+
         const destination = audioContext.createMediaStreamDestination();
 
         try {
@@ -330,10 +393,11 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                         video: videoConstraints
                     } as any);
                     console.warn('[WebRTC] Desktop capture SUCCESS:', stream.id);
-                    // Optimierung für Desktop (Detail-Schärfe bevorzugen)
+                    // Use configurable optimization mode (default: detail)
+                    const mode = constraints.optimizationMode || 'detail';
                     stream.getVideoTracks().forEach(track => {
                         if ((track as any).contentHint !== undefined) {
-                            (track as any).contentHint = 'detail';
+                            (track as any).contentHint = mode;
                         }
                     });
                 } catch (videoErr: any) {
@@ -453,9 +517,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         const pc = createPeerConnection(streamId, true, socket);
         incomingPC.current = { id: streamId, pc };
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket?.emit('signal', { to: streamId, signal: offer, connectionRole: 'viewer' });
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket?.emit('signal', { to: streamId, signal: offer, connectionRole: 'viewer' });
+        } catch (e) {
+            console.error('[WebRTC] ViewStream: Failed to create offer:', e);
+            setIsConnecting(false);
+        }
     };
 
     const clearView = () => {
@@ -477,7 +546,8 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     return (
         <WebRTCContext.Provider value={{
             activeStreams, isStreaming, isConnecting, localStream, remoteStream, socket,
-            startStream, stopStream, viewStream, clearView, updateMetadata
+            startStream, stopStream, viewStream, clearView, updateMetadata,
+            filter, setFilter
         }}>
             {children}
         </WebRTCContext.Provider>
