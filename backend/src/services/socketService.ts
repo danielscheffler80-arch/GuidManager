@@ -51,7 +51,18 @@ export function initSocketService(io: Server) {
         });
 
         // WebRTC Signaling
-        socket.on('signal', (data: { to: string; signal: any }) => {
+        socket.on('signal', (data: { to: string; signal: any; joinCode?: string }) => {
+            const targetStream = activeStreams.get(data.to);
+
+            // Access Control: Check Join Code if applicable
+            if (targetStream && targetStream.hasJoinCode) {
+                if (!data.joinCode || data.joinCode !== targetStream.joinCode) {
+                    console.log(`[Socket] Denied signal from ${socket.id} to ${data.to}: Invalid or missing join code.`);
+                    socket.emit('webrtc-error', { message: 'Ungültiger Code oder Zugriff verweigert.' });
+                    return;
+                }
+            }
+
             console.log(`[Socket] Forwarding signal from ${socket.id} to ${data.to} (Type: ${data.signal?.type || 'candidate'})`);
 
             // Forward signal to the specific user

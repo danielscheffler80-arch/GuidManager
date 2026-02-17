@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -11,7 +11,7 @@
     "dev": "electron .",
     "start": "electron . --standalone",
     "build": "electron-builder",
-    "build:standalone": "electron-builder --config electron-builder-standalone.json",
+    "build:standalone": "electron-builder",
     "icons:gen": "node scripts/gen-icon.js",
     "icons:frompng": "node scripts/ico-from-png.js"
   },
@@ -24,7 +24,8 @@
     "files": [
       "main-standalone.js",
       "preload.js",
-      "package.json"
+      "package.json",
+      "assets/**/*"
     ],
     "extraResources": [
       {

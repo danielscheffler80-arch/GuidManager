@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, nativeImage, ipcMain, shell, desktopCapturer } = require('electron');
+const { app, BrowserWindow, Menu, nativeImage, ipcMain, shell, desktopCapturer, session } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { spawn, exec } = require('child_process');
@@ -77,6 +77,10 @@ ipcMain.handle('get-sources', async (event, types) => {
     name: source.name,
     thumbnail: source.thumbnail.toDataURL(),
   }));
+});
+
+ipcMain.handle('get-gpu-info', async () => {
+  return await app.getGPUInfo('basic');
 });
 
 ipcMain.handle('check-for-updates', async () => {
@@ -191,6 +195,17 @@ function createWindow() {
       } catch { }
       return undefined;
     })(),
+  });
+
+  // Berechtigungen für Kamera/Mikrofon automatisch erteilen
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'audioCapture', 'videoCapture', 'display-capture'];
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      console.log(`[MAIN] Permission denied: ${permission}`);
+      callback(false);
+    }
   });
 
   const isPackaged = app.isPackaged;
