@@ -137,6 +137,15 @@ ipcMain.handle('restart-and-install', () => {
   autoUpdater.quitAndInstall();
 });
 
+ipcMain.handle('toggle-window-fullscreen', () => {
+  if (mainWindow) {
+    const isFull = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFull);
+    return !isFull;
+  }
+  return false;
+});
+
 ipcMain.handle('save-wow-path', (event, pathStr) => {
   console.log('[IPC] Saving WoW Path:', pathStr);
   config.wowPath = pathStr;
