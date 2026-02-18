@@ -276,14 +276,20 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
 
   try {
     console.log(`[AddonSync] Processing ${keys.length} keys...`);
+    const results = { matched: [] as string[], skipped: [] as string[] };
+
     for (const key of keys) {
-      console.log(`[AddonSync] Target: ${key.name} on ${key.realm} (+${key.level} ${key.dungeon})`);
+      const lowerName = key.name.toLowerCase();
+      const lowerRealm = key.realm.toLowerCase();
+
+      console.log(`[AddonSync] Target: ${lowerName} on ${lowerRealm} (+${key.level} ${key.dungeon})`);
 
       const character = await prisma.character.findUnique({
-        where: { name_realm: { name: key.name.toLowerCase(), realm: key.realm } }
+        where: { name_realm: { name: lowerName, realm: lowerRealm } }
       });
 
       if (character) {
+        results.matched.push(`${character.name}-${character.realm}`);
         console.log(`[AddonSync] MATCH: Found ${character.name} (ID: ${character.id}, Guild: ${character.guildId})`);
 
         // Upsert key
@@ -307,10 +313,11 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
           console.error(`[AddonSync] DB ERROR for ${character.name}:`, dbErr.message);
         }
       } else {
-        console.log(`[AddonSync] SKIP: Character not found in DB: ${key.name.toLowerCase()} on realm '${key.realm}'`);
+        results.skipped.push(`${lowerName}-${lowerRealm}`);
+        console.log(`[AddonSync] SKIP: Character not found: ${lowerName} on ${lowerRealm}`);
       }
     }
-    res.json({ success: true, message: `Processed ${keys.length} keys` });
+    res.json({ success: true, matchedCount: results.matched.length, results });
   } catch (error: any) {
     console.error('[AddonSync] GLOBAL ERROR:', error.message);
     res.status(500).json({ error: 'Failed to sync addon data', details: error.message });

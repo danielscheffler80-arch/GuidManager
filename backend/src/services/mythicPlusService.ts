@@ -52,9 +52,19 @@ export class MythicPlusService {
             // 4. Gruppierung nach Main-Charakteren
             const mains = characters.filter((c: any) => c.isMain);
 
-            // Falls keine Mains definiert sind (z.B. nach frischem Sync), 
-            // behandeln wir alle Chars als potenzielle Einträge, aber filtern sinnvoll.
-            const displayCharacters = mains.length > 0 ? mains : characters;
+            // Spezial-Logik: Falls keine Mains definiert sind ODER wir einfach alle mit Keys sehen wollen:
+            // Wir nehmen alle Mains, UND alle Chars die einen Key haben aber keine Alts sind.
+            let displayCharacters = [];
+            if (mains.length > 0) {
+                displayCharacters = mains;
+            } else {
+                // Wenn keine Mains da sind, zeigen wir alle an, die Keys haben 
+                // oder zumindest in der Gilde sind (als Fallback)
+                displayCharacters = characters.filter((c: any) => (c.mythicKeys && c.mythicKeys.length > 0) || !c.userId);
+            }
+
+            // Falls die Liste immer noch leer ist, nimm einfach alle Gilden-Chars
+            if (displayCharacters.length === 0) displayCharacters = characters;
 
             const result = displayCharacters.map((main: any) => {
                 // Alts finden: Chars desselben Users, die nicht dieser Main selbst sind
