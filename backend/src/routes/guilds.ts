@@ -277,35 +277,43 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
   try {
     console.log(`[AddonSync] Processing ${keys.length} keys...`);
     for (const key of keys) {
-      console.log(`[AddonSync] Lookup char: ${key.name} on realm: ${key.realm}`);
+      console.log(`[AddonSync] Target: ${key.name} on ${key.realm} (+${key.level} ${key.dungeon})`);
+
       const character = await prisma.character.findUnique({
         where: { name_realm: { name: key.name.toLowerCase(), realm: key.realm } }
       });
 
       if (character) {
-        console.log(`[AddonSync] Found character: ${character.name} (ID: ${character.id})`);
-        // Upsert key
-        // Wir löschen alte "Bag"-Keys für diesen Charakter (es gibt nur einen aktuellen Key)
-        await (prisma as any).mythicKey.deleteMany({
-          where: { characterId: character.id, isFromBag: true } as any
-        });
+        console.log(`[AddonSync] MATCH: Found ${character.name} (ID: ${character.id}, Guild: ${character.guildId})`);
 
-        await (prisma as any).mythicKey.create({
-          data: {
-            characterId: character.id,
-            dungeon: key.dungeon,
-            level: key.level,
-            affixes: '[]', // Addon liefert aktuell keine Affixe direkt (könnte man nachrüsten)
-            isFromBag: true,
-            completed: false
-          } as any
-        });
+        // Upsert key
+        try {
+          await (prisma as any).mythicKey.deleteMany({
+            where: { characterId: character.id, isFromBag: true } as any
+          });
+
+          const newKey = await (prisma as any).mythicKey.create({
+            data: {
+              characterId: character.id,
+              dungeon: key.dungeon,
+              level: key.level,
+              affixes: '[]',
+              isFromBag: true,
+              completed: false
+            } as any
+          });
+          console.log(`[AddonSync] SUCCESS: Created key ID ${newKey.id} for ${character.name}`);
+        } catch (dbErr: any) {
+          console.error(`[AddonSync] DB ERROR for ${character.name}:`, dbErr.message);
+        }
+      } else {
+        console.log(`[AddonSync] SKIP: Character not found in DB: ${key.name.toLowerCase()} on realm '${key.realm}'`);
       }
     }
-    res.json({ success: true, message: `Synced ${keys.length} keys` });
-  } catch (error) {
-    console.error('[AddonSync] Error:', error);
-    res.status(500).json({ error: 'Failed to sync addon data' });
+    res.json({ success: true, message: `Processed ${keys.length} keys` });
+  } catch (error: any) {
+    console.error('[AddonSync] GLOBAL ERROR:', error.message);
+    res.status(500).json({ error: 'Failed to sync addon data', details: error.message });
   }
 });
 
