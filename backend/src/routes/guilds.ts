@@ -315,8 +315,13 @@ router.get('/guilds/:guildId/mythic', authMiddleware, async (req: AuthenticatedR
   try {
     const keys = await MythicPlusService.getGuildKeysGrouped(Number(guildId));
     res.json({ keys });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch mythic keys' });
+  } catch (error: any) {
+    console.error('[MythicKeys] Error:', error);
+    res.status(500).json({
+      error: 'Failed to fetch mythic keys',
+      message: error.message,
+      stack: error.stack
+    });
   }
 });
 
