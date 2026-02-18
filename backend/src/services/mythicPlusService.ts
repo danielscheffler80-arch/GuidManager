@@ -35,14 +35,14 @@ export class MythicPlusService {
         // We only care about characters that have a user attached (to link mains/alts)
         // or characters that are specifically marked as Main.
 
-        const mains = characters.filter(c => c.isMain);
-        const result = mains.map(main => {
+        const mains = characters.filter((c: any) => c.isMain);
+        const result = mains.map((main: any) => {
             const userCharacters = main.user?.characters || [];
-            const alts = userCharacters.filter(c => !c.isMain && c.guildId === guildId);
+            const alts = userCharacters.filter((c: any) => !c.isMain && c.guildId === guildId);
 
             return {
                 ...main,
-                alts: alts.map(alt => ({
+                alts: alts.map((alt: any) => ({
                     ...alt,
                     keys: alt.mythicKeys
                 })),
@@ -58,7 +58,7 @@ export class MythicPlusService {
      * Signup for a specific key
      */
     static async signupForKey(keyId: number, characterId: number, message?: string) {
-        return await prisma.mythicKeySignup.create({
+        return await (prisma as any).mythicKeySignup.create({
             data: {
                 keyId,
                 characterId,

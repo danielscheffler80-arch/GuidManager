@@ -3,7 +3,7 @@ services:
     name: guild-manager-backend
     env: node
     plan: free
-    buildCommand: npm install --legacy-peer-deps && npm run build && npx prisma migrate deploy
+    buildCommand: npm install --legacy-peer-deps && npx prisma generate && npm run build && npx prisma migrate deploy
     startCommand: npm run start
     envVars:
       - key: NODE_VERSION
