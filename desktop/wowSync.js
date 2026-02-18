@@ -10,6 +10,15 @@ class WoWKeystoneSync {
         this.accountPath = null;
     }
 
+    slugify(text) {
+        return text.toString().toLowerCase()
+            .replace(/\s+/g, '-')           // Replace spaces with -
+            .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
+            .replace(/\-\-+/g, '-')         // Replace multiple - with single -
+            .replace(/^-+/, '')             // Trim - from start
+            .replace(/-+$/, '');            // Trim - from end
+    }
+
     async start() {
         if (this.watching) return;
 
@@ -65,36 +74,56 @@ class WoWKeystoneSync {
 
     async parseAndSync(filePath) {
         try {
+            if (!fs.existsSync(filePath)) return;
             const content = fs.readFileSync(filePath, 'utf8');
 
-            // Sehr simpler Regex-Parser für das Lua-Tabellenformat
-            // Wir suchen nach: ["Char-Realm"] = { ... level = X, mapID = Y ... }
-            const charRegex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
-            let match;
+            console.log(`[WoWSync] Parse Datei: ${filePath}`);
+
+            // Wir suchen gezielt nach den Einträgen in der "keys" Tabelle
+            // Format: ["keys"] = { ["Char-Realm"] = { ["level"] = X, ... } }
+
+            // 1. Extrahiere den Block innerhalb von ["keys"] = { ... }
+            const keysBlockMatch = /\["keys"\]\s*=\s*\{([\s\S]+?)\n\s*\}/.exec(content);
+            if (!keysBlockMatch) {
+                console.log('[WoWSync] Keine "keys" Tabelle im SavedVariable gefunden.');
+                return;
+            }
+
+            const keysContent = keysBlockMatch[1];
             const keys = [];
 
-            while ((match = charRegex.exec(content)) !== null) {
+            // 2. Extrahiere jeden Charakter-Key Block
+            // Regex für ["Name-Realm"] = { ... }
+            const charEntryRegex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
+            let match;
+
+            while ((match = charEntryRegex.exec(keysContent)) !== null) {
                 const charKey = match[1];
                 const dataBlock = match[2];
 
-                const levelMatch = /level"\s*\]\s*=\s*(\d+)/.exec(dataBlock);
-                const mapIdMatch = /mapID"\s*\]\s*=\s*(\d+)/.exec(dataBlock);
-                const dungeonMatch = /dungeonName"\s*\]\s*=\s*"([^"]+)"/.exec(dataBlock);
+                const levelMatch = /\["level"\]\s*=\s*(\d+)/.exec(dataBlock);
+                const dungeonMatch = /\["dungeonName"\]\s*=\s*"([^"]+)"/.exec(dataBlock);
 
-                if (levelMatch && mapIdMatch && dungeonMatch) {
-                    const [name, realm] = charKey.split('-');
-                    keys.push({
-                        name: name.toLowerCase(),
-                        realm: realm,
-                        level: parseInt(levelMatch[1]),
-                        dungeon: dungeonMatch[1],
-                        isFromBag: true
-                    });
+                if (levelMatch && dungeonMatch) {
+                    const parts = charKey.split('-');
+                    if (parts.length >= 2) {
+                        const name = parts[0];
+                        const rawRealm = parts.slice(1).join('-');
+                        const realm = this.slugify(rawRealm);
+
+                        keys.push({
+                            name: name.toLowerCase(),
+                            realm: realm,
+                            level: parseInt(levelMatch[1]),
+                            dungeon: dungeonMatch[1],
+                            isFromBag: true
+                        });
+                    }
                 }
             }
 
             if (keys.length > 0) {
-                console.log(`[WoWSync] Gefundene Keys: ${keys.length}. Sende an Backend...`);
+                console.log(`[WoWSync] ${keys.length} Keys gefunden. Sende an Cloud...`);
                 await this.sendToBackend(keys);
             }
         } catch (err) {
