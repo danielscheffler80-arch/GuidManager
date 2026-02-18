@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const fs = require('fs');
+const WoWKeystoneSync = require('./wowSync');
 
 // Hardware-Beschleunigung deaktivieren (hilft gegen lila Streifen/Grafikfehler/White-Screen)
 app.disableHardwareAcceleration();
@@ -324,6 +325,10 @@ app.on('ready', () => {
   if (app.isPackaged) {
     autoUpdater.checkForUpdatesAndNotify();
   }
+
+  // Start WoW Keystone Sync
+  const wowSync = new WoWKeystoneSync(config);
+  wowSync.start();
 });
 
 app.on('window-all-closed', () => {
@@ -352,7 +357,7 @@ function installAddon() {
     return;
   }
 
-  const addonDestDir = path.join(wowPath, 'Interface', 'AddOns', 'GuildManagerBridge');
+  const addonDestDir = path.join(wowPath, 'Interface', 'AddOns', 'GuildManagerBridgeSync');
 
   const sourceAddonDir = isPackaged
     ? path.join(process.resourcesPath, 'addon')
@@ -365,7 +370,7 @@ function installAddon() {
       fs.mkdirSync(addonDestDir, { recursive: true });
     }
 
-    const filesToCopy = ['GuildManagerBridge.toc', 'Core.lua'];
+    const filesToCopy = ['GuildManagerBridgeSync.toc', 'Core.lua'];
     filesToCopy.forEach(file => {
       const src = path.join(sourceAddonDir, file);
       const dest = path.join(addonDestDir, file);

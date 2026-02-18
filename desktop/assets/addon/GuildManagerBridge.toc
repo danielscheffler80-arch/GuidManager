@@ -1,7 +1,0 @@
-## Interface: 120000
-## Title: Guild Manager Bridge
-## Author: Xava
-## Version: 1.0.0
-## Notes: Bridge for WoW Chat to Guild Manager Desktop App
-
-Core.lua
