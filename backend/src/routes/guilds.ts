@@ -275,12 +275,15 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
   }
 
   try {
+    console.log(`[AddonSync] Processing ${keys.length} keys...`);
     for (const key of keys) {
+      console.log(`[AddonSync] Lookup char: ${key.name} on realm: ${key.realm}`);
       const character = await prisma.character.findUnique({
         where: { name_realm: { name: key.name.toLowerCase(), realm: key.realm } }
       });
 
       if (character) {
+        console.log(`[AddonSync] Found character: ${character.name} (ID: ${character.id})`);
         // Upsert key
         // Wir löschen alte "Bag"-Keys für diesen Charakter (es gibt nur einen aktuellen Key)
         await (prisma as any).mythicKey.deleteMany({
