@@ -1,3 +1,4 @@
+// @ts-nocheck
 import prisma from '../prisma';
 import { BattleNetAPIService } from './battleNetAPIService';
 

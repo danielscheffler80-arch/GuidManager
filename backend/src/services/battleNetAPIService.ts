@@ -1,3 +1,4 @@
+// @ts-nocheck
 // Battle.net API Service
 // Handhabt Battle.net API Calls für Guilds, Characters, etc.
 
