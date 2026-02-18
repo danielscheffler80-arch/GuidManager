@@ -72,28 +72,36 @@ class WoWKeystoneSync {
         });
     }
 
+    logToFile(message) {
+        try {
+            const logPath = path.join(__dirname, 'sync-debug.log');
+            const timestamp = new Date().toISOString();
+            fs.appendFileSync(logPath, `[${timestamp}] ${message}\n`);
+            console.log(`[WoWSync] ${message}`);
+        } catch (err) {
+            console.error('[WoWSync] Log Fehler:', err);
+        }
+    }
+
     async parseAndSync(filePath) {
         try {
             if (!fs.existsSync(filePath)) return;
             const content = fs.readFileSync(filePath, 'utf8');
 
-            console.log(`[WoWSync] Parse Datei: ${filePath}`);
+            this.logToFile(`Parse Datei: ${filePath}`);
 
             // Wir suchen gezielt nach den Einträgen in der "keys" Tabelle
             // Format: ["keys"] = { ["Char-Realm"] = { ["level"] = X, ... } }
 
-            // 1. Extrahiere den Block innerhalb von ["keys"] = { ... }
             const keysBlockMatch = /\["keys"\]\s*=\s*\{([\s\S]+?)\n\s*\}/.exec(content);
             if (!keysBlockMatch) {
-                console.log('[WoWSync] Keine "keys" Tabelle im SavedVariable gefunden.');
+                this.logToFile('Keine "keys" Tabelle im SavedVariable gefunden.');
                 return;
             }
 
             const keysContent = keysBlockMatch[1];
             const keys = [];
 
-            // 2. Extrahiere jeden Charakter-Key Block
-            // Regex für ["Name-Realm"] = { ... }
             const charEntryRegex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
             let match;
 
@@ -122,21 +130,17 @@ class WoWKeystoneSync {
                 }
             }
 
-            if (keys.length > 0) {
-                console.log(`[WoWSync] ${keys.length} Keys gefunden. Sende an Cloud...`);
-                await this.sendToBackend(keys);
-            }
+            // Unabhängig davon, ob Keys gefunden wurden, senden wir den Sync ab
+            this.logToFile(`${keys.length} Keys in Lua gefunden. Aktualisiere Cloud...`);
+            await this.sendToBackend(keys);
         } catch (err) {
-            console.error('[WoWSync] Fehler beim Parsen:', err);
+            this.logToFile(`FEHLER beim Parsen: ${err.message}`);
         }
     }
 
     async sendToBackend(keys) {
         try {
-            // Wir senden die Keys an ein neues Batch-Update-Endpunkt (müssen wir noch erstellen oder einzeln senden)
-            // Hier nutzen wir den bestehenden Sync-Mechanismus oder erstellen einen neuen.
-            // Für den Anfang: Sende an einen dedizierten Sync-Endpunkt.
-
+            this.logToFile(`Sende an Backend: ${this.config.backendUrl}/api/mythic/sync-addon`);
             const response = await axios.post(`${this.config.backendUrl}/api/mythic/sync-addon`, {
                 keys
             }, {
@@ -144,9 +148,9 @@ class WoWKeystoneSync {
                     'Content-Type': 'application/json'
                 }
             });
-            console.log('[WoWSync] Backend-Antwort:', response.data);
+            this.logToFile(`Cloud-Antwort: ${JSON.stringify(response.data)}`);
         } catch (err) {
-            console.error('[WoWSync] Upload fehlgeschlagen:', err.message);
+            this.logToFile(`Upload fehlgeschlagen: ${err.message}${err.response ? ' - ' + JSON.stringify(err.response.data) : ''}`);
         }
     }
 }
