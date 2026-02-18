@@ -53,7 +53,7 @@ class WoWKeystoneSync {
         // Scanne alle Accounts
         const accounts = fs.readdirSync(this.accountPath);
         for (const account of accounts) {
-            const svPath = path.join(this.accountPath, account, 'SavedVariables', 'GuildManagerBridge.lua');
+            const svPath = path.join(this.accountPath, account, 'SavedVariables', 'GuildManagerBridgeSync.lua');
             if (fs.existsSync(svPath)) {
                 this.watchFile(svPath);
                 this.parseAndSync(svPath);
