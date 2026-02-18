@@ -282,11 +282,11 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
       if (character) {
         // Upsert key
         // Wir löschen alte "Bag"-Keys für diesen Charakter (es gibt nur einen aktuellen Key)
-        await prisma.mythicKey.deleteMany({
-          where: { characterId: character.id, isFromBag: true }
+        await (prisma as any).mythicKey.deleteMany({
+          where: { characterId: character.id, isFromBag: true } as any
         });
 
-        await prisma.mythicKey.create({
+        await (prisma as any).mythicKey.create({
           data: {
             characterId: character.id,
             dungeon: key.dungeon,
@@ -294,7 +294,7 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
             affixes: '[]', // Addon liefert aktuell keine Affixe direkt (könnte man nachrüsten)
             isFromBag: true,
             completed: false
-          }
+          } as any
         });
       }
     }
