@@ -30,5 +30,16 @@ export const MythicPlusService = {
             headers
         });
         return response.json();
+    },
+
+    // Signup for a key
+    signup: async (guildId: number, keyId: number, characterId: number, message?: string) => {
+        const headers: HeadersInit = getAuthHeader() as Record<string, string>;
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/mythic/${keyId}/signup`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ characterId, message })
+        });
+        return response.json();
     }
 };
