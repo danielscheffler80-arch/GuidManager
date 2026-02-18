@@ -8,51 +8,56 @@ export class MythicPlusService {
      * Mains without keys themselves but with alts having keys will also be shown.
      */
     static async getGuildKeysGrouped(guildId: number) {
-        const characters = await prisma.character.findMany({
-            where: { guildId, isActive: true },
-            include: {
-                mythicKeys: {
-                    orderBy: { level: 'desc' }
-                },
-                mythicSignups: {
-                    include: {
-                        character: true
-                    }
-                },
-                user: {
-                    include: {
-                        characters: {
-                            include: {
-                                mythicKeys: {
-                                    orderBy: { level: 'desc' }
+        try {
+            const characters = await prisma.character.findMany({
+                where: { guildId, isActive: true },
+                include: {
+                    mythicKeys: {
+                        orderBy: { level: 'desc' }
+                    },
+                    mythicSignups: {
+                        include: {
+                            character: true
+                        }
+                    },
+                    user: {
+                        include: {
+                            characters: {
+                                include: {
+                                    mythicKeys: {
+                                        orderBy: { level: 'desc' }
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
 
-        // We only care about characters that have a user attached (to link mains/alts)
-        // or characters that are specifically marked as Main.
+            // We only care about characters that have a user attached (to link mains/alts)
+            // or characters that are specifically marked as Main.
 
-        const mains = characters.filter((c: any) => c.isMain);
-        const result = mains.map((main: any) => {
-            const userCharacters = main.user?.characters || [];
-            const alts = userCharacters.filter((c: any) => !c.isMain && c.guildId === guildId);
+            const mains = characters.filter((c: any) => c.isMain);
+            const result = mains.map((main: any) => {
+                const userCharacters = main.user?.characters || [];
+                const alts = userCharacters.filter((c: any) => !c.isMain && c.guildId === guildId);
 
-            return {
-                ...main,
-                alts: alts.map((alt: any) => ({
-                    ...alt,
-                    keys: alt.mythicKeys
-                })),
-                keys: main.mythicKeys,
-                signups: main.mythicSignups
-            };
-        });
+                return {
+                    ...main,
+                    alts: alts.map((alt: any) => ({
+                        ...alt,
+                        keys: alt.mythicKeys
+                    })),
+                    keys: main.mythicKeys,
+                    signups: main.mythicSignups
+                };
+            });
 
-        return result;
+            return result;
+        } catch (error) {
+            console.error('[MythicPlusService] Error in getGuildKeysGrouped:', error);
+            throw error;
+        }
     }
 
     /**
