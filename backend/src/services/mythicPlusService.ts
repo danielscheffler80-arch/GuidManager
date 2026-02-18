@@ -5,10 +5,13 @@ import { BattleNetAPIService } from './battleNetAPIService';
 export class MythicPlusService {
     /**
      * Get all Mythic+ keys for a guild, grouped by Main character.
-     * Mains without keys themselves but with alts having keys will also be shown.
+     * Optimized to avoid massive join overhead.
      */
     static async getGuildKeysGrouped(guildId: number) {
         try {
+            console.log(`[MythicPlusService] Fetching keys for guild ${guildId}...`);
+
+            // 1. Hole alle Charaktere der Gilde mit ihren Keys
             const characters = await prisma.character.findMany({
                 where: { guildId, isActive: true },
                 include: {
@@ -19,28 +22,45 @@ export class MythicPlusService {
                         include: {
                             character: true
                         }
-                    },
-                    user: {
-                        include: {
-                            characters: {
-                                include: {
-                                    mythicKeys: {
-                                        orderBy: { level: 'desc' }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             });
 
-            // We only care about characters that have a user attached (to link mains/alts)
-            // or characters that are specifically marked as Main.
+            console.log(`[MythicPlusService] Found ${characters.length} characters in guild.`);
 
+            // 2. Extrahiere alle User IDs, um die Twinks (Alts) zu finden
+            const userIds = characters
+                .map(c => c.userId)
+                .filter(id => id !== null);
+
+            // 3. Wenn User vorhanden sind, hole alle ihre Charaktere (global), um Alts zuzuordnen
+            let allUserCharacters = [];
+            if (userIds.length > 0) {
+                allUserCharacters = await prisma.character.findMany({
+                    where: {
+                        userId: { in: userIds as number[] },
+                        isActive: true
+                    },
+                    include: {
+                        mythicKeys: {
+                            orderBy: { level: 'desc' }
+                        }
+                    }
+                });
+            }
+
+            // 4. Gruppierung nach Main-Charakteren
             const mains = characters.filter((c: any) => c.isMain);
-            const result = mains.map((main: any) => {
-                const userCharacters = main.user?.characters || [];
-                const alts = userCharacters.filter((c: any) => !c.isMain && c.guildId === guildId);
+
+            // Falls keine Mains definiert sind (z.B. nach frischem Sync), 
+            // behandeln wir alle Chars als potenzielle Einträge, aber filtern sinnvoll.
+            const displayCharacters = mains.length > 0 ? mains : characters;
+
+            const result = displayCharacters.map((main: any) => {
+                // Alts finden: Chars desselben Users, die nicht dieser Main selbst sind
+                const alts = allUserCharacters.filter(
+                    (c: any) => c.userId === main.userId && c.id !== main.id
+                );
 
                 return {
                     ...main,
@@ -49,10 +69,11 @@ export class MythicPlusService {
                         keys: alt.mythicKeys
                     })),
                     keys: main.mythicKeys,
-                    signups: main.mythicSignups
+                    signups: main.mythicSignups || []
                 };
             });
 
+            console.log(`[MythicPlusService] Successfully grouped ${result.length} entries.`);
             return result;
         } catch (error) {
             console.error('[MythicPlusService] Error in getGuildKeysGrouped:', error);
