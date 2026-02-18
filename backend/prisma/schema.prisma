@@ -62,6 +62,7 @@ model Character {
   user            User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   guild           Guild?      @relation(fields: [guildId], references: [id])
   mythicKeys      MythicKey[]
+  mythicSignups   MythicKeySignup[]
   attendances     Attendance[]
   
   // Unique Constraint für Name + Realm
@@ -179,13 +180,33 @@ model MythicKey {
   completed       Boolean     @default(false)
   completedAt     DateTime?
   weeklyBest      Boolean     @default(false)
+  isFromBag       Boolean     @default(false) // Ob der Key aus dem Inventar (Addon) kommt oder Blizzard API (Best Run)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   
   // Relations
   character       Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  signups         MythicKeySignup[]
   
   @@map("mythic_keys")
+}
+
+// Mythic Key Signup Model
+model MythicKeySignup {
+  id              Int         @id @default(autoincrement())
+  keyId           Int
+  characterId     Int
+  status          String      @default("pending") // pending/accepted/declined
+  message         String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  key             MythicKey   @relation(fields: [keyId], references: [id], onDelete: Cascade)
+  character       Character   @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  @@unique([keyId, characterId])
+  @@map("mythic_key_signups")
 }
 
 // Stream Model für Gilden-Streams

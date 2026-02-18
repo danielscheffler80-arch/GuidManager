@@ -3,24 +3,27 @@ import { MythicPlusService } from '../api/mythicPlusService';
 import { capitalizeName } from '../utils/formatUtils';
 import { useGuild } from '../contexts/GuildContext';
 import { storage } from '../utils/storage';
+import { SignupModal } from '../components/SignupModal';
 
 export default function MythicPlus() {
   const { guilds, selectedGuild, setSelectedGuild, loading: guildLoading } = useGuild();
 
-  const [keys, setKeys] = useState<any[]>([]);
+  const [mains, setMains] = useState<any[]>([]);
+  const [expandedMains, setExpandedMains] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<any>(null);
+  const [showSignupModal, setShowSignupModal] = useState(false);
 
   useEffect(() => {
     if (selectedGuild) {
       // SWR: Load from cache
       const cachedKeys = storage.get(`cache_mythic_keys_${selectedGuild.id}`, []);
       if (cachedKeys.length > 0) {
-        setKeys(cachedKeys);
+        setMains(cachedKeys);
         setLoading(false);
       }
       loadKeys(selectedGuild.id);
-      setLoading(false);
     } else if (!guildLoading) {
       setLoading(false);
     }
@@ -30,12 +33,25 @@ export default function MythicPlus() {
   const loadKeys = async (guildId: number) => {
     try {
       const data = await MythicPlusService.getGuildKeys(guildId);
-      const keysData = data.keys || [];
-      setKeys(keysData);
-      storage.set(`cache_mythic_keys_${guildId}`, keysData);
+      const mainsData = data.keys || [];
+      setMains(mainsData);
+      storage.set(`cache_mythic_keys_${guildId}`, mainsData);
     } catch (error) {
       console.error('Failed to load keys');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const toggleExpand = (mainId: number) => {
+    setExpandedMains(prev =>
+      prev.includes(mainId) ? prev.filter(id => id !== mainId) : [...prev, mainId]
+    );
+  };
+
+  const handleSignup = (key: any) => {
+    setSelectedKey(key);
+    setShowSignupModal(true);
   };
 
   const handleSync = async () => {
@@ -51,56 +67,144 @@ export default function MythicPlus() {
     }
   };
 
-  if (loading) return <p>Lade Mythic+ Daten...</p>;
-
-  // Gruppiere Keys nach Charakter (Main/Alts)
-  const mainKeys = keys.filter(k => k.character?.isMain);
-  const altKeys = keys.filter(k => !k.character?.isMain);
+  if (loading) return <p className="p-8 text-center text-gray-400">Lade Mythic+ Daten...</p>;
 
   return (
-    <section className="page-container">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Mythic+ Keys</h1>
-        <div className="flex gap-4">
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-[#A330C9] text-white px-4 py-2 rounded"
-          >
-            {syncing ? 'Synchronisiere...' : 'Sync Keys'}
-          </button>
+    <section className="page-container p-6">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">
+            Mythic<span className="text-[#A330C9]">+</span> Keys
+          </h1>
+          <p className="text-gray-400 text-sm">Übersicht aller Gilden-Keys und Anmeldung</p>
         </div>
+        <button
+          onClick={handleSync}
+          disabled={syncing}
+          className="bg-[#A330C9] hover:bg-[#8e29af] text-white px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+        >
+          {syncing ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              Synchronisiere...
+            </>
+          ) : 'Sync Keys'}
+        </button>
       </div>
 
-      <div className="space-y-8">
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-[#A330C9]">Main Characters</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {mainKeys.map(k => (
-              <div key={k.id} className="card p-4 border-l-4 border-[#A330C9]">
-                <p className="font-bold text-lg">{capitalizeName(k.character.name)}</p>
-                <p className="text-sm text-gray-400">{k.dungeon}</p>
-                <p className="text-2xl font-bold mt-2">+{k.level}</p>
+      <div className="grid grid-cols-1 gap-6">
+        {mains.map(main => (
+          <div key={main.id} className="bg-[#1a1a1a] rounded-xl overflow-hidden border border-gray-800 shadow-2xl">
+            {/* Main Header */}
+            <div className="p-4 flex items-center justify-between bg-[#222]">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold text-[#A330C9]">
+                  {main.name[0].toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-bold text-lg text-white">{capitalizeName(main.name)}</h3>
+                  <p className="text-xs text-gray-500">{main.class} • {main.realm}</p>
+                </div>
               </div>
-            ))}
-            {mainKeys.length === 0 && <p className="text-gray-500">Keine Keys für Main-Charaktere gefunden.</p>}
-          </div>
-        </div>
+              <div className="flex items-center gap-6">
+                {main.keys && main.keys.length > 0 ? (
+                  <div className="flex items-center gap-4">
+                    {main.keys.map((key: any) => (
+                      <div key={key.id} className="flex items-center gap-3 bg-[#111] px-4 py-2 rounded-lg border border-[#A330C9]/30">
+                        <div className="text-center">
+                          <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{key.dungeon}</p>
+                          <p className="text-xl font-black text-white">+{key.level}</p>
+                        </div>
+                        <button
+                          onClick={() => handleSignup(key)}
+                          className="bg-[#A330C9] text-xs px-3 py-1 rounded font-bold hover:bg-[#8e29af]"
+                        >
+                          Anmelden
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-600 text-sm italic">Kein eigener Key</span>
+                )}
 
-        <div>
-          <h2 className="text-xl font-semibold mb-4 text-gray-300">Alts</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {altKeys.map(k => (
-              <div key={k.id} className="card p-4 border-gray-700">
-                <p className="font-bold">{capitalizeName(k.character.name)}</p>
-                <p className="text-xs text-gray-500">{k.dungeon}</p>
-                <p className="text-xl font-bold mt-1">+{k.level}</p>
+                {main.alts && main.alts.length > 0 && (
+                  <button
+                    onClick={() => toggleExpand(main.id)}
+                    className="text-gray-400 hover:text-white transition-colors p-2"
+                  >
+                    {expandedMains.includes(main.id) ? 'Collapse' : `Twinks (${main.alts.length})`}
+                  </button>
+                )}
               </div>
-            ))}
-            {altKeys.length === 0 && <p className="text-gray-500">Keine Keys für Alts gefunden.</p>}
+            </div>
+
+            {/* Twink List (Expanded) */}
+            {expandedMains.includes(main.id) && (
+              <div className="p-4 bg-[#151515] border-t border-gray-800 animate-in slide-in-from-top duration-200">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {main.alts.map((alt: any) => (
+                    <div key={alt.id} className="bg-[#222] p-3 rounded-lg border border-gray-700 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-gray-200">{capitalizeName(alt.name)}</p>
+                        <p className="text-[10px] text-gray-500">{alt.class}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {alt.keys && alt.keys.length > 0 ? (
+                          <>
+                            <div className="text-right">
+                              <p className="text-[8px] text-gray-400 uppercase">{alt.keys[0].dungeon}</p>
+                              <p className="font-black text-[#A330C9]">+{alt.keys[0].level}</p>
+                            </div>
+                            <button
+                              onClick={() => handleSignup(alt.keys[0])}
+                              className="bg-[#333] hover:bg-[#444] text-[10px] px-2 py-1 rounded"
+                            >
+                              Join
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-gray-700 italic">No Key</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Signups Section */}
+            {main.signups && main.signups.length > 0 && (
+              <div className="px-4 py-2 bg-[#111] text-[10px] text-gray-500 border-t border-gray-800 flex gap-4 overflow-x-auto">
+                <span className="font-bold uppercase tracking-widest text-gray-700 self-center">Interesse:</span>
+                {main.signups.map((s: any) => (
+                  <div key={s.id} className="bg-[#222] px-2 py-1 rounded border border-gray-800 flex items-center gap-2">
+                    <span className="font-bold text-gray-300">{capitalizeName(s.character.name)}</span>
+                    <span className="text-[#A330C9]">{s.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
+        ))}
+
+        {mains.length === 0 && (
+          <div className="text-center py-20 bg-[#1a1a1a] rounded-xl border border-dashed border-gray-800">
+            <p className="text-gray-500">Keine Charaktere für diese Gilde gefunden.</p>
+          </div>
+        )}
       </div>
+
+      {showSignupModal && (
+        <SignupModal
+          selectedKey={selectedKey}
+          onClose={() => setShowSignupModal(false)}
+          onSuccess={() => {
+            setShowSignupModal(false);
+            if (selectedGuild) loadKeys(selectedGuild.id);
+          }}
+        />
+      )}
     </section>
   );
 }

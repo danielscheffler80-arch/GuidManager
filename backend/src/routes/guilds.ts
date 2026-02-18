@@ -5,6 +5,7 @@ import { checkPermission } from '../middleware/permissionMiddleware';
 import { RosterService } from '../services/rosterService';
 import { RaidService } from '../services/raidService';
 import { BattleNetAPIService } from '../services/battleNetAPIService';
+import { MythicPlusService } from '../services/mythicPlusService';
 const router = Router();
 
 // MVP Guilds API
@@ -261,6 +262,83 @@ router.post('/guilds/:guildId/members/:characterId/kick', authMiddleware, checkP
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to process kick' });
+  }
+});
+
+// POST /api/mythic/sync-addon - Empfange Keystone-Daten vom Desktop-App/Addon
+router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
+  const { keys } = req.body;
+
+  if (!keys || !Array.isArray(keys)) {
+    return res.status(400).json({ error: 'Invalid keys data' });
+  }
+
+  try {
+    for (const key of keys) {
+      const character = await prisma.character.findUnique({
+        where: { name_realm: { name: key.name.toLowerCase(), realm: key.realm } }
+      });
+
+      if (character) {
+        // Upsert key
+        // Wir löschen alte "Bag"-Keys für diesen Charakter (es gibt nur einen aktuellen Key)
+        await prisma.mythicKey.deleteMany({
+          where: { characterId: character.id, isFromBag: true }
+        });
+
+        await prisma.mythicKey.create({
+          data: {
+            characterId: character.id,
+            dungeon: key.dungeon,
+            level: key.level,
+            affixes: '[]', // Addon liefert aktuell keine Affixe direkt (könnte man nachrüsten)
+            isFromBag: true,
+            completed: false
+          }
+        });
+      }
+    }
+    res.json({ success: true, message: `Synced ${keys.length} keys` });
+  } catch (error) {
+    console.error('[AddonSync] Error:', error);
+    res.status(500).json({ error: 'Failed to sync addon data' });
+  }
+});
+
+// GET /api/guilds/:guildId/mythic - Hole Gilden-Keys gruppiert
+router.get('/guilds/:guildId/mythic', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId } = req.params;
+  try {
+    const keys = await MythicPlusService.getGuildKeysGrouped(Number(guildId));
+    res.json({ keys });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch mythic keys' });
+  }
+});
+
+// POST /api/guilds/:guildId/mythic/:keyId/signup - Anmeldung für einen Key
+router.post('/guilds/:guildId/mythic/:keyId/signup', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { keyId } = req.params;
+  const { characterId, message } = req.body;
+  try {
+    const signup = await MythicPlusService.signupForKey(Number(keyId), Number(characterId), message);
+    res.status(201).json({ signup });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to signup for key' });
+  }
+});
+
+// POST /api/guilds/:guildId/sync-mythic-plus - Manueller Sync von M+ Daten
+router.post('/guilds/:guildId/sync-mythic-plus', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId } = req.params;
+  try {
+    const user = await prisma.user.findUnique({ where: { id: (req as any).user.userId } });
+    if (!user || !user.accessToken) return res.status(401).json({ error: 'No access token' });
+
+    const result = await MythicPlusService.syncGuildMythicPlus(Number(guildId), user.accessToken);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to sync mythic data' });
   }
 });
 

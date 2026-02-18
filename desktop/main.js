@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, nativeImage, ipcMain, shell, desktopCapturer, 
 const path = require('path');
 const { spawn, exec } = require('child_process');
 const fs = require('fs');
+const WoWKeystoneSync = require('./wowSync');
 
 // Hardware-Beschleunigung deaktivieren (hilft gegen lila Streifen/Grafikfehler)
 app.disableHardwareAcceleration();
@@ -178,6 +179,10 @@ function killProcesses() {
 app.on('ready', () => {
   startProcesses();
   createWindow();
+
+  // Start WoW Keystone Sync
+  const wowSync = new WoWKeystoneSync(config);
+  wowSync.start();
 });
 
 app.on('window-all-closed', () => {
