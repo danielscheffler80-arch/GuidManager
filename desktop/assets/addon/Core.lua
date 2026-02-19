@@ -18,10 +18,29 @@ local function ScanKeystone()
     local mapID = C_MythicPlus.GetOwnedKeystoneChallengeMapID()
     local level = C_MythicPlus.GetOwnedKeystoneLevel()
     
+    -- Fallback: If Blizzard API returns nil, check bags for ItemID 180653
+    if not mapID or not level then
+        for bag = 0, 4 do
+            for slot = 1, C_Container.GetContainerNumSlots(bag) do
+                local itemID = C_Container.GetContainerItemID(bag, slot)
+                if itemID == 180653 then
+                    local itemLink = C_Container.GetContainerItemLink(bag, slot)
+                    if itemLink then
+                        -- Keystones look like: ITEM_LINK:mapID:level:affix1:affix2:affix3:affix4
+                        local _, _, mID, lvl = string.find(itemLink, "keystone:(%d+):(%d+)")
+                        if mID and lvl then
+                            mapID = tonumber(mID)
+                            level = tonumber(lvl)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
     if mapID and level then
         local dungeonName = C_ChallengeMode.GetMapUIInfo(mapID)
         
-        -- Nur aktualisieren, wenn sich etwas geändert hat (vermeidet unnötige Schreibvorgänge)
         local existing = GuildManagerBridgeDB.keys[charKey]
         if not existing or existing.level ~= level or existing.mapID ~= mapID then
             GuildManagerBridgeDB.keys[charKey] = {
@@ -30,11 +49,13 @@ local function ScanKeystone()
                 dungeonName = dungeonName,
                 timestamp = time()
             }
+            print("|cff00aaff[GuildManager]|r Keystone updated: |cff00ff00+" .. level .. " " .. dungeonName .. "|r")
         end
     else
-        -- Key wurde entfernt oder ist nicht vorhanden (z.B. nach Reset oder Benutzung)
+        -- Only clear if it was there before
         if GuildManagerBridgeDB.keys[charKey] then
             GuildManagerBridgeDB.keys[charKey] = nil
+            print("|cff00aaff[GuildManager]|r Keystone removed or not found.")
         end
     end
 end
