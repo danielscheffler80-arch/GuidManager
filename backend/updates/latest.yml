@@ -1,14 +1,14 @@
 version: 0.7.1
 files:
   - url: Guild Manager Standalone Web Setup 0.7.1.exe
-    sha512: HGRe+Evyy1zKItUy1KFbqkZLIJGYk8B8zYLdCx0ohXJqXsvXMq1hxZPxjpqKtH0wxHkM3HeIehtwV5LlX3yn+w==
+    sha512: KnhfL3uKA5rxjcYt7rbB9aBXG70VGl9ODNjgoIugnF87WLPB9BsSkmWae+h5RU7SZ3HIX0oTsE4i12EGgXio7w==
 path: Guild Manager Standalone Web Setup 0.7.1.exe
-sha512: HGRe+Evyy1zKItUy1KFbqkZLIJGYk8B8zYLdCx0ohXJqXsvXMq1hxZPxjpqKtH0wxHkM3HeIehtwV5LlX3yn+w==
+sha512: KnhfL3uKA5rxjcYt7rbB9aBXG70VGl9ODNjgoIugnF87WLPB9BsSkmWae+h5RU7SZ3HIX0oTsE4i12EGgXio7w==
 packages:
   x64:
-    size: 79095809
-    sha512: 8MUTlP4Wvkk+UipTiZNnTSKoNPIDVMra94vSY/6bYGhkoCAcsQd8tTaJChp9FLhSH/mb4zgoMOusXslmCbFeqg==
-    blockMapSize: 84158
+    size: 79097136
+    sha512: +7SUI1FuBoHzaaSCO/TJcgIeLZJVtaqkElid5Nq3kUY8yd43YUpIfo6v29KY8wXtFyQ70InLMLm9FHQ2/hZQow==
+    blockMapSize: 83947
     path: guild-manager-standalone-0.7.1-x64.nsis.7z
     file: guild-manager-standalone-0.7.1-x64.nsis.7z
-releaseDate: '2026-02-19T19:17:14.317Z'
+releaseDate: '2026-02-19T19:35:39.898Z'

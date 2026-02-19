@@ -5,11 +5,15 @@ let workingBackendUrl = 'http://localhost:3334';
 let backendCheckComplete = false;
 let backendVerified = false;
 
-async function verifyBackendUrl(url, retries = 2) {
-  for (let i = 0; i <= retries; i++) {
+async function verifyBackendUrl(url, retries = 1) {
+  const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
+  const timeout = isLocal ? 2000 : 8000; // 2s for local, 8s for cloud
+  const maxRetries = isLocal ? 1 : 2;    // fewer retries for local
+
+  for (let i = 0; i <= maxRetries; i++) {
     try {
       const controller = new AbortController();
-      const id = setTimeout(() => controller.abort(), 15000); // 15 Sek. Timeout pro Versuch
+      const id = setTimeout(() => controller.abort(), timeout);
       const response = await fetch(`${url}/health`, {
         signal: controller.signal,
         cache: 'no-store'
@@ -18,7 +22,7 @@ async function verifyBackendUrl(url, retries = 2) {
       if (response.ok) return true;
     } catch (err) {
       console.log(`[PRELOAD] Try ${i + 1} failed for ${url}`);
-      if (i < retries) await new Promise(r => setTimeout(r, 2000));
+      if (i < maxRetries) await new Promise(r => setTimeout(r, 1000));
     }
   }
   return false;
@@ -28,32 +32,33 @@ async function verifyBackendUrl(url, retries = 2) {
 ipcRenderer.invoke('get-config').then(async (config) => {
   console.log('[PRELOAD] Config geladen:', config);
 
-  // Default to localhost if no config
-  let finalUrl = 'http://localhost:3334';
+  // Support backendUrls array (try in order: localhost first, cloud fallback)
+  const urlsToTry = config.backendUrls && config.backendUrls.length > 0
+    ? config.backendUrls
+    : config.backendUrl
+      ? [config.backendUrl]
+      : ['http://localhost:3334', 'https://guild-manager-backend.onrender.com'];
+
+  let finalUrl = urlsToTry[urlsToTry.length - 1]; // use last as default
   let found = false;
 
-  if (config.backendUrls && Array.from(config.backendUrls).length > 0) {
-    console.log('[PRELOAD] Starting backend discovery...');
-    for (const url of config.backendUrls) {
-      console.log(`[PRELOAD] Checking: ${url}`);
-      if (await verifyBackendUrl(url)) {
-        finalUrl = url;
-        found = true;
-        console.log(`[PRELOAD] Backend FOUND: ${finalUrl}`);
-        break; // Stop at first working URL
-      } else {
-        console.log(`[PRELOAD] Backend unreachable: ${url}`);
-      }
+  console.log('[PRELOAD] Starting backend discovery...', urlsToTry);
+  for (const url of urlsToTry) {
+    console.log(`[PRELOAD] Checking: ${url}`);
+    if (await verifyBackendUrl(url)) {
+      finalUrl = url;
+      found = true;
+      console.log(`[PRELOAD] Backend FOUND: ${finalUrl}`);
+      break;
+    } else {
+      console.log(`[PRELOAD] Backend unreachable: ${url}, trying next...`);
     }
-  } else if (config.backendUrl) {
-    finalUrl = config.backendUrl;
-    found = await verifyBackendUrl(finalUrl);
   }
 
   // Set the working URL
   workingBackendUrl = finalUrl;
   backendVerified = found;
-  backendCheckComplete = true; // Signals that the check IS FINISHED, regardless of result
+  backendCheckComplete = true;
   console.log(`[PRELOAD] Discovery Complete. Final URL: ${workingBackendUrl} (Verified: ${found})`);
 });
 
