@@ -21,6 +21,7 @@ export class RaidService {
                     allowedRanks: data.allowedRanks || [],
                     recurringId: data.recurringId || null,
                     imageUrl: data.imageUrl || null,
+                    rosterId: data.rosterId ? Number(data.rosterId) : null,
                     status: 'scheduled',
                 }
             });
@@ -87,6 +88,7 @@ export class RaidService {
         return await prisma.raid.findMany({
             where: { guildId },
             include: {
+                roster: true,
                 attendances: {
                     include: {
                         character: true

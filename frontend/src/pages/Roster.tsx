@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { GuildService } from '../api/guildService';
 import { useAuth } from '../contexts/AuthContext';
 import { useGuild } from '../contexts/GuildContext';
-import { capitalizeName, formatRealm } from '../utils/formatUtils';
+import { useWebRTC } from '../contexts/WebRTCContext';
+import { capitalizeName, formatRealm, getClassColor } from '../utils/formatUtils';
 import { storage } from '../utils/storage';
 
 interface Member {
@@ -19,10 +20,12 @@ interface Member {
   mythicRating: number | null;
   raidProgress: string | null;
   lastSync: string;
+  guildId?: number | null;
+  rank?: number | null;
 }
 
 export default function Roster() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const {
     guilds,
     selectedGuild,
@@ -31,16 +34,22 @@ export default function Roster() {
     selectedRosterView,
     setSelectedRosterView,
     isRosterSyncing,
-    lastRosterSyncAt
+    lastRosterSyncAt,
+    availableRosters,
+    refreshRosters,
+    rosterSortField
   } = useGuild();
+  const { filter } = useWebRTC();
 
   const [roster, setRoster] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [metadata, setMetadata] = useState<any>(null);
-
-  // ... (existing useEffects)
-
-  // ... (existing loadInitialData, fetchRanks, updateAdminRanks, updateVisibleRanks, toggleAdminRank, toggleVisibleRank, loadRoster, triggerSync, toggleShowFiltered, getClassColor, getRIOColor, getDifficultyColor)
+  const [extName, setExtName] = useState('');
+  const [extRealm, setExtRealm] = useState('');
+  const [isAddingExternal, setIsAddingExternal] = useState(false);
+  const [realms, setRealms] = useState<{ name: string, slug: string }[]>([]);
+  const [realmsLoading, setRealmsLoading] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const getRoleIcon = (role: string | null) => {
     const r = role?.toLowerCase();
@@ -70,14 +79,71 @@ export default function Roster() {
     );
   };
 
-  const { rosterSortField } = useGuild();
-
   const filteredRosterMembers = roster.filter(member => {
+    if (selectedRosterView === 'all') return true;
+
+    // Filter logic: Ignore 'all' (default stream filter) and empty strings
+    const matchesFilter = (filter && filter !== 'all' && filter.trim().length > 0)
+      ? member.name.toLowerCase().includes(filter.toLowerCase())
+      : false;
+
     if (selectedRosterView === 'main') {
-      return metadata?.visibleRanks?.includes(Number((member as any).rank));
+      const rawRank = (member as any).rank;
+      const rank = rawRank === null || rawRank === undefined ? null : Number(rawRank);
+
+      const isVisibleRank = rank !== null && metadata?.visibleRanks?.includes(rank);
+      const isExcluded = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
+      const isIncluded = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
+
+      // Admin: Show if visible rank OR explicitly included OR search matches
+      if (isAdmin) return (isVisibleRank || isIncluded || matchesFilter);
+
+      // Normal: (Visible Rank AND NOT Excluded) OR Explicitly Included
+      return (isVisibleRank && !isExcluded) || isIncluded;
     }
-    return true;
+
+    const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
+    if (!selectedRoster) return true;
+
+    const rawRank = (member as any).rank;
+    const rank = rawRank === null || rawRank === undefined ? null : Number(rawRank);
+
+    const isExcluded = selectedRoster.excludedCharacterIds?.includes(member.id);
+    const isIncluded = selectedRoster.includedCharacterIds?.includes(member.id);
+    const hasRank = rank !== null && selectedRoster.allowedRanks?.includes(rank);
+
+    // Admin view: Show if they have the rank OR are explicitly included OR search matches
+    if (isAdmin) return hasRank || isIncluded || matchesFilter;
+
+    // Normal view: (Has rank AND not excluded) OR explicitly included
+    return (hasRank && !isExcluded) || isIncluded;
   }).sort((a, b) => {
+    const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
+    if ((selectedRoster || selectedRosterView === 'main') && selectedRosterView !== 'all') {
+      const getEligibility = (m: Member) => {
+        const rawRank = (m as any).rank;
+        const r = rawRank === null || rawRank === undefined ? null : Number(rawRank);
+
+        let isEx = false;
+        let isIn = false;
+        let hasR = false;
+
+        if (selectedRosterView === 'main') {
+          isEx = metadata?.mainRosterExcludedCharacterIds?.includes(m.id);
+          isIn = metadata?.mainRosterIncludedCharacterIds?.includes(m.id);
+          hasR = r !== null && metadata?.visibleRanks?.includes(r);
+        } else if (selectedRoster) {
+          isEx = selectedRoster.excludedCharacterIds?.includes(m.id);
+          isIn = selectedRoster.includedCharacterIds?.includes(m.id);
+          hasR = r !== null && selectedRoster.allowedRanks?.includes(r);
+        }
+        return (hasR && !isEx) || isIn;
+      };
+      const eligA = getEligibility(a);
+      const eligB = getEligibility(b);
+      if (eligA !== eligB) return eligA ? -1 : 1;
+    }
+
     if (rosterSortField === 'rank') {
       const rankA = (a as any).rank ?? 99;
       const rankB = (b as any).rank ?? 99;
@@ -108,13 +174,27 @@ export default function Roster() {
 
     return a.name.localeCompare(b.name);
   });
+
   const [availableRanks, setAvailableRanks] = useState<{ id: number, name: string }[]>([]);
   const [adminRanks, setAdminRanks] = useState<number[]>([]);
   const [visibleRanks, setVisibleRanks] = useState<number[]>([]);
-  const [isLeader, setIsLeader] = useState(false);
 
-  const [sessionSyncs, setSessionSyncs] = useState<number[]>([]);
-  const [showFiltered, setShowFiltered] = useState(false);
+  useEffect(() => {
+    const fetchRealms = async () => {
+      try {
+        setRealmsLoading(true);
+        const data = await GuildService.getRealms();
+        if (data.success) {
+          setRealms(data.realms);
+        }
+      } catch (err) {
+        console.error('Failed to fetch realms:', err);
+      } finally {
+        setRealmsLoading(false);
+      }
+    };
+    fetchRealms();
+  }, []);
 
   useEffect(() => {
     if (selectedGuild) {
@@ -122,76 +202,15 @@ export default function Roster() {
     } else if (!guildLoading) {
       setLoading(false);
     }
-  }, [selectedGuild, selectedRosterView, guildLoading, lastRosterSyncAt]);
+  }, [selectedGuild, guildLoading, lastRosterSyncAt]);
 
-  useEffect(() => {
-    if (user && selectedGuild) {
-      loadRoster(selectedGuild.id);
-    }
-  }, [user, selectedGuild]);
-
-
-  const fetchRanks = async (guildId: number) => {
-    try {
-      const data = await GuildService.getRanks(guildId);
-      if (data.success) {
-        setAvailableRanks(data.ranks);
-        setAdminRanks(data.currentAdminRanks || []);
-        setVisibleRanks(data.currentVisibleRanks || []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch guild ranks:', err);
-    }
-  };
-
-  const updateAdminRanks = async (newRanks: number[]) => {
-    if (!selectedGuild) return;
-    try {
-      const data = await GuildService.updateAdminRanks(selectedGuild.id, newRanks);
-      if (data.success) {
-        setAdminRanks(newRanks);
-      }
-    } catch (err) {
-      console.error('Failed to update admin ranks:', err);
-    }
-  };
-
-  const updateVisibleRanks = async (newRanks: number[]) => {
-    if (!selectedGuild) return;
-    try {
-      const data = await GuildService.updateVisibleRanks(selectedGuild.id, newRanks);
-      if (data.success) {
-        setVisibleRanks(newRanks);
-        loadRoster(selectedGuild.id); // Reload filtered roster
-      }
-    } catch (err) {
-      console.error('Failed to update visible ranks:', err);
-    }
-  };
-
-  const toggleAdminRank = (rankId: number) => {
-    const newRanks = adminRanks.includes(rankId)
-      ? adminRanks.filter(id => id !== rankId)
-      : [...adminRanks, rankId];
-    updateAdminRanks(newRanks);
-  };
-
-  const toggleVisibleRank = (rankId: number) => {
-    const newRanks = visibleRanks.includes(rankId)
-      ? visibleRanks.filter(id => id !== rankId)
-      : [...visibleRanks, rankId];
-    updateVisibleRanks(newRanks);
-  };
-
-  const loadRoster = async (guildId: number, forceShowFiltered = false) => {
+  const loadRoster = async (guildId: number) => {
     setLoading(true);
     try {
-      const showAll = selectedRosterView === 'all' || forceShowFiltered || showFiltered;
-      const data = await GuildService.getRoster(guildId, showAll);
+      const data = await GuildService.getRoster(guildId, true);
       setRoster(data.roster || []);
       setMetadata(data.metadata || null);
 
-      // Update cache
       storage.set(`cache_roster_data_${guildId}`, data.roster || []);
       storage.set(`cache_roster_metadata_${guildId}`, data.metadata || null);
 
@@ -210,32 +229,124 @@ export default function Roster() {
     }
   };
 
+  const handleToggleMember = async (memberId: number) => {
+    const isMainView = selectedRosterView === 'main';
+    const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
 
+    if (!selectedRoster && !isMainView) return;
+    if (!selectedGuild) return;
 
-  const toggleShowFiltered = () => {
-    const newState = !showFiltered;
-    setShowFiltered(newState);
-    if (selectedGuild) loadRoster(selectedGuild.id, newState);
-  };
+    const rank = Number((roster.find(m => m.id === memberId) as any)?.rank);
 
-  const getClassColor = (classId: number | string) => {
-    // If we get a string (fallback), try to map it or return default
-    if (typeof classId === 'string') {
-      const stringColors: Record<string, string> = {
-        'Warrior': '#C79C6E', 'Paladin': '#F58CBA', 'Hunter': '#ABD473', 'Rogue': '#FFF569',
-        'Priest': '#FFFFFF', 'Death Knight': '#C41F3B', 'Shaman': '#0070DE', 'Mage': '#69CCF0',
-        'Warlock': '#9482C9', 'Monk': '#00FF96', 'Druid': '#FF7D0A', 'Demon Hunter': '#A330C9',
-        'Evoker': '#33937F'
-      };
-      return stringColors[classId] || '#D1D9E0';
+    let hasRank = false;
+    let newIncluded: number[] = [];
+    let newExcluded: number[] = [];
+
+    if (isMainView) {
+      hasRank = metadata?.visibleRanks?.includes(rank);
+      newIncluded = [...(metadata?.mainRosterIncludedCharacterIds || [])];
+      newExcluded = [...(metadata?.mainRosterExcludedCharacterIds || [])];
+    } else if (selectedRoster) {
+      hasRank = selectedRoster.allowedRanks?.includes(rank);
+      newIncluded = [...(selectedRoster.includedCharacterIds || [])];
+      newExcluded = [...(selectedRoster.excludedCharacterIds || [])];
     }
 
-    const colors: Record<number, string> = {
-      1: '#C79C6E', 2: '#F58CBA', 3: '#ABD473', 4: '#FFF569',
-      5: '#FFFFFF', 6: '#C41F3B', 7: '#0070DE', 8: '#69CCF0',
-      9: '#9482C9', 10: '#00FF96', 11: '#FF7D0A', 12: '#A330C9', 13: '#33937F'
-    };
-    return colors[classId] || '#D1D9E0';
+    if (hasRank) {
+      if (newExcluded.includes(memberId)) {
+        newExcluded = newExcluded.filter(id => id !== memberId);
+      } else {
+        newExcluded.push(memberId);
+      }
+    } else {
+      if (newIncluded.includes(memberId)) {
+        newIncluded = newIncluded.filter(id => id !== memberId);
+      } else {
+        newIncluded.push(memberId);
+      }
+    }
+
+    try {
+      if (isMainView) {
+        const response = await GuildService.updateMainRosterOverrides(selectedGuild.id, newIncluded, newExcluded);
+        if (response.success) {
+          // Manually update metadata locally to reflect changes immediately
+          setMetadata((prev: any) => ({
+            ...prev,
+            mainRosterIncludedCharacterIds: response.mainRosterIncludedCharacterIds,
+            mainRosterExcludedCharacterIds: response.mainRosterExcludedCharacterIds
+          }));
+        }
+      } else if (selectedRoster) {
+        const response = await GuildService.saveRoster(selectedGuild.id, {
+          ...selectedRoster,
+          includedCharacterIds: newIncluded,
+          excludedCharacterIds: newExcluded
+        });
+
+        if (response.success) {
+          await refreshRosters();
+        }
+      }
+    } catch (err) {
+      console.error('Failed to update roster member', err);
+    }
+  };
+
+  const handleAddExternalMember = async () => {
+    const isMainView = selectedRosterView === 'main';
+    const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
+
+    if ((!selectedRoster && !isMainView) || !selectedGuild || !extName || !extRealm) return;
+
+    setIsAddingExternal(true);
+    setAddError(null);
+    try {
+      if (isMainView) {
+        // Logic for Main Roster external add needs backend support first
+        // Current backend route structure is: /guilds/:guildId/rosters/:rosterId/add-external
+        // We need a similar one for Main Roster: /guilds/:guildId/main-roster/add-external
+
+        // NOTE: Since I haven't added `addExternalToMainRoster` API yet, I'll use a new service method
+        // But let's first check if I should add that API endpoint. 
+        // Yes, I need it. For now, I'll pause this part and add the backend endpoint first.
+        // Actually, I can use the same pattern as updateMainRosterOverrides.
+        // 1. Sync char
+        // 2. Add ID to includedIds
+        // But I cannot do step 1 easily from frontend without the backend helper.
+
+        // Workaround: Call valid endpoint.
+        // Let's implement `addExternalToMainRoster` in backend.
+
+        const response = await GuildService.addExternalToMainRoster(selectedGuild.id, extName.trim(), extRealm);
+        if (response.success) {
+          setExtName('');
+          setExtRealm('');
+          setMetadata((prev: any) => ({
+            ...prev,
+            mainRosterIncludedCharacterIds: response.mainRosterIncludedCharacterIds
+          }));
+          await loadRoster(selectedGuild.id);
+        } else {
+          setAddError(response.error || 'Fehler beim Hinzufügen');
+        }
+      } else if (selectedRoster) {
+        const response = await GuildService.addExternalMember(selectedGuild.id, selectedRoster.id, extName.trim(), extRealm);
+        if (response.success) {
+          setExtName('');
+          setExtRealm('');
+          await refreshRosters();
+          await loadRoster(selectedGuild.id);
+        } else {
+          setAddError(response.error || 'Fehler beim Hinzufügen');
+        }
+      }
+    } catch (err: any) {
+      console.error('Failed to add external member', err);
+      setAddError('Verbindungsfehler beim Hinzufügen');
+    } finally {
+      setIsAddingExternal(false);
+    }
   };
 
   const getRIOColor = (score: number | null) => {
@@ -248,36 +359,26 @@ export default function Roster() {
 
   const getDifficultyColor = (progress: string) => {
     if (!progress || progress === '-') return '#D1D9E0';
-    if (progress.includes('M')) return '#FF8000'; // Mythic (Orange)
-    if (progress.includes('H')) return '#A335EE'; // Heroic (Purple)
-    if (progress.includes('N')) return '#0070DD'; // Normal (Blue)
-    if (progress.includes('L')) return '#1EFF00'; // LFR (Green)
-    return '#ABD473'; // Fallback Green
+    if (progress.includes('M')) return '#FF8000';
+    if (progress.includes('H')) return '#A335EE';
+    if (progress.includes('N')) return '#0070DD';
+    if (progress.includes('L')) return '#1EFF00';
+    return '#ABD473';
   };
 
   const getIlvlColor = (ilvl: number | null) => {
     if (!ilvl) return '#666';
-    if (ilvl >= 160) return '#1EFF00'; // Green
-    if (ilvl >= 130) return '#FFFF00'; // Yellow
-    if (ilvl >= 90) return '#FF8000';  // Orange
-    return '#FF0000';                 // Red
+    if (ilvl >= 160) return '#1EFF00';
+    if (ilvl >= 130) return '#FFFF00';
+    if (ilvl >= 90) return '#FF8000';
+    return '#FF0000';
   };
-
-  const groupedRoster = {
-    Tanks: roster.filter(m => m.role?.toLowerCase() === 'tank'),
-    Healers: roster.filter(m => m.role?.toLowerCase() === 'healer'),
-    DPS: roster.filter(m => m.role?.toLowerCase() === 'dps'),
-    Unassigned: roster.filter(m => !m.role || (m.role.toLowerCase() !== 'tank' && m.role.toLowerCase() !== 'healer' && m.role.toLowerCase() !== 'dps'))
-  };
-
 
   useEffect(() => {
     if (selectedGuild) {
       loadRoster(selectedGuild.id);
     }
   }, [selectedRosterView]);
-
-
 
   const getRankName = (rankId: number | null) => {
     if (rankId === null || rankId === undefined) return 'Kein Rang';
@@ -289,7 +390,7 @@ export default function Roster() {
     <div className="page-container">
       <style>{`
         .group:hover {
-          border-color: #A330C9 !important;
+          border-color: var(--accent) !important;
         }
       `}</style>
 
@@ -297,137 +398,254 @@ export default function Roster() {
         <div className="flex items-center justify-end px-6 pt-2">
           {isRosterSyncing && (
             <div className="flex items-center gap-2">
-              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-[#A330C9]"></div>
-              <span className="text-[9px] text-[#A330C9] font-black uppercase tracking-widest">Synchronisiere...</span>
+              <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-accent"></div>
+              <span className="text-[9px] text-accent font-black uppercase tracking-widest">Synchronisiere...</span>
             </div>
           )}
         </div>
       </header>
 
-
-      {
-        filteredRosterMembers.length === 0 ? (
-          <div className="text-center py-24 bg-[#121214]/50 backdrop-blur-md rounded-3xl">
-            <div className="text-6xl mb-6">👥</div>
-            <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Keine Mitglieder gefunden</h2>
-            <p className="text-gray-500 mb-8 max-w-sm mx-auto text-sm font-medium leading-relaxed">
-              Der Roster wurde für diese Gilde noch nicht synchronisiert oder entspricht nicht den Filtern.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-[2px]">
-            {filteredRosterMembers.map((member) => {
-              const rank = (member as any).rank;
-              const rankName = getRankName(rank);
-
-              const classIconKeys: Record<number, string> = {
-                1: 'warrior', 2: 'paladin', 3: 'hunter', 4: 'rogue',
-                5: 'priest', 6: 'deathknight', 7: 'shaman', 8: 'mage',
-                9: 'warlock', 10: 'monk', 11: 'druid', 12: 'demonhunter', 13: 'evoker'
-              };
-
-              const classKey = member.classId ? classIconKeys[member.classId] : (member.class || '').toLowerCase().replace(' ', '').replace('-', '');
-              const classIcon = `https://render.worldofwarcraft.com/us/icons/56/classicon_${classKey}.jpg`;
-
-              const getRealmSlug = (realm: string) => realm.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
-              const charUrlName = member.name.toLowerCase();
-              const realmSlug = getRealmSlug(member.realm);
-
-              return (
-                <div
-                  key={member.id}
-                  style={{
-                    background: '#1D1E1F',
-                    padding: '8px 16px',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    border: (member as any).isMain ? '1px solid #A330C9' : '1px solid #333',
-                    transition: 'border-color 0.2s',
-                    width: '100%',
-                    boxSizing: 'border-box'
+      <div className="flex flex-col gap-6 mb-[3px]">
+        <div className="flex flex-col gap-2">
+          {isAdmin && selectedRosterView !== 'all' && selectedRosterView !== 'main' && (
+            <>
+              <div className="flex items-center gap-[2px] bg-[#1a1b1c] p-1.5 rounded-xl border border-[#333] w-fit">
+                <input
+                  placeholder="Charakter-Name"
+                  value={extName}
+                  onChange={(e) => {
+                    setExtName(e.target.value.toLowerCase());
+                    setAddError(null);
                   }}
-                  className="group"
+                  className="bg-[#111] border-none text-white text-xs px-3 py-1.5 rounded-lg outline-none w-32 focus:ring-1 ring-var(--accent)"
+                />
+                <select
+                  value={extRealm}
+                  onChange={(e) => {
+                    setExtRealm(e.target.value);
+                    setAddError(null);
+                  }}
+                  className="bg-[#111] border-none text-white text-xs px-3 py-1.5 rounded-lg outline-none w-44 focus:ring-1 ring-var(--accent) cursor-pointer"
+                  disabled={realmsLoading}
                 >
-                  {/* 1. Spalte: Rolle */}
-                  <div style={{ width: '40px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-                    <RoleIcon role={member.role} size={22} />
-                  </div>
+                  <option value="" className="text-gray-500">
+                    {realmsLoading ? 'Lade Server...' : 'Server wählen...'}
+                  </option>
+                  {realms.map(r => (
+                    <option key={r.slug} value={r.slug} className="bg-[#111] text-white">
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={handleAddExternalMember}
+                  disabled={isAddingExternal || !extName || !extRealm}
+                  className="bg-var(--accent) text-black text-[10px] font-black uppercase px-4 py-1.5 rounded-lg hover:bg-white transition-colors disabled:opacity-50"
+                >
+                  {isAddingExternal ? 'Lade...' : 'Hinzufügen'}
+                </button>
+              </div>
+              {addError && (
+                <div className="text-red-500 text-[10px] font-black uppercase tracking-wider ml-2 animate-pulse">
+                  ⚠️ {addError}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
 
-                  {/* 2. Spalte: Name & Realm */}
-                  <div style={{ width: '220px', flexShrink: 0 }}>
-                    <div
-                      onClick={() => (window as any).electronAPI.openExternal(`https://worldofwarcraft.com/de-de/character/eu/${realmSlug}/${charUrlName}`)}
-                      style={{
-                        fontWeight: 'bold',
-                        fontSize: '1.1em',
-                        color: getClassColor(member.classId || member.class),
-                        cursor: 'pointer',
-                        display: 'inline-block'
-                      }}
-                      title="Blizzard Arsenal öffnen"
-                    >
-                      {capitalizeName(member.name)}
-                    </div>
-                    <div style={{ fontSize: '0.8em', color: '#666' }}>{formatRealm(member.realm)}</div>
-                  </div>
+      {filteredRosterMembers.length === 0 ? (
+        <div className="text-center py-24 bg-[#121214]/50 backdrop-blur-md rounded-3xl">
+          <div className="text-6xl mb-6">👥</div>
+          <h2 className="text-2xl font-black text-white mb-2 uppercase tracking-tight">Keine Mitglieder gefunden</h2>
+          <p className="text-gray-500 mb-8 max-w-sm mx-auto text-sm font-medium leading-relaxed">
+            Der Roster wurde für diese Gilde noch nicht synchronisiert oder entspricht nicht den Filtern.
+          </p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-[2px]">
+          {filteredRosterMembers.map((member) => {
+            const rank = (member as any).rank;
+            // Extern nur wenn nicht in der Gilde UND kein Rang vorhanden
+            const isActuallyExternal = member.guildId !== selectedGuild?.id && rank === null;
+            const rankName = isActuallyExternal ? 'Extern' : getRankName(rank);
 
-                  {/* 3. Spalte: ILVL */}
-                  <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
-                    <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>ILVL</div>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(member.averageItemLevel) }}>
-                      {member.averageItemLevel || '-'}
-                    </div>
-                  </div>
+            const classIconKeys: Record<number, string> = {
+              1: 'warrior', 2: 'paladin', 3: 'hunter', 4: 'rogue',
+              5: 'priest', 6: 'deathknight', 7: 'shaman', 8: 'mage',
+              9: 'warlock', 10: 'monk', 11: 'druid', 12: 'demonhunter', 13: 'evoker'
+            };
 
-                  {/* 4. Spalte: RIO */}
+            const classKey = member.classId ? classIconKeys[member.classId] : (member.class || '').toLowerCase().replace(' ', '').replace('-', '');
+            const classIcon = `https://render.worldofwarcraft.com/us/icons/56/classicon_${classKey}.jpg`;
+
+            const getRealmSlug = (realm: string) => realm.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
+            const charUrlName = member.name.toLowerCase();
+            const realmSlug = getRealmSlug(member.realm);
+
+            return (
+              <div
+                key={member.id}
+                style={{
+                  background: '#1D1E1F',
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  border: (member as any).isMain ? '1px solid var(--accent)' : '1px solid #333',
+                  transition: 'border-color 0.2s',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  opacity: (() => {
+                    const isMain = selectedRosterView === 'main';
+                    const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
+
+                    if (!selectedRoster && !isMain && selectedRosterView !== 'all') return 1;
+                    if (selectedRosterView === 'all') return 1;
+
+                    const r = Number((member as any).rank);
+
+                    let isInRost = false;
+                    if (isMain) {
+                      const isEx = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
+                      const isIn = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
+                      const hasR = metadata?.visibleRanks?.includes(r);
+                      isInRost = (hasR && !isEx) || isIn;
+                    } else if (selectedRoster) {
+                      const isEx = selectedRoster.excludedCharacterIds?.includes(member.id);
+                      const isIn = selectedRoster.includedCharacterIds?.includes(member.id);
+                      const hasR = selectedRoster.allowedRanks?.includes(r);
+                      isInRost = (hasR && !isEx) || isIn;
+                    } else {
+                      return 1;
+                    }
+
+                    return isInRost ? 1 : 0.4;
+                  })()
+                }}
+                className="group"
+              >
+                <div style={{ width: '40px', flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+                  <RoleIcon role={member.role} size={22} />
+                </div>
+
+                <div style={{ width: '220px', flexShrink: 0 }}>
                   <div
-                    onClick={() => (window as any).electronAPI.openExternal(`https://raider.io/characters/eu/${realmSlug}/${charUrlName}`)}
-                    style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
-                    title="Raider.IO öffnen"
+                    onClick={() => (window as any).electronAPI.openExternal(`https://worldofwarcraft.com/de-de/character/eu/${realmSlug}/${charUrlName}`)}
+                    style={{
+                      fontWeight: 'bold',
+                      fontSize: '1.1em',
+                      color: getClassColor(member.classId || member.class),
+                      cursor: 'pointer',
+                      display: 'inline-block'
+                    }}
+                    title="Blizzard Arsenal öffnen"
                   >
-                    <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>RIO</div>
-                    <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(member.mythicRating) }}>
-                      {member.mythicRating?.toFixed(0) || '-'}
-                    </div>
+                    {capitalizeName(member.name)}
                   </div>
+                  <div style={{ fontSize: '0.8em', color: '#666' }}>{formatRealm(member.realm)}</div>
+                </div>
 
-                  {/* 5. Spalte: Raid Progress */}
-                  <div
-                    onClick={() => (window as any).electronAPI.openExternal(`https://www.warcraftlogs.com/character/eu/${realmSlug}/${charUrlName}`)}
-                    style={{ width: '180px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
-                    title="Warcraft Logs öffnen"
-                  >
-                    <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
-                    <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(member.raidProgress || '') }}>
-                      {member.raidProgress || '-'}
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1 }}></div>
-
-                  {/* 6. Spalte: Gilden-Rang (anstatt Main-Button) */}
-                  <div style={{ width: '150px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
-                    <span style={{
-                      background: rank === 0 ? 'rgba(163, 48, 201, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                      color: rank === 0 ? '#A330C9' : '#818181',
-                      padding: '6px 15px',
-                      borderRadius: '20px',
-                      fontSize: '0.75em',
-                      fontWeight: rank === 0 ? '900' : 'bold',
-                      border: rank === 0 ? '1px solid #A330C9' : '1px solid #444',
-                      letterSpacing: rank === 0 ? '1px' : 'normal',
-                      textTransform: 'uppercase'
-                    }}>
-                      {rankName}
-                    </span>
+                <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>ILVL</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(member.averageItemLevel) }}>
+                    {member.averageItemLevel || '-'}
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
+
+                <div
+                  onClick={() => (window as any).electronAPI.openExternal(`https://raider.io/characters/eu/${realmSlug}/${charUrlName}`)}
+                  style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  title="Raider.IO öffnen"
+                >
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>RIO</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(member.mythicRating) }}>
+                    {member.mythicRating?.toFixed(0) || '-'}
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => (window as any).electronAPI.openExternal(`https://www.warcraftlogs.com/character/eu/${realmSlug}/${charUrlName}`)}
+                  style={{ width: '180px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  title="Warcraft Logs öffnen"
+                >
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(member.raidProgress || '') }}>
+                    {member.raidProgress || '-'}
+                  </div>
+                </div>
+
+                <div style={{ flex: 1 }}></div>
+
+                <div style={{ width: '150px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                  <span style={{
+                    background: rank === 0 ? 'rgba(139, 0, 139, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                    color: rank === 0 ? 'var(--accent)' : '#818181',
+                    padding: '6px 15px',
+                    borderRadius: '20px',
+                    fontSize: '0.75em',
+                    fontWeight: rank === 0 ? '900' : 'bold',
+                    border: rank === 0 ? '1px solid var(--accent)' : '1px solid #444',
+                    letterSpacing: rank === 0 ? '1px' : 'normal',
+                    textTransform: 'uppercase'
+                  }}>
+                    {rankName}
+                  </span>
+                </div>
+
+                {isAdmin && selectedRosterView !== 'all' && (
+                  <div style={{ width: '100px', flexShrink: 0, display: 'flex', justifyContent: 'center', marginLeft: '10px' }}>
+                    {(() => {
+                      const isMain = selectedRosterView === 'main';
+                      const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
+
+                      if (!selectedRoster && !isMain) return null;
+
+                      const r = Number((member as any).rank);
+
+                      let isInRost = false;
+                      if (isMain) {
+                        const isEx = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
+                        const isIn = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
+                        const hasR = metadata?.visibleRanks?.includes(r);
+                        isInRost = (hasR && !isEx) || isIn;
+                      } else if (selectedRoster) {
+                        const isEx = selectedRoster.excludedCharacterIds?.includes(member.id);
+                        const isIn = selectedRoster.includedCharacterIds?.includes(member.id);
+                        const hasR = selectedRoster.allowedRanks?.includes(r);
+                        isInRost = (hasR && !isEx) || isIn;
+                      }
+
+                      return (
+                        <button
+                          onClick={() => handleToggleMember(member.id)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: '6px',
+                            fontSize: '10px',
+                            fontWeight: '900',
+                            textTransform: 'uppercase',
+                            transition: 'all 0.2s',
+                            border: '1px solid',
+                            backgroundColor: isInRost ? 'rgba(255, 68, 68, 0.1)' : 'rgba(68, 255, 68, 0.1)',
+                            borderColor: isInRost ? '#ff4444' : '#44ff44',
+                            color: isInRost ? '#ff4444' : '#44ff44',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isInRost ? 'Entfernen' : 'Hinzufügen'}
+                        </button>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

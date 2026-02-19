@@ -68,7 +68,7 @@ export default function StreamSettings() {
     const [privacyGuildId, setPrivacyGuildId] = useState(() => storage.get('stream-privacy-guild-id', ''));
     const [joinCode, setJoinCode] = useState(() => {
         const stored = storage.get('stream-privacy-code', '');
-        return stored || generateRandomCode();
+        return stored || '';
     });
 
     const [gpuName, setGpuName] = useState<string>('Wird erkannt...');
@@ -666,24 +666,63 @@ export default function StreamSettings() {
                                 </button>
                             </div>
                         ) : (
-                            <button
-                                onClick={stopStream}
-                                style={{
-                                    width: '100%',
-                                    background: '#cc0000',
-                                    color: 'white',
-                                    border: 'none',
-                                    padding: '16px',
-                                    borderRadius: '10px',
-                                    fontWeight: 'bold',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 15px rgba(204, 0, 0, 0.3)',
-                                    transition: 'all 0.2s',
-                                    fontSize: '1.1rem'
-                                }}
-                            >
-                                Übertragung beenden
-                            </button>
+                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                                {joinCode && (
+                                    <div style={{
+                                        background: 'rgba(0, 170, 255, 0.1)',
+                                        border: '1px solid #00aaff',
+                                        borderRadius: '8px',
+                                        padding: '12px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '8px'
+                                    }}>
+                                        <label style={{ fontSize: '0.75rem', color: '#00aaff', fontWeight: 'bold', textTransform: 'uppercase' }}>
+                                            Aktueller Beitritts-Code
+                                        </label>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <code style={{
+                                                fontSize: '1.2rem',
+                                                fontWeight: 'bold',
+                                                letterSpacing: '2px',
+                                                background: 'rgba(0,0,0,0.3)',
+                                                padding: '4px 8px',
+                                                borderRadius: '4px',
+                                                fontFamily: 'monospace'
+                                            }}>
+                                                {joinCode}
+                                            </code>
+                                            <button
+                                                onClick={() => copyToClipboard(joinCode)}
+                                                className="preset-btn"
+                                                title="Code kopieren"
+                                                style={{ padding: '6px 12px' }}
+                                            >
+                                                📋
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <button
+                                    onClick={stopStream}
+                                    style={{
+                                        width: '100%',
+                                        background: '#cc0000',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '16px',
+                                        borderRadius: '10px',
+                                        fontWeight: 'bold',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 15px rgba(204, 0, 0, 0.3)',
+                                        transition: 'all 0.2s',
+                                        fontSize: '1.1rem'
+                                    }}
+                                >
+                                    Übertragung beenden
+                                </button>
+                            </div>
                         )}
 
                         <div style={{ display: 'flex', gap: '10px' }}>

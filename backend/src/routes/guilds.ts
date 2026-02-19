@@ -61,31 +61,43 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
 
   const guild = await prisma.guild.findUnique({
     where: { id },
-    include: { characters: true },
+    include: {
+      characters: true,
+      rosters: { select: { includedCharacterIds: true } }
+    },
   });
 
-  if (!guild) {
-    return res.status(404).json({ error: 'Guild not found' });
+  // Find all unique included IDs from ALL rosters belonging to this guild
+  const allManualIds = Array.from(new Set(guild.rosters.flatMap(r => r.includedCharacterIds || [])));
+  const existingIds = new Set(guild.characters.map(c => c.id));
+  const extraIds = allManualIds.filter(id => !existingIds.has(id));
+
+  let pool = [...guild.characters];
+  if (extraIds.length > 0) {
+    const extraChars = await prisma.character.findMany({
+      where: { id: { in: extraIds } }
+    });
+    pool = [...pool, ...extraChars];
+    console.log(`[RosterAPI] Added ${extraChars.length} external characters to pool for guild ${guild.name}`);
   }
 
   // Filter roster by visible ranks
   const includeFiltered = req.query.includeFiltered === 'true';
   const visibleRanks = guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-  const totalInDb = guild.characters.length;
+  const totalInPool = pool.length;
 
-  console.log(`[RosterAPI] Guild: ${guild.name}, TotalChars: ${totalInDb}, VisibleRanks: ${JSON.stringify(visibleRanks)}, IncludeFiltered: ${includeFiltered}`);
-
-  const filteredRoster = guild.characters.filter((char: any) =>
-    char.rank !== null && visibleRanks.includes(char.rank)
-  );
+  const filteredRoster = pool.filter((char: any) => {
+    // Show if manual inclusion OR has a visible rank
+    return allManualIds.includes(char.id) || (char.rank !== null && visibleRanks.includes(char.rank));
+  });
 
   res.json({
-    roster: includeFiltered ? guild.characters : filteredRoster,
+    roster: includeFiltered ? pool : filteredRoster,
     metadata: {
-      totalCount: totalInDb,
+      totalCount: totalInPool,
       filteredCount: filteredRoster.length,
       visibleRanks: visibleRanks,
-      isFiltered: !includeFiltered && filteredRoster.length < totalInDb,
+      isFiltered: !includeFiltered && filteredRoster.length < totalInPool,
       ranks: guild.ranks
     }
   });
@@ -142,12 +154,28 @@ router.post('/guilds/:guildId/raids/:raidId/attendance', authMiddleware, async (
 
   try {
     // Rank validation
-    const raid = await prisma.raid.findUnique({ where: { id: raidIdNum } });
+    const raid = await prisma.raid.findUnique({
+      where: { id: raidIdNum },
+      include: { roster: true }
+    });
     const character = await prisma.character.findUnique({ where: { id: characterIdNum } });
 
-    if (raid && raid.allowedRanks.length > 0 && character) {
-      if (character.rank === null || !raid.allowedRanks.includes(character.rank)) {
-        return res.status(403).json({ error: 'Dein Rang ist für diesen Raid nicht zugelassen.' });
+    if (raid && character) {
+      // 1. Check specific roster ranks if rosterId is set
+      if (raid.rosterId && raid.roster) {
+        const isExcluded = raid.roster.excludedCharacterIds.includes(character.id);
+        const isIncluded = raid.roster.includedCharacterIds.includes(character.id);
+        const hasRank = character.rank !== null && raid.roster.allowedRanks.includes(character.rank);
+
+        if (isExcluded || (!hasRank && !isIncluded)) {
+          return res.status(403).json({ error: `Dieser Raid ist nur für Mitglieder des Rosters "${raid.roster.name}" zugelassen.` });
+        }
+      }
+      // 2. Fallback to general allowedRanks if set
+      else if (raid.allowedRanks.length > 0) {
+        if (character.rank === null || !raid.allowedRanks.includes(character.rank)) {
+          return res.status(403).json({ error: 'Dein Rang ist für diesen Raid nicht zugelassen.' });
+        }
       }
     }
 
@@ -155,6 +183,131 @@ router.post('/guilds/:guildId/raids/:raidId/attendance', authMiddleware, async (
     res.status(201).json({ attendance });
   } catch (e) {
     res.status(500).json({ error: 'Failed to create attendance' });
+  }
+});
+
+// --- ROSTER MANAGEMENT ENDPOINTS ---
+
+// GET /api/guilds/:guildId/rosters - Liste alle Roster einer Gilde
+router.get('/guilds/:guildId/rosters', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId } = req.params;
+  try {
+    const rosters = await prisma.roster.findMany({
+      where: { guildId: Number(guildId) },
+      orderBy: { name: 'asc' }
+    });
+    res.json({ success: true, rosters });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch rosters' });
+  }
+});
+
+// POST /api/guilds/:guildId/rosters - Erstelle oder Update einen Roster
+router.post('/guilds/:guildId/rosters', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId } = req.params;
+  const { id, name, allowedRanks, includedCharacterIds, excludedCharacterIds } = req.body;
+
+  try {
+    const data = {
+      name,
+      allowedRanks: allowedRanks?.map(Number),
+      includedCharacterIds: includedCharacterIds?.map(Number),
+      excludedCharacterIds: excludedCharacterIds?.map(Number)
+    };
+
+    if (id) {
+      const updated = await prisma.roster.update({
+        where: { id: Number(id) },
+        data
+      });
+      return res.json({ success: true, roster: updated });
+    } else {
+      const created = await prisma.roster.create({
+        data: {
+          guildId: Number(guildId),
+          ...data
+        }
+      });
+      return res.status(201).json({ success: true, roster: created });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to manage roster' });
+  }
+});
+
+// POST /api/guilds/:guildId/rosters/:rosterId/add-external - Füge externen Partner hinzu
+router.post('/guilds/:guildId/rosters/:rosterId/add-external', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {
+  const { guildId, rosterId } = req.params;
+  const { name, realm } = req.body;
+
+  if (!name || !realm) {
+    return res.status(400).json({ error: 'Name and realm are required' });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: (req as any).user.userId } });
+    if (!user || !user.accessToken) return res.status(401).json({ error: 'No access token' });
+
+    // 1. Sync character data
+    const character = await RosterService.syncSingleCharacter(realm, name, user.accessToken);
+    if (!character) {
+      return res.status(404).json({ error: `Charakter ${name}-${realm} konnte nicht bei Blizzard gefunden werden.` });
+    }
+
+    // 2. Add to roster inclusions
+    const roster = await prisma.roster.findUnique({ where: { id: Number(rosterId) } });
+    if (!roster) return res.status(404).json({ error: 'Roster not found' });
+
+    const newInclusions = Array.from(new Set([...roster.includedCharacterIds, character.id]));
+    const updated = await prisma.roster.update({
+      where: { id: Number(rosterId) },
+      data: { includedCharacterIds: newInclusions }
+    });
+
+    res.json({ success: true, character, roster: updated });
+  } catch (error) {
+    console.error('[AddExternal] Error:', error);
+    res.status(500).json({ error: 'Failed to add external character' });
+  }
+});
+
+// GET /api/guilds/realms - Holt die Realm-Liste für die aktuelle Region
+router.get('/guilds/realms', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({ where: { id: (req as any).user.userId } });
+    if (!user || !user.accessToken) return res.status(401).json({ error: 'No access token' });
+
+    const service = new BattleNetAPIService(user.accessToken);
+    const realms = await service.getRealms();
+
+    // Sort realms alphabetically and map to simple format
+    const formattedRealms = realms.map((r: any) => {
+      let name = 'Unknown';
+      if (typeof r.name === 'string') name = r.name;
+      else if (r.name && typeof r.name === 'object') {
+        name = r.name.de_DE || r.name.en_US || r.name.fr_FR || r.name.es_ES || r.name.ru_RU || Object.values(r.name)[0];
+      }
+      return {
+        name: name,
+        slug: r.slug
+      };
+    }).sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+    res.json({ success: true, realms: formattedRealms });
+  } catch (error) {
+    console.error('[Realms] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch realms' });
+  }
+});
+
+// DELETE /api/guilds/:guildId/rosters/:rosterId - Lösche einen Roster
+router.delete('/guilds/:guildId/rosters/:rosterId', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {
+  const { rosterId } = req.params;
+  try {
+    await prisma.roster.delete({ where: { id: Number(rosterId) } });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete roster' });
   }
 });
 
@@ -212,6 +365,12 @@ router.post('/guilds/:guildId/admin-ranks', authMiddleware, checkPermission('edi
 
 // POST /api/guilds/:guildId/visible-ranks - Update Sichtbare Ränge
 router.post('/guilds/:guildId/visible-ranks', authMiddleware, checkPermission('edit_roster'), GuildController.updateVisibleRanks);
+
+// POST /api/guilds/:guildId/main-roster-overrides - Update Main Roster Overrides
+router.post('/guilds/:guildId/main-roster-overrides', authMiddleware, checkPermission('edit_roster'), GuildController.updateMainRosterOverrides);
+
+// POST /api/guilds/:guildId/main-roster/add-external
+router.post('/guilds/:guildId/main-roster/add-external', authMiddleware, checkPermission('edit_roster'), GuildController.addExternalToMainRoster);
 
 // POST /api/guilds/:guildId/members/:characterId/promote
 router.post('/guilds/:guildId/members/:characterId/promote', authMiddleware, checkPermission('edit_roster'), async (req: AuthenticatedRequest, res: Response) => {

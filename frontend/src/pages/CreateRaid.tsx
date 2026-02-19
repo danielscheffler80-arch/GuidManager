@@ -13,7 +13,7 @@ export default function CreateRaid() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [availableRanks, setAvailableRanks] = useState<any[]>([]);
-
+    const [availableRosters, setAvailableRosters] = useState<any[]>([]);
     const [newRaid, setNewRaid] = useState({
         title: '',
         description: '',
@@ -22,17 +22,18 @@ export default function CreateRaid() {
         maxPlayers: 20,
         recruitmentType: 'everyone',
         allowedRanks: [] as number[],
+        rosterId: '' as string | number,
         isRecurring: false,
         recurrenceWeeks: 4,
-        imageUrl: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg'
+        imageUrl: 'https://wow.zamimg.com/uploads/screenshots/normal/1186178.jpg'
     });
 
     const RAID_IMAGES = [
+        { name: 'Liberation of Undermine', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1186178.jpg' },
+        { name: 'Manaforge', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1183318.jpg' },
         { name: 'Nerub-ar Palace', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg' },
-        { name: 'Amirdrassil', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1126780.jpg' },
-        { name: 'Aberrus', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1105423.jpg' },
-        { name: 'Vault of the Incarnates', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1083424.jpg' },
-        { name: 'Generic', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg' }
+        { name: 'Siren Isle', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1183318.jpg' },
+        { name: 'The War Within', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg' }
     ];
 
     useEffect(() => {
@@ -55,6 +56,7 @@ export default function CreateRaid() {
     useEffect(() => {
         if (selectedGuild) {
             fetchRanks(selectedGuild.id);
+            fetchRosters(selectedGuild.id);
         }
     }, [selectedGuild]);
 
@@ -69,6 +71,16 @@ export default function CreateRaid() {
         }
     };
 
+    const fetchRosters = async (guildId: number) => {
+        try {
+            const data = await GuildService.getRosters(guildId);
+            if (data.success) {
+                setAvailableRosters(data.rosters || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch rosters');
+        }
+    };
 
     const handleCreateRaid = async () => {
         if (!selectedGuild) return;
@@ -164,33 +176,17 @@ export default function CreateRaid() {
                 </div>
 
                 <div className="relative z-10">
-                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">Berechtigte Ränge</label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-4 bg-black/20 border border-gray-800 rounded-2xl max-h-48 overflow-y-auto custom-scrollbar">
-                        {availableRanks.length > 0 ? availableRanks.map((rank: any) => {
-                            const isSelected = newRaid.allowedRanks.includes(rank.id);
-                            return (
-                                <label key={rank.id} className={`flex items-center gap-3 p-2 rounded-lg border transition-all cursor-pointer group/rank ${isSelected ? 'bg-[#A330C9]/10 border-[#A330C9]/40 text-white' : 'bg-transparent border-transparent text-gray-500 hover:border-gray-800 hover:bg-white/5'}`}>
-                                    <div className="relative flex items-center justify-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            onChange={(e) => {
-                                                const ranks = e.target.checked
-                                                    ? [...newRaid.allowedRanks, rank.id]
-                                                    : newRaid.allowedRanks.filter(r => r !== rank.id);
-                                                setNewRaid({ ...newRaid, allowedRanks: ranks });
-                                            }}
-                                            className="w-4 h-4 rounded border-gray-700 bg-black/40 text-[#A330C9] focus:ring-[#A330C9] transition-all appearance-none checked:bg-[#A330C9] border-2"
-                                        />
-                                        {isSelected && <span className="absolute text-white text-[8px] pointer-events-none">✓</span>}
-                                    </div>
-                                    <span className="text-xs font-bold truncate group-hover/rank:text-gray-200">
-                                        Rang {rank.id}: <span className="font-medium">{rank.name}</span>
-                                    </span>
-                                </label>
-                            );
-                        }) : <p className="text-xs text-gray-600 p-2">Keine Ränge geladen</p>}
-                    </div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3 ml-1">Anmeldung begrenzt auf Roster</label>
+                    <select
+                        value={newRaid.rosterId}
+                        onChange={e => setNewRaid({ ...newRaid, rosterId: e.target.value })}
+                        className="w-full bg-black/40 border border-gray-800 rounded-xl p-3.5 text-sm text-gray-200 focus:border-[#A330C9] outline-none transition-all hover:border-gray-700"
+                    >
+                        <option value="">Alle Gildenmitglieder</option>
+                        {availableRosters.map(r => (
+                            <option key={r.id} value={r.id}>{r.name}</option>
+                        ))}
+                    </select>
                 </div>
 
                 <div className="p-6 bg-gradient-to-r from-[#A330C9]/5 to-transparent border border-[#A330C9]/20 rounded-2xl relative z-10">

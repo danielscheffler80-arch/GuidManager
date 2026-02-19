@@ -86,11 +86,16 @@ model Guild {
   members         UserGuild[]
   raids           Raid[]
   messages        GuildChat[]
+  rosters         Roster[]
   
   // Permissions & Ranks
   adminRanks      Int[]       @default([0]) // Standardmäßig hat nur Gildenleiter (0) Admin-Rechte
   visibleRanks    Int[]       @default([5, 7]) // Ränge, die im Roster angezeigt werden
   ranks           Json?       // Speichert Blizzard Ranks (id, name, order)
+  
+  // Main Roster Overrides
+  mainRosterIncludedCharacterIds Int[] @default([]) // Characters manually added to Main Roster
+  mainRosterExcludedCharacterIds Int[] @default([]) // Characters manually hidden from Main Roster
   
   @@map("guilds")
 }
@@ -107,6 +112,24 @@ model GuildChat {
 
   @@index([guildId])
   @@map("guild_chats")
+}
+
+// Roster Model für Gruppen-Definitionen
+model Roster {
+  id              Int         @id @default(autoincrement())
+  guildId         Int
+  name            String
+  allowedRanks        Int[]       @default([]) // Ranks that belong to this roster
+  excludedCharacterIds Int[]       @default([]) // Manually excluded characters
+  includedCharacterIds Int[]       @default([]) // Manually included characters (even if rank doesn't match)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  
+  // Relations
+  guild           Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  raids           Raid[]
+  
+  @@map("rosters")
 }
 
 // User-Guild Membership (für Gildenmitgliedschaft)
@@ -129,6 +152,7 @@ model UserGuild {
 model Raid {
   id              Int         @id @default(autoincrement())
   guildId         Int
+  rosterId        Int?        // Optionaler Link zu einem speziellen Roster
   title           String
   description     String?
   startTime       DateTime
@@ -145,6 +169,7 @@ model Raid {
   
   // Relations
   guild           Guild       @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  roster          Roster?     @relation(fields: [rosterId], references: [id])
   attendances     Attendance[]
   
   @@map("raids")

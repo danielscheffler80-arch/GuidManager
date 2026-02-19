@@ -148,7 +148,7 @@ export default function Chat() {
         {messages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', gap: '10px', fontSize: '0.95rem' }}>
             <span style={{ color: '#666', minWidth: '125px' }}>{getTimestamp(msg.timestamp)}</span>
-            <span style={{ color: '#A330C9', fontWeight: 'bold' }}>{msg.sender}:</span>
+            <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{msg.sender}:</span>
             <span style={{ color: '#D1D9E0', wordBreak: 'break-word' }}>{msg.content}</span>
           </div>
         ))}

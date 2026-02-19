@@ -237,7 +237,7 @@ export default function Settings() {
     const colors: Record<number, string> = {
       1: '#C79C6E', 2: '#F58CBA', 3: '#ABD473', 4: '#FFF569',
       5: '#FFFFFF', 6: '#C41F3B', 7: '#0070DE', 8: '#69CCF0',
-      9: '#9482C9', 10: '#00FF96', 11: '#FF7D0A', 12: '#A330C9', 13: '#33937F'
+      9: '#9482C9', 10: '#00FF96', 11: '#FF7D0A', 12: 'var(--accent)', 13: '#33937F'
     };
     return colors[classId] || '#D1D9E0';
   };
@@ -302,7 +302,7 @@ export default function Settings() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  border: char.isMain ? '1px solid #A330C9' : '1px solid #333',
+                  border: char.isMain ? '1px solid var(--accent)' : '1px solid #333',
                   transition: 'border-color 0.2s',
                   width: '100%',
                   boxSizing: 'border-box'
@@ -383,7 +383,7 @@ export default function Settings() {
                       onClick={() => updateCharacterRole(char.id, r.id)}
                       title={r.label}
                       style={{
-                        background: char.role?.toLowerCase() === r.id ? '#A330C9' : '#121214',
+                        background: char.role?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
                         border: '1px solid #333',
                         borderRadius: '6px',
                         padding: '6px',
@@ -411,8 +411,8 @@ export default function Settings() {
                 <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                   {char.isMain ? (
                     <span style={{
-                      background: 'rgba(163, 48, 201, 0.2)', color: '#A330C9', padding: '6px 15px',
-                      borderRadius: '20px', fontSize: '0.75em', fontWeight: '900', border: '1px solid #A330C9',
+                      background: 'rgba(163, 48, 201, 0.2)', color: 'var(--accent)', padding: '6px 15px',
+                      borderRadius: '20px', fontSize: '0.75em', fontWeight: '900', border: '1px solid var(--accent)',
                       letterSpacing: '1px'
                     }}>MAIN</span>
                   ) : (
@@ -425,8 +425,8 @@ export default function Settings() {
                         fontWeight: 'bold'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = '#A330C9';
-                        e.currentTarget.style.color = '#A330C9';
+                        e.currentTarget.style.borderColor = 'var(--accent)';
+                        e.currentTarget.style.color = 'var(--accent)';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.borderColor = '#444';
@@ -447,7 +447,7 @@ export default function Settings() {
         <p style={{ fontSize: '0.9em', color: '#888' }}>Battle.net ID: {user?.battlenetId}</p>
 
         {String(user?.battlenetId) === '100379014' && (
-          <p style={{ color: '#A330C9', fontWeight: 'bold', marginTop: '10px' }}>✨ Superuser-Modus aktiv (Debug/Test)</p>
+          <p style={{ color: 'var(--accent)', fontWeight: 'bold', marginTop: '10px' }}>✨ Superuser-Modus aktiv (Debug/Test)</p>
         )}
       </section>
     </div>

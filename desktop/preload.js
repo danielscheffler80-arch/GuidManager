@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Backend URL Management
 let workingBackendUrl = 'http://localhost:3334';
 let backendCheckComplete = false;
+let backendVerified = false;
 
 async function verifyBackendUrl(url, retries = 2) {
   for (let i = 0; i <= retries; i++) {
@@ -51,7 +52,8 @@ ipcRenderer.invoke('get-config').then(async (config) => {
 
   // Set the working URL
   workingBackendUrl = finalUrl;
-  backendCheckComplete = true;
+  backendVerified = found;
+  backendCheckComplete = true; // Signals that the check IS FINISHED, regardless of result
   console.log(`[PRELOAD] Discovery Complete. Final URL: ${workingBackendUrl} (Verified: ${found})`);
 });
 
@@ -69,6 +71,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return ipcRenderer.invoke('get-gpu-info');
   },
   isBackendReady: () => {
+    return backendCheckComplete && backendVerified;
+  },
+  isCheckFinished: () => {
     return backendCheckComplete;
   },
   checkForUpdates: () => {
@@ -88,5 +93,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   toggleWindowFullscreen: () => {
     return ipcRenderer.invoke('toggle-window-fullscreen');
+  },
+  setWindowFullscreen: (flag) => {
+    return ipcRenderer.invoke('set-window-fullscreen', flag);
   }
 });

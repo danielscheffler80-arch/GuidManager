@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { MythicPlusService } from '../api/mythicPlusService';
-import { capitalizeName } from '../utils/formatUtils';
+import { capitalizeName, getClassColor } from '../utils/formatUtils';
 import { useGuild } from '../contexts/GuildContext';
 import { storage } from '../utils/storage';
 import { SignupModal } from '../components/SignupModal';
@@ -74,14 +74,14 @@ export default function MythicPlus() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white">
-            Mythic<span className="text-[#A330C9]">+</span> Keys
+            Mythic<span className="text-accent">+</span> Keys
           </h1>
           <p className="text-gray-400 text-sm">Übersicht aller Gilden-Keys und Anmeldung</p>
         </div>
         <button
           onClick={handleSync}
           disabled={syncing}
-          className="bg-[#A330C9] hover:bg-[#8e29af] text-white px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+          className="bg-accent hover:opacity-80 text-white px-6 py-2 rounded-lg font-bold transition-all flex items-center gap-2 disabled:opacity-50"
         >
           {syncing ? (
             <>
@@ -98,11 +98,16 @@ export default function MythicPlus() {
             {/* Main Header */}
             <div className="p-4 flex items-center justify-between bg-[#222]">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center font-bold text-[#A330C9]">
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center font-bold"
+                  style={{ backgroundColor: `${getClassColor(main.classId || main.class)}22`, color: getClassColor(main.classId || main.class) }}
+                >
                   {main.name[0].toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="font-bold text-lg text-white">{capitalizeName(main.name)}</h3>
+                  <h3 className="font-bold text-lg" style={{ color: getClassColor(main.classId || main.class) }}>
+                    {capitalizeName(main.name)}
+                  </h3>
                   <p className="text-xs text-gray-500">{main.class} • {main.realm}</p>
                 </div>
               </div>
@@ -110,14 +115,14 @@ export default function MythicPlus() {
                 {main.keys && main.keys.length > 0 ? (
                   <div className="flex items-center gap-4">
                     {main.keys.map((key: any) => (
-                      <div key={key.id} className="flex items-center gap-3 bg-[#111] px-4 py-2 rounded-lg border border-[#A330C9]/30">
+                      <div key={key.id} className="flex items-center gap-3 bg-[#111] px-4 py-2 rounded-lg border border-accent/30">
                         <div className="text-center">
                           <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">{key.dungeon}</p>
                           <p className="text-xl font-black text-white">+{key.level}</p>
                         </div>
                         <button
                           onClick={() => handleSignup(key)}
-                          className="bg-[#A330C9] text-xs px-3 py-1 rounded font-bold hover:bg-[#8e29af]"
+                          className="bg-accent text-xs px-3 py-1 rounded font-bold hover:opacity-80"
                         >
                           Anmelden
                         </button>
@@ -146,7 +151,9 @@ export default function MythicPlus() {
                   {main.alts.map((alt: any) => (
                     <div key={alt.id} className="bg-[#222] p-3 rounded-lg border border-gray-700 flex justify-between items-center">
                       <div>
-                        <p className="font-bold text-gray-200">{capitalizeName(alt.name)}</p>
+                        <p className="font-bold" style={{ color: getClassColor(alt.classId || alt.class) }}>
+                          {capitalizeName(alt.name)}
+                        </p>
                         <p className="text-[10px] text-gray-500">{alt.class}</p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -154,7 +161,7 @@ export default function MythicPlus() {
                           <>
                             <div className="text-right">
                               <p className="text-[8px] text-gray-400 uppercase">{alt.keys[0].dungeon}</p>
-                              <p className="font-black text-[#A330C9]">+{alt.keys[0].level}</p>
+                              <p className="font-black text-accent">+{alt.keys[0].level}</p>
                             </div>
                             <button
                               onClick={() => handleSignup(alt.keys[0])}
@@ -179,8 +186,10 @@ export default function MythicPlus() {
                 <span className="font-bold uppercase tracking-widest text-gray-700 self-center">Interesse:</span>
                 {main.signups.map((s: any) => (
                   <div key={s.id} className="bg-[#222] px-2 py-1 rounded border border-gray-800 flex items-center gap-2">
-                    <span className="font-bold text-gray-300">{capitalizeName(s.character.name)}</span>
-                    <span className="text-[#A330C9]">{s.status}</span>
+                    <span className="font-bold" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
+                      {capitalizeName(s.character.name)}
+                    </span>
+                    <span className="text-accent">{s.status}</span>
                   </div>
                 ))}
               </div>

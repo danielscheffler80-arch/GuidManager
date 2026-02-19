@@ -9,7 +9,7 @@ const BNET_TOKEN_URL = process.env.BNET_TOKEN_URL || 'https://oauth.battle.net/t
 const BNET_API_URL = process.env.BNET_API_URL || 'https://eu.api.blizzard.com';
 const BNET_CLIENT_ID = process.env.BNET_CLIENT_ID;
 const BNET_CLIENT_SECRET = process.env.BNET_CLIENT_SECRET;
-const BNET_REDIRECT_URI = process.env.BNET_REDIRECT_URI || 'http://localhost:5173';
+const BNET_REDIRECT_URI = process.env.BNET_REDIRECT_URI || 'http://localhost:3334/auth/callback';
 const BNET_SCOPE = process.env.BNET_SCOPE || 'wow.profile openid';
 const BNET_REGION = process.env.BNET_REGION || 'eu';
 

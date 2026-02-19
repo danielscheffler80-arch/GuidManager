@@ -5,7 +5,7 @@ import { useGuild } from '../contexts/GuildContext';
 
 export default function AdminSettings() {
     const { user, isAdmin } = useAuth();
-    const { guilds, selectedGuild, setSelectedGuild, loading: guildLoading } = useGuild();
+    const { guilds, selectedGuild, setSelectedGuild, loading: guildLoading, refreshRosters } = useGuild();
 
     const [availableRanks, setAvailableRanks] = useState<{ id: number, name: string }[]>([]);
     const [adminRanks, setAdminRanks] = useState<number[]>([]);
@@ -14,6 +14,10 @@ export default function AdminSettings() {
     const [saving, setSaving] = useState(false);
     const [wowPath, setWowPath] = useState('');
     const [pathStatus, setPathStatus] = useState('');
+    const [rosters, setRosters] = useState<any[]>([]);
+    const [editingRoster, setEditingRoster] = useState<any>(null);
+    const [newRosterName, setNewRosterName] = useState('');
+    const [newRosterRanks, setNewRosterRanks] = useState<number[]>([]);
 
     useEffect(() => {
         if (selectedGuild) {
@@ -41,11 +45,71 @@ export default function AdminSettings() {
                 const config = await (window as any).electronAPI.getConfig();
                 if (config.wowPath) setWowPath(config.wowPath);
             }
+
+            // Fetch Rosters
+            const rosterData = await GuildService.getRosters(guild.id);
+            if (rosterData.success) {
+                setRosters(rosterData.rosters || []);
+            }
         } catch (err) {
-            console.error('Failed to fetch guild ranks');
+            console.error('Failed to update settings');
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleSaveRoster = async () => {
+        if (!selectedGuild || !newRosterName) return;
+        try {
+            setSaving(true);
+            const data = await GuildService.saveRoster(selectedGuild.id, {
+                id: editingRoster?.id,
+                name: newRosterName,
+                allowedRanks: newRosterRanks
+            });
+            if (data.success) {
+                // Refresh rosters
+                const rData = await GuildService.getRosters(selectedGuild.id);
+                setRosters(rData.rosters || []);
+                await refreshRosters();
+                setEditingRoster(null);
+                setNewRosterName('');
+                setNewRosterRanks([]);
+            }
+        } catch (err) {
+            console.error('Failed to save roster');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDeleteRoster = async (rosterId: number) => {
+        if (!selectedGuild) return;
+        if (!window.confirm('Roster wirklich löschen?')) return;
+        try {
+            setSaving(true);
+            await GuildService.deleteRoster(selectedGuild.id, rosterId);
+            setRosters(prev => prev.filter(r => r.id !== rosterId));
+            await refreshRosters();
+        } catch (err) {
+            console.error('Failed to delete roster');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const startEditRoster = (roster: any) => {
+        setEditingRoster(roster);
+        setNewRosterName(roster.name);
+        setNewRosterRanks(roster.allowedRanks || []);
+        // Scroll to form
+        document.getElementById('roster-form')?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const toggleRosterRank = (rankId: number) => {
+        setNewRosterRanks(prev =>
+            prev.includes(rankId) ? prev.filter(id => id !== rankId) : [...prev, rankId]
+        );
     };
 
     const toggleAdminRank = async (rankId: number) => {
@@ -104,7 +168,7 @@ export default function AdminSettings() {
         return found || { id: i, name: `Rang ${i}` };
     });
 
-    if (loading) return <div className="p-20 flex justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#A330C9]"></div></div>;
+    if (loading) return <div className="p-20 flex justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[var(--accent)]"></div></div>;
 
     return (
         <div className="page-container">
@@ -166,7 +230,7 @@ export default function AdminSettings() {
                                 <div style={{
                                     fontWeight: 'bold',
                                     fontSize: '1.1em',
-                                    color: (isAdminRank || rank.id === 0) ? '#A330C9' : '#D1D9E0'
+                                    color: (isAdminRank || rank.id === 0) ? 'var(--accent)' : '#D1D9E0'
                                 }}>
                                     Rang {rank.id}
                                 </div>
@@ -182,7 +246,7 @@ export default function AdminSettings() {
                                     style={{
                                         cursor: rank.id === 0 ? 'default' : 'pointer',
                                         background: isAdminRank ? 'rgba(163, 48, 201, 0.2)' : 'transparent',
-                                        color: isAdminRank ? '#A330C9' : '#444',
+                                        color: isAdminRank ? 'var(--accent)' : '#444',
                                         padding: '6px 15px',
                                         borderRadius: '20px',
                                         fontSize: '0.75em',
@@ -227,6 +291,117 @@ export default function AdminSettings() {
                     );
                 })}
 
+                {/* --- ROSTER MANAGEMENT SECTION --- */}
+                <div style={{ marginTop: '40px' }}>
+                    <header className="mb-6 flex items-center gap-3 px-3 py-2 bg-black/20 rounded-2xl">
+                        <span className="text-lg">🛡️</span>
+                        <span className="text-xs font-black uppercase tracking-[0.2em] text-white/90">Roster Definitionen</span>
+                    </header>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* List existing rosters */}
+                        <div className="space-y-4">
+                            {rosters.map(roster => (
+                                <div key={roster.id} className="bg-[#1D1E1F] p-5 rounded-2xl border border-white/5 flex justify-between items-center group">
+                                    <div>
+                                        <h4 className="font-black text-white uppercase tracking-tight">{roster.name}</h4>
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-1">
+                                            {roster.allowedRanks?.length || 0} Ränge enthalten
+                                        </p>
+                                        <div className="flex gap-1 mt-2 flex-wrap">
+                                            {roster.allowedRanks?.map((rid: number) => (
+                                                <span key={rid} className="px-2 py-0.5 bg-black/40 rounded text-[9px] text-gray-400 font-mono">
+                                                    Rang {rid}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => startEditRoster(roster)}
+                                            className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+                                            title="Editieren"
+                                        >
+                                            ✏️
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteRoster(roster.id)}
+                                            className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center hover:bg-red-500/20 transition-colors"
+                                            title="Löschen"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                            {rosters.length === 0 && (
+                                <div className="p-10 text-center border-2 border-dashed border-white/5 rounded-3xl text-gray-700 text-xs font-bold uppercase tracking-widest">
+                                    Noch keine Roster definiert
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Create/Edit Form */}
+                        <div id="roster-form" className="bg-[#1D1E1F] p-6 rounded-2xl border-2 border-[var(--accent)]/20">
+                            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--accent)] mb-6">
+                                {editingRoster ? 'Roster editieren' : 'Neues Roster erstellen'}
+                            </h4>
+                            <div className="space-y-6">
+                                <div>
+                                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-2 block">Name (z.B. Main-Roster)</label>
+                                    <input
+                                        type="text"
+                                        value={newRosterName}
+                                        onChange={e => setNewRosterName(e.target.value)}
+                                        placeholder="Name eingeben..."
+                                        className="w-full bg-black/20 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-white/5 focus:border-[var(--accent)]/50 transition-all"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-3 block">Zugeordnete Ränge</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {displayRanks.map(rank => {
+                                            const isActive = newRosterRanks.includes(rank.id);
+                                            return (
+                                                <button
+                                                    key={rank.id}
+                                                    onClick={() => toggleRosterRank(rank.id)}
+                                                    className={`px-3 py-2 rounded-xl text-left text-[10px] font-bold transition-all border ${isActive
+                                                        ? 'bg-[var(--accent)]/10 border-[var(--accent)] shadow-[0_0_10px_rgba(163,48,201,0.1)] text-white'
+                                                        : 'bg-black/10 border-white/5 text-gray-600 hover:border-white/20'
+                                                        }`}
+                                                >
+                                                    <span className="opacity-40 mr-2">#{rank.id}</span>
+                                                    {rank.id === 0 ? 'Gildenleiter' : (rank.name || `Mitglied`)}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 pt-2">
+                                    <button
+                                        onClick={handleSaveRoster}
+                                        disabled={saving || !newRosterName}
+                                        className="flex-1 py-4 bg-[var(--accent)] text-white rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-[var(--accent)]/20 disabled:opacity-50"
+                                    >
+                                        {saving ? 'Speichere...' : (editingRoster ? 'Update Speichern' : 'Roster Anlegen')}
+                                    </button>
+                                    {editingRoster && (
+                                        <button
+                                            onClick={() => { setEditingRoster(null); setNewRosterName(''); setNewRosterRanks([]); }}
+                                            className="px-6 py-4 bg-white/5 text-gray-500 rounded-xl font-black uppercase tracking-widest text-[10px]"
+                                        >
+                                            Abbruch
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* WoW Path Configuration attached at the bottom */}
                 <div style={{
                     marginTop: '30px',
@@ -259,7 +434,7 @@ export default function AdminSettings() {
                             <button
                                 onClick={handleSavePath}
                                 style={{
-                                    background: '#A330C9',
+                                    background: 'var(--accent)',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '6px',

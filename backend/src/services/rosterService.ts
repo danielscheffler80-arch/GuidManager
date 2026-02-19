@@ -240,4 +240,115 @@ export class RosterService {
             throw error;
         }
     }
+
+    // Synchronisiert einen einzelnen Charakter (auch Gildenextern)
+    static async syncSingleCharacter(realm: string, name: string, accessToken: string): Promise<any> {
+        try {
+            const service = new BattleNetAPIService(accessToken);
+            console.log(`[RosterService] Syncing single character: ${name}-${realm}`);
+
+            const details = await service.getCharacterDetails(realm, name.toLowerCase());
+            if (!details) return null;
+
+            // Detect if character belongs to a known guild
+            let detectedGuildId: number | undefined = undefined;
+            if (details.guild) {
+                const bnetGuildId = details.guild.id;
+                // Try to find the guild in our DB by name and realm (or better, we should have bnetId but we don't sync that for guilds yet)
+                // For now, let's match by name and realm slug
+                const dbGuild = await prisma.guild.findFirst({
+                    where: {
+                        name: details.guild.name,
+                        realm: {
+                            contains: details.guild.realm.slug,
+                            mode: 'insensitive'
+                        }
+                    }
+                });
+                if (dbGuild) {
+                    detectedGuildId = dbGuild.id;
+                }
+            }
+
+            let averageItemLevel = details.equipped_item_level || details.average_item_level;
+            let role = details.active_spec?.role?.type || null;
+
+            // Map role
+            if (role === 'TANK') role = 'Tank';
+            else if (role === 'HEALER') role = 'Healer';
+            else if (role === 'DAMAGE') role = 'DPS';
+
+            let mythicRating = 0;
+            try {
+                const mPlus = await service.getCharacterMythicKeystone(realm, name.toLowerCase());
+                if (mPlus && mPlus.current_mythic_rating) {
+                    mythicRating = mPlus.current_mythic_rating.rating;
+                }
+            } catch (e) { /* ignore */ }
+
+            let raidProgress = '-';
+            try {
+                const raids = await service.getCharacterRaidEncounters(realm, name.toLowerCase());
+                if (raids && raids.expansions) {
+                    const latestExp = raids.expansions[raids.expansions.length - 1];
+                    const targetRaid = latestExp?.instances?.[latestExp.instances.length - 1];
+                    if (targetRaid) {
+                        const modes = ['MYTHIC', 'HEROIC', 'NORMAL'];
+                        for (const mode of modes) {
+                            const modeData = targetRaid.modes.find((m: any) => m.difficulty.type === mode);
+                            if (modeData) {
+                                const diffChar = mode === 'MYTHIC' ? 'M' : mode === 'HEROIC' ? 'H' : 'N';
+                                raidProgress = `${modeData.progress.completed_count}/${modeData.progress.total_count} ${diffChar}`;
+                                break;
+                            }
+                        }
+                    }
+                }
+            } catch (e) { /* ignore */ }
+
+            const character = await prisma.character.upsert({
+                where: {
+                    name_realm: {
+                        name: name.toLowerCase(),
+                        realm: realm.toLowerCase(),
+                    }
+                },
+                update: {
+                    level: details.level,
+                    class: details.character_class?.name?.de_DE || details.character_class?.name || 'Unknown',
+                    classId: details.character_class?.id || null,
+                    race: details.race?.name?.de_DE || details.race?.name || 'Unknown',
+                    averageItemLevel,
+                    mythicRating,
+                    raidProgress,
+                    role: role || undefined,
+                    isActive: true,
+                    guildId: detectedGuildId,
+                    lastSync: new Date(),
+                },
+                create: {
+                    battleNetId: details.id.toString(),
+                    name: name.toLowerCase(),
+                    realm: realm.toLowerCase(),
+                    level: details.level,
+                    class: details.character_class?.name?.de_DE || details.character_class?.name || 'Unknown',
+                    classId: details.character_class?.id || null,
+                    race: details.race?.name?.de_DE || details.race?.name || 'Unknown',
+                    faction: details.faction?.name?.en_US || 'Unknown',
+                    averageItemLevel,
+                    mythicRating,
+                    raidProgress,
+                    role: role || 'Unknown',
+                    guildId: detectedGuildId,
+                    lastSync: new Date(),
+                    isActive: true,
+                }
+            });
+
+            return character;
+        } catch (error) {
+            console.error(`[RosterService] Sync single character failed for ${name}-${realm}:`, error);
+            return null;
+        }
+    }
 }

@@ -12,7 +12,7 @@ docker-compose up -d
 Write-Host "[2/2] Starte Backend Server..." -ForegroundColor Cyan
 $backendPath = Join-Path $PSScriptRoot "backend"
 if (Test-Path (Join-Path $backendPath "node_modules")) {
-    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$backendPath'; npm run dev" -Title "Guild Manager Backend"
+    Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$backendPath'; npm run dev" -Title "Guild Manager Backend" -WindowStyle Minimized
 }
 else {
     Write-Host "[FEHLER] Backend-Abhängigkeiten nicht gefunden. Bitte 'npm install' im backend Ordner ausführen." -ForegroundColor Red

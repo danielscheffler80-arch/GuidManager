@@ -79,16 +79,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const token = localStorage.getItem('accessToken');
 
         // Check Electron Backend Status
-        if (window.electronAPI && window.electronAPI.isBackendReady) {
+        if (window.electronAPI) {
           console.log('[AUTH] Waiting for backend check...');
           let checks = 0;
-          while (!window.electronAPI.isBackendReady() && checks < 600) {
-            if (checks > 30) setConnectionStatus('waiting'); // Show message after 3 seconds
+          // Wait until check is finished OR max 60 seconds
+          while (window.electronAPI.isCheckFinished && !window.electronAPI.isCheckFinished() && checks < 600) {
+            if (checks > 30) setConnectionStatus('waiting');
             await new Promise(resolve => setTimeout(resolve, 100));
             checks++;
           }
-          setConnectionStatus('ready');
-          console.log(`[AUTH] Backend ready after ${checks * 100}ms`);
+
+          if (window.electronAPI.isBackendReady && window.electronAPI.isBackendReady()) {
+            setConnectionStatus('ready');
+            console.log(`[AUTH] Backend ready and verified`);
+          } else {
+            setConnectionStatus('checking'); // Keep checking if not verified
+            console.log(`[AUTH] Backend not verified yet, but check finished.`);
+          }
         }
 
         if (storedUser && token) {
@@ -104,7 +111,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Validiere Token mit Backend
           const backendUrl = window.electronAPI?.getBackendUrl?.() ||
             localStorage.getItem('backendUrl') ||
-            'https://guild-manager-backend.onrender.com';
+            'http://localhost:3334';
 
           const response = await fetch(`${backendUrl}/auth/me`, {
             headers: {
@@ -285,7 +292,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             width: '48px',
             height: '48px',
             border: '3px solid rgba(163, 48, 201, 0.3)',
-            borderTopColor: '#A330C9',
+            borderTopColor: 'var(--accent)',
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto'

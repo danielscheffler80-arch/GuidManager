@@ -346,10 +346,10 @@ export class BattleNetAPIService {
           'Authorization': `Bearer ${this.accessToken}`,
         },
         params: {
-          ...params,
           region: BNET_REGION,
           namespace: `profile-${BNET_REGION}`,
           locale: 'de_DE',
+          ...params,
         },
       });
 
@@ -464,6 +464,19 @@ export class BattleNetAPIService {
     } catch (error) {
       console.error(`Failed to fetch raid encounters for ${characterName}@${realm}:`, error);
       return null;
+    }
+  }
+
+  // Ruft alle Realms für die aktuelle Region ab
+  async getRealms(): Promise<any[]> {
+    try {
+      const data = await this.makeAPICall('/data/wow/realm/index', {
+        namespace: `dynamic-${BNET_REGION}`
+      });
+      return data.realms || [];
+    } catch (error) {
+      console.error('Failed to fetch realms:', error);
+      return [];
     }
   }
 

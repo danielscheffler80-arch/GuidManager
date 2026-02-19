@@ -42,7 +42,7 @@ function AppContent() {
             width: '48px',
             height: '48px',
             border: '3px solid rgba(163, 48, 201, 0.3)',
-            borderTopColor: '#A330C9',
+            borderTopColor: 'var(--accent)',
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto'

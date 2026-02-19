@@ -133,11 +133,11 @@ export class AuthController {
               <h1 style="color: #A330C9; margin-top: 0;">Login erfolgreich!</h1>
               <p style="font-size: 1.1em; line-height: 1.5;">Du kannst dieses Browser-Fenster jetzt schließen.</p>
               <p style="color: #888;">Deine Desktop-App hat dich bereits eingeloggt.</p>
-              <p id="timer" style="color: #666; font-size: 0.9em; margin-top: 20px;">Fenster wird automatisch geschlossen in <span id="seconds">5</span> Sekunden...</p>
+              <p id="timer" style="color: #666; font-size: 0.9em; margin-top: 20px;">Fenster wird automatisch geschlossen in <span id="seconds">3</span> Sekunden...</p>
               <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #444; color: #666; font-size: 0.8em; letter-spacing: 1px;">XAVA GUILD MANAGER</div>
             </div>
             <script>
-              let seconds = 5;
+              let seconds = 3;
               const interval = setInterval(() => {
                 seconds--;
                 document.getElementById('seconds').textContent = seconds;

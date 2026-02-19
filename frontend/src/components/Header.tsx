@@ -27,11 +27,12 @@ const Header: React.FC = () => {
     rosterSortField,
     setRosterSortField,
     settingsSortField,
-    setSettingsSortField
+    setSettingsSortField,
+    availableRosters
   } = useGuild();
 
   const { pathname } = useLocation();
-  const { filter, setFilter } = useWebRTC();
+  const { filter, setFilter, isStreaming, stopStream } = useWebRTC();
 
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>('0.6.6');
@@ -110,7 +111,7 @@ const Header: React.FC = () => {
                 setSelectedGuild(guild || null);
               }}
               style={dropdownStyle}
-              onMouseOver={(e) => (e.currentTarget.style.borderColor = '#A330C9')}
+              onMouseOver={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
               onMouseOut={(e) => (e.currentTarget.style.borderColor = '#444')}
             >
               {guilds.map((guild) => (
@@ -149,13 +150,16 @@ const Header: React.FC = () => {
               <>
                 <select
                   value={selectedRosterView}
-                  onChange={(e) => setSelectedRosterView(e.target.value as 'main' | 'all')}
+                  onChange={(e) => setSelectedRosterView(e.target.value)}
                   style={dropdownStyle}
-                  onMouseOver={(e) => (e.currentTarget.style.borderColor = '#A330C9')}
+                  onMouseOver={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
                   onMouseOut={(e) => (e.currentTarget.style.borderColor = '#444')}
                 >
-                  <option value="main">Main Roster</option>
                   <option value="all">Alle Mitglieder</option>
+                  <option value="main">Main Roster (Standard)</option>
+                  {availableRosters.map(roster => (
+                    <option key={roster.id} value={String(roster.id)}>{roster.name}</option>
+                  ))}
                 </select>
                 <button
                   onClick={() => selectedGuild && triggerRosterSync(selectedGuild.id)}
@@ -204,6 +208,29 @@ const Header: React.FC = () => {
               className={`head-filter ${rosterSortField === 'rank' ? 'active' : ''}`}
             >Gildenrang</button>
           </div>
+        )}
+
+        {/* Global Stop Stream Button */}
+        {isStreaming && (
+          <button
+            onClick={() => stopStream()}
+            style={{
+              backgroundColor: '#ff4444',
+              border: 'none',
+              borderRadius: '6px',
+              width: '30px',
+              height: '30px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 2px 5px rgba(255, 68, 68, 0.2)',
+              padding: 0
+            }}
+            title="Stop Stream"
+          >
+            <div style={{ width: '10px', height: '10px', backgroundColor: 'white' }}></div>
+          </button>
         )}
 
         {pathname === '/settings' && (
@@ -286,14 +313,15 @@ const Header: React.FC = () => {
             cursor: pointer;
             transition: all 0.2s;
             font-weight: 600;
+            cursor: pointer;
         }
         .head-filter:hover {
             border-color: #666;
             color: #ccc;
         }
         .head-filter.active {
-            background: #A330C9;
-            border-color: #A330C9;
+            background: var(--accent);
+            border-color: var(--accent);
             color: white;
         }
       `}</style>
