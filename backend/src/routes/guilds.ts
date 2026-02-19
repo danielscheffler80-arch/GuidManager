@@ -12,8 +12,13 @@ const router = Router();
 // MVP Guilds API
 // GET /api/guilds
 router.get('/guilds', authMiddleware, async (_req: Request, res: Response) => {
-  const guilds = await prisma.guild.findMany({});
-  res.json({ guilds });
+  try {
+    const guilds = await prisma.guild.findMany({});
+    res.json({ guilds });
+  } catch (error) {
+    console.error('[Guilds] Failed to fetch guilds:', error);
+    res.status(500).json({ guilds: [], error: 'Failed to fetch guilds' });
+  }
 });
 
 // Debug Route: Test Battle.net API connectivity for Roster
