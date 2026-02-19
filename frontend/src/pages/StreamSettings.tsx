@@ -667,7 +667,7 @@ export default function StreamSettings() {
                             </div>
                         ) : (
                             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                                {joinCode && (
+                                {joinCode && !isStreaming && (
                                     <div style={{
                                         background: 'rgba(0, 170, 255, 0.1)',
                                         border: '1px solid #00aaff',

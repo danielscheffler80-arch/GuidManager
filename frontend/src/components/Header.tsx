@@ -71,20 +71,32 @@ const Header: React.FC = () => {
     backgroundColor: '#2A2A2A',
     color: '#FFFFFF',
     border: '1px solid #444',
-    borderRadius: '8px',
-    padding: '8px 14px',
-    fontSize: '0.85rem',
+    borderRadius: '6px',
+    padding: '5px 10px',
+    fontSize: '0.8rem',
     fontWeight: 600,
     outline: 'none',
     cursor: 'pointer',
-    minWidth: '200px',
+    minWidth: '140px',
     transition: 'all 0.2s ease',
     backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23888' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")`,
     backgroundRepeat: 'no-repeat',
-    backgroundPosition: 'right 12px center',
+    backgroundPosition: 'right 10px center',
     appearance: 'none',
-    paddingRight: '36px'
+    paddingRight: '30px'
   };
+
+  const [codeCopied, setCodeCopied] = useState(false);
+  const streamJoinCode = isStreaming ? (localStorage.getItem('stream-privacy-code') || '') : '';
+
+  const copyJoinCode = () => {
+    if (streamJoinCode) {
+      navigator.clipboard.writeText(streamJoinCode);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
+
 
   return (
     <header className="header slim-header" style={{
@@ -97,8 +109,8 @@ const Header: React.FC = () => {
       borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
       zIndex: 30
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
 
           {loading ? (
             <div style={{ height: '36px', width: '200px', backgroundColor: '#2A2A2A', borderRadius: '8px', animation: 'pulse 1.5s infinite' }}></div>
@@ -210,27 +222,58 @@ const Header: React.FC = () => {
           </div>
         )}
 
-        {/* Global Stop Stream Button */}
+        {/* Join Code + Stop Stream */}
         {isStreaming && (
-          <button
-            onClick={() => stopStream()}
-            style={{
-              backgroundColor: '#ff4444',
-              border: 'none',
-              borderRadius: '6px',
-              width: '30px',
-              height: '30px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 2px 5px rgba(255, 68, 68, 0.2)',
-              padding: 0
-            }}
-            title="Stop Stream"
-          >
-            <div style={{ width: '10px', height: '10px', backgroundColor: 'white' }}></div>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {streamJoinCode && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '6px',
+                background: 'rgba(0, 170, 255, 0.1)',
+                border: '1px solid rgba(0, 170, 255, 0.4)',
+                borderRadius: '6px',
+                padding: '4px 8px'
+              }}>
+                <span style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', fontWeight: 700 }}>Code</span>
+                <code style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '2px', color: '#00aaff', fontFamily: 'monospace' }}>
+                  {streamJoinCode}
+                </code>
+                <button
+                  onClick={copyJoinCode}
+                  title="Code kopieren"
+                  style={{
+                    background: codeCopied ? 'rgba(0,200,0,0.2)' : 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '4px',
+                    color: codeCopied ? '#4ade80' : '#aaa',
+                    cursor: 'pointer',
+                    padding: '2px 6px',
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    transition: 'all 0.2s'
+                  }}
+                >{codeCopied ? '✓' : '📋'}</button>
+              </div>
+            )}
+            <button
+              onClick={() => stopStream()}
+              style={{
+                backgroundColor: '#ff4444',
+                border: 'none',
+                borderRadius: '6px',
+                width: '30px',
+                height: '30px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 5px rgba(255, 68, 68, 0.2)',
+                padding: 0
+              }}
+              title="Stop Stream"
+            >
+              <div style={{ width: '10px', height: '10px', backgroundColor: 'white' }}></div>
+            </button>
+          </div>
         )}
 
         {pathname === '/settings' && (
