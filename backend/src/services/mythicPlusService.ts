@@ -11,9 +11,22 @@ export class MythicPlusService {
         try {
             console.log(`[MythicPlusService] Fetching keys for guild ${guildId}...`);
 
-            // 1. Hole alle Charaktere der Gilde mit ihren Keys
+            // 1. Finde alle User-IDs, die Mitglieder dieser Gilde sind (via UserGuild)
+            const memberships = await prisma.userGuild.findMany({
+                where: { guildId },
+                select: { userId: true }
+            });
+            const memberUserIds = memberships.map(m => m.userId).filter(id => id !== null) as number[];
+
+            // 2. Hole ALLE Charaktere dieser User + alle Charaktere, die direkt der Gilde zugeordnet sind
             const characters = await prisma.character.findMany({
-                where: { guildId, isActive: true },
+                where: {
+                    OR: [
+                        { guildId: guildId },
+                        { userId: { in: memberUserIds } }
+                    ],
+                    isActive: true
+                },
                 include: {
                     mythicKeys: {
                         orderBy: { level: 'desc' }
@@ -26,62 +39,51 @@ export class MythicPlusService {
                 }
             });
 
-            console.log(`[MythicPlusService] Found ${characters.length} characters in guild.`);
+            console.log(`[MythicPlusService] Found ${characters.length} characters related to guild ${guildId}.`);
 
-            // 2. Extrahiere alle User IDs, um die Twinks (Alts) zu finden
-            const userIds = characters
-                .map(c => c.userId)
-                .filter(id => id !== null);
+            // 3. Gruppierung nach Usern (da wir Alts unter Mains zeigen wollen)
+            // Wir brauchen eine Liste von Usern, die Charaktere in dieser Gilde haben
+            const usersWithChars = [...new Set(characters.map(c => c.userId).filter(id => id !== null))] as number[];
 
-            // 3. Wenn User vorhanden sind, hole alle ihre Charaktere (global), um Alts zuzuordnen
-            let allUserCharacters = [];
-            if (userIds.length > 0) {
-                allUserCharacters = await prisma.character.findMany({
-                    where: {
-                        userId: { in: userIds as number[] },
-                        isActive: true
-                    },
-                    include: {
-                        mythicKeys: {
-                            orderBy: { level: 'desc' }
-                        }
-                    }
-                });
-            }
+            // 4. Baue das Ergebnis auf
+            // Wir zeigen pro User einen "Main" Eintrag. 
+            // Wenn ein User mehrere Chars hat, nehmen wir den mit isMain=true als Kopf, sonst den ersten.
+            const result = [];
+            const processedUserIds = new Set<number>();
 
-            // 4. Gruppierung nach Main-Charakteren
-            const mains = characters.filter((c: any) => c.isMain);
+            for (const char of characters) {
+                if (!char.userId) {
+                    // Charaktere ohne User (nur im Roster) zeigen wir als eigene Einträge
+                    result.push({
+                        ...char,
+                        alts: [],
+                        keys: char.mythicKeys,
+                        signups: char.mythicSignups || []
+                    });
+                    continue;
+                }
 
-            // Spezial-Logik: Falls keine Mains definiert sind ODER wir einfach alle mit Keys sehen wollen:
-            // Wir nehmen alle Mains, UND alle Chars die einen Key haben aber keine Alts sind.
-            let displayCharacters = [];
-            if (mains.length > 0) {
-                displayCharacters = mains;
-            } else {
-                // Wenn keine Mains da sind, zeigen wir alle an, die Keys haben 
-                // oder zumindest in der Gilde sind (als Fallback)
-                displayCharacters = characters.filter((c: any) => (c.mythicKeys && c.mythicKeys.length > 0) || !c.userId);
-            }
+                if (processedUserIds.has(char.userId)) continue;
 
-            // Falls die Liste immer noch leer ist, nimm einfach alle Gilden-Chars
-            if (displayCharacters.length === 0) displayCharacters = characters;
+                // Alle Chars dieses Users finden
+                const userChars = characters.filter(c => c.userId === char.userId);
 
-            const result = displayCharacters.map((main: any) => {
-                // Alts finden: Chars desselben Users, die nicht dieser Main selbst sind
-                const alts = allUserCharacters.filter(
-                    (c: any) => c.userId === main.userId && c.id !== main.id
-                );
+                // Haupt-Charakter für diesen User finden (bevorzugt isMain)
+                const mainChar = userChars.find(c => c.isMain) || userChars[0];
+                const alts = userChars.filter(c => c.id !== mainChar.id);
 
-                return {
-                    ...main,
-                    alts: alts.map((alt: any) => ({
+                result.push({
+                    ...mainChar,
+                    alts: alts.map(alt => ({
                         ...alt,
                         keys: alt.mythicKeys
                     })),
-                    keys: main.mythicKeys,
-                    signups: main.mythicSignups || []
-                };
-            });
+                    keys: mainChar.mythicKeys,
+                    signups: mainChar.mythicSignups || []
+                });
+
+                processedUserIds.add(char.userId);
+            }
 
             console.log(`[MythicPlusService] Successfully grouped ${result.length} entries.`);
             return result;

@@ -328,7 +328,9 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
 router.get('/guilds/:guildId/mythic', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const { guildId } = req.params;
   try {
+    console.log(`[MythicKeys] Request for GuildID: ${guildId} by UserID: ${req.user?.id}`);
     const keys = await MythicPlusService.getGuildKeysGrouped(Number(guildId));
+    console.log(`[MythicKeys] Returning ${keys.length} entries for GuildID: ${guildId}`);
     res.json({ keys });
   } catch (error: any) {
     console.error('[MythicKeys] Error:', error);
