@@ -55,7 +55,7 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                     <div className="flex justify-between items-start mb-6">
                         <div>
                             <h2 className="text-2xl font-black uppercase italic tracking-tighter text-white">Anmeldung</h2>
-                            <p className="text-gray-400 text-sm">Für Key: <span className="text-[#A330C9]">+{selectedKey.level} {selectedKey.dungeon}</span></p>
+                            <p className="text-gray-400 text-sm">Für Key: <span className="text-[var(--accent)]">+{selectedKey.level} {selectedKey.dungeon}</span></p>
                         </div>
                         <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -76,8 +76,8 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                                             key={char.id}
                                             onClick={() => setSelectedCharId(char.id)}
                                             className={`p-3 rounded-xl border transition-all text-left flex justify-between items-center ${selectedCharId === char.id
-                                                    ? 'bg-[#A330C9]/10 border-[#A330C9] text-white shadow-[0_0_15px_rgba(163,48,201,0.2)]'
-                                                    : 'bg-[#222] border-gray-800 text-gray-400 hover:border-gray-600'
+                                                ? 'bg-[var(--accent)]/10 border-[var(--accent)] text-white shadow-[0_0_15px_rgba(163,48,201,0.2)]'
+                                                : 'bg-[#222] border-gray-800 text-gray-400 hover:border-gray-600'
                                                 }`}
                                         >
                                             <div>
@@ -85,7 +85,7 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                                                 <p className="text-[10px] opacity-60">{char.class} • {char.realm}</p>
                                             </div>
                                             {selectedCharId === char.id && (
-                                                <div className="w-5 h-5 bg-[#A330C9] rounded-full flex items-center justify-center">
+                                                <div className="w-5 h-5 bg-[var(--accent)] rounded-full flex items-center justify-center">
                                                     <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                     </svg>
@@ -108,7 +108,7 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                                 value={message}
                                 onChange={(e) => setMessage(e.target.value)}
                                 placeholder="z.B. Tank/DPS ready!"
-                                className="w-full bg-[#111] border border-gray-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-[#A330C9] transition-colors resize-none"
+                                className="w-full bg-[#111] border border-gray-800 rounded-xl p-3 text-white text-sm focus:outline-none focus:border-[var(--accent)] transition-colors resize-none"
                                 rows={2}
                             />
                         </div>
@@ -117,8 +117,8 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                             onClick={handleSignup}
                             disabled={submitting || !selectedCharId}
                             className={`w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all ${submitting || !selectedCharId
-                                    ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
-                                    : 'bg-[#A330C9] hover:bg-[#8e29af] text-white shadow-lg active:scale-95'
+                                ? 'bg-gray-800 text-gray-600 cursor-not-allowed'
+                                : 'bg-[var(--accent)] hover:bg-[#8e29af] text-white shadow-lg active:scale-95'
                                 }`}
                         >
                             {submitting ? 'Sende Anfrage...' : 'Anmeldung absenden'}

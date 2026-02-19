@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     // Initialize input with current URL
     const currentUrl = (window as any).electronAPI?.getBackendUrl?.() ||
       localStorage.getItem('backendUrl') ||
-      'https://guild-manager-backend.onrender.com';
+      'http://localhost:3334';
     setBackendInput(currentUrl);
   }, []);
 
@@ -277,7 +277,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
               <button
                 onClick={handleSaveSettings}
                 style={{
-                  backgroundColor: '#A330C9',
+                  backgroundColor: 'var(--accent)',
                   border: 'none',
                   color: '#fff',
                   padding: '8px 16px',
@@ -314,7 +314,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             transition: 'all 0.2s'
           }}
           title="Einstellungen"
-          onMouseEnter={(e) => e.currentTarget.style.color = '#A330C9'}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
           onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
         >
           ⚙️

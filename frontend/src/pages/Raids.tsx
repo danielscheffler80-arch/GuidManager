@@ -18,6 +18,7 @@ export default function Raids() {
   const [isLeader, setIsLeader] = useState(false);
   const [view, setView] = useState<'calendar' | 'detail'>('calendar');
   const [activeTab, setActiveTab] = useState<'roster' | 'signups'>('roster');
+  const [availableRosters, setAvailableRosters] = useState<any[]>([]);
 
   // Form State
   const [newRaid, setNewRaid] = useState({
@@ -28,17 +29,18 @@ export default function Raids() {
     maxPlayers: 20,
     recruitmentType: 'everyone',
     allowedRanks: [] as number[],
+    rosterId: '' as string | number,
     isRecurring: false,
     recurrenceWeeks: 4,
-    imageUrl: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg'
+    imageUrl: 'https://wow.zamimg.com/uploads/screenshots/normal/1186178.jpg'
   });
 
   const RAID_IMAGES = [
-    { name: 'Nerub-ar Palace', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg' },
     { name: 'Liberation of Undermine', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1186178.jpg' },
+    { name: 'Manaforge', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1183318.jpg' },
+    { name: 'Nerub-ar Palace', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg' },
     { name: 'Siren Isle', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1183318.jpg' },
-    { name: 'The War Within', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg' },
-    { name: 'Xal\'atath\'s Shadow', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167438.jpg' }
+    { name: 'The War Within', url: 'https://wow.zamimg.com/uploads/screenshots/normal/1167439.jpg' }
   ];
 
   useEffect(() => {
@@ -58,6 +60,7 @@ export default function Raids() {
   useEffect(() => {
     if (user && selectedGuild) {
       checkLeaderStatus(user, selectedGuild);
+      loadRosters(selectedGuild.id);
     }
   }, [user, selectedGuild]);
 
@@ -102,6 +105,18 @@ export default function Raids() {
       console.error('Failed to load raids');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadRosters = async (guildId: number) => {
+    try {
+      const { GuildService } = await import('../api/guildService');
+      const data = await GuildService.getRosters(guildId);
+      if (data.success) {
+        setAvailableRosters(data.rosters || []);
+      }
+    } catch (err) {
+      console.error('Failed to load rosters');
     }
   };
 
@@ -166,9 +181,10 @@ export default function Raids() {
         maxPlayers: 20,
         recruitmentType: 'everyone',
         allowedRanks: [],
+        rosterId: '',
         isRecurring: false,
         recurrenceWeeks: 4,
-        imageUrl: 'https://wow.zamimg.com/uploads/screenshots/normal/1167440.jpg'
+        imageUrl: 'https://wow.zamimg.com/uploads/screenshots/normal/1186178.jpg'
       });
     } catch (error) {
       console.error('Failed to create raid');
@@ -308,7 +324,7 @@ export default function Raids() {
               </button>
             </div>
             {loading && (
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-[#A330C9] opacity-50"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-[var(--accent)] opacity-50"></div>
             )}
           </div>
           <div className="flex-1"></div>
@@ -411,14 +427,19 @@ export default function Raids() {
           <span className="text-[9px] text-gray-600 font-bold tabular-nums">
             {new Date(selectedRaid.startTime).toLocaleDateString('de-DE', { month: '2-digit', day: '2-digit' })}
           </span>
+          {selectedRaid.roster && (
+            <div className={`ml-2 px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30`}>
+              Roster: {selectedRaid.roster.name}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <span className="text-[8px] font-black text-gray-600 uppercase">Confirmed</span>
-            <span className="text-[10px] font-black text-[#A330C9]">{selectedRaid.attendances.filter((a: any) => a.isConfirmed).length}/{selectedRaid.maxPlayers}</span>
+            <span className="text-[10px] font-black text-[var(--accent)]">{selectedRaid.attendances.filter((a: any) => a.isConfirmed).length}/{selectedRaid.maxPlayers}</span>
           </div>
-          <div className="text-[9px] font-black bg-[#A330C9]/10 text-[#A330C9] px-2 py-0.5 rounded uppercase">
+          <div className="text-[9px] font-black bg-[var(--accent)]/10 text-[var(--accent)] px-2 py-0.5 rounded uppercase">
             {selectedRaid.difficulty}
           </div>
         </div>
@@ -436,7 +457,7 @@ export default function Raids() {
                   key={status}
                   onClick={() => handleSignup(selectedRaid.id, myActiveChar?.id, status)}
                   className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${mySignup?.status === status
-                    ? 'bg-[#A330C9] text-white shadow-lg'
+                    ? 'bg-[var(--accent)] text-white shadow-lg'
                     : 'text-gray-600 hover:text-gray-300'
                     }`}
                 >
@@ -454,7 +475,7 @@ export default function Raids() {
               placeholder="Anmerkung..."
               defaultValue={mySignup?.comment || ''}
               onBlur={(e) => handleSignup(selectedRaid.id, myActiveChar?.id, mySignup?.status || 'attending', e.target.value)}
-              className="flex-1 bg-white/[0.02] rounded-xl px-4 py-1.5 text-xs font-medium placeholder:text-gray-800 outline-none focus:border-[#A330C9]/30 transition-all"
+              className="flex-1 bg-white/[0.02] rounded-xl px-4 py-1.5 text-xs font-medium placeholder:text-gray-800 outline-none focus:border-[var(--accent)]/30 transition-all"
             />
             <div className="h-6 w-px bg-white/5"></div>
             <div className="flex gap-1 bg-black/20 p-1 rounded-xl">
@@ -484,7 +505,7 @@ export default function Raids() {
                       <RoleIcon role={role === 'Heal' ? 'Healer' : role} size={14} />
                       <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">{role}</span>
                     </div>
-                    <span className="text-[10px] font-black text-[#A330C9] tabular-nums">{players.length}</span>
+                    <span className="text-[10px] font-black text-[var(--accent)] tabular-nums">{players.length}</span>
                   </header>
                   <div className="flex-1 overflow-y-auto p-2 space-y-0.5 custom-scrollbar scrollbar-none">
                     {players.map((a: any) => (
@@ -506,7 +527,7 @@ export default function Raids() {
         <div className="w-[180px] bg-black/20 flex flex-col overflow-hidden shrink-0">
           <header className="p-4">
             <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] mb-1">Checklist</h3>
-            <div className="h-0.5 w-6 bg-[#A330C9]"></div>
+            <div className="h-0.5 w-6 bg-[var(--accent)]"></div>
           </header>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar scrollbar-none">
@@ -521,7 +542,7 @@ export default function Raids() {
                       alt={c}
                     />
                     {(composition?.classCount?.[c] ?? 0) > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-[#A330C9] text-[8px] font-black text-white w-3 h-3 rounded-full flex items-center justify-center border border-black">
+                      <span className="absolute -top-1 -right-1 bg-[var(--accent)] text-[8px] font-black text-white w-3 h-3 rounded-full flex items-center justify-center border border-black">
                         {composition?.classCount?.[c] || 0}
                       </span>
                     )}
@@ -593,7 +614,7 @@ export default function Raids() {
               value={newRaid.title}
               onChange={e => setNewRaid({ ...newRaid, title: e.target.value })}
               placeholder="Name des Raids..."
-              className="w-full bg-white/[0.02] rounded-2xl p-4 text-xs font-medium focus:ring-1 focus:ring-[#A330C9]/40 outline-none"
+              className="w-full bg-white/[0.02] rounded-2xl p-4 text-xs font-medium focus:ring-1 focus:ring-[var(--accent)]/40 outline-none"
             />
             <div className="grid grid-cols-2 gap-4">
               <select
@@ -618,9 +639,24 @@ export default function Raids() {
               onChange={e => setNewRaid({ ...newRaid, startTime: e.target.value })}
               className="w-full bg-white/[0.02] rounded-xl p-4 text-xs outline-none"
             />
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2">Anmeldung begrenzt auf Roster</label>
+              <select
+                value={newRaid.rosterId}
+                onChange={e => setNewRaid({ ...newRaid, rosterId: e.target.value })}
+                className="w-full bg-white/[0.02] rounded-xl p-4 text-xs outline-none border border-white/5"
+              >
+                <option value="">Alle Gildenmitglieder</option>
+                {availableRosters.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
+              </select>
+            </div>
+
             <button
               onClick={handleCreateRaid}
-              className="w-full py-5 bg-[#A330C9] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-[#A330C9]/20"
+              className="w-full py-5 bg-[var(--accent)] text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-xl shadow-[var(--accent)]/20"
             >
               Strategie speichern
             </button>

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../prisma';
 import axios from 'axios';
+import { RosterService } from '../services/rosterService';
 
 export class GuildController {
     // Holt Zusammenfassung für das Dashboard
@@ -170,7 +171,9 @@ export class GuildController {
                 success: true,
                 ranks: ranks,
                 currentAdminRanks: guild.adminRanks,
-                currentVisibleRanks: guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                currentVisibleRanks: guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                mainRosterIncludedCharacterIds: guild.mainRosterIncludedCharacterIds || [],
+                mainRosterExcludedCharacterIds: guild.mainRosterExcludedCharacterIds || []
             });
 
         } catch (error) {
@@ -198,6 +201,79 @@ export class GuildController {
         } catch (error) {
             console.error('Update visible ranks error:', error);
             res.status(500).json({ success: false, error: 'Failed to update visible ranks' });
+        }
+    }
+
+    // Update Main Roster Overrides
+    static async updateMainRosterOverrides(req: any, res: Response) {
+        const { guildId } = req.params;
+        const { includedIds, excludedIds } = req.body; // Arrays of character IDs
+
+        try {
+            const data: any = {};
+            if (Array.isArray(includedIds)) data.mainRosterIncludedCharacterIds = includedIds.map(Number);
+            if (Array.isArray(excludedIds)) data.mainRosterExcludedCharacterIds = excludedIds.map(Number);
+
+            const guild = await prisma.guild.update({
+                where: { id: Number(guildId) },
+                data
+            });
+
+            res.json({
+                success: true,
+                mainRosterIncludedCharacterIds: guild.mainRosterIncludedCharacterIds,
+                mainRosterExcludedCharacterIds: guild.mainRosterExcludedCharacterIds
+            });
+        } catch (error) {
+            console.error('Update main roster overrides error:', error);
+            res.status(500).json({ success: false, error: 'Failed to update main roster overrides' });
+        }
+    }
+
+    // Fügt externen Charakter zum Main Roster hinzu
+    static async addExternalToMainRoster(req: any, res: Response) {
+        const { guildId } = req.params;
+        const { name, realm } = req.body;
+        const user = req.user;
+
+        if (!name || !realm) return res.status(400).json({ error: 'Name and realm are required' });
+
+        try {
+            // 0. Get User Access Token
+            const dbUser = await prisma.user.findUnique({ where: { id: user.userId } });
+            if (!dbUser || !dbUser.accessToken) return res.status(401).json({ error: 'No access token' });
+
+            // 1. Sync character data (reuses RosterService logic, need to import it or move logic)
+            // Ideally RosterService.syncSingleCharacter should be used.
+            // I need to import RosterService here.
+
+            // Dynamic import or check if already imported? It is not imported in this file.
+            // I will return a 501 for now if I can't easily import, but I should be able to.
+            // Let's assume RosterService is available or I can use BattleNetAPIService directly.
+
+            // BETTER: Use RosterService.
+
+            const character = await RosterService.syncSingleCharacter(realm, name, dbUser.accessToken);
+            if (!character) {
+                return res.status(404).json({ error: `Charakter ${name}-${realm} konnte nicht bei Blizzard gefunden werden.` });
+            }
+
+            // 2. Add to Guild Main Roster inclusions
+            const guild = await prisma.guild.findUnique({ where: { id: Number(guildId) } });
+            if (!guild) return res.status(404).json({ error: 'Guild not found' });
+
+            const newInclusions = Array.from(new Set([...(guild.mainRosterIncludedCharacterIds || []), character.id]));
+
+            const updatedGuild = await prisma.guild.update({
+                where: { id: Number(guildId) },
+                data: { mainRosterIncludedCharacterIds: newInclusions }
+            });
+
+            res.json({ success: true, character, mainRosterIncludedCharacterIds: updatedGuild.mainRosterIncludedCharacterIds });
+
+        } catch (error) {
+            console.error('[AddExternalMain] Error:', error);
+            res.status(500).json({ error: 'Failed to add external character to main roster' });
         }
     }
 }

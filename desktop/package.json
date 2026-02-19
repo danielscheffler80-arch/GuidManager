@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -26,6 +26,7 @@
       "main-standalone.js",
       "preload.js",
       "package.json",
+      "wowSync.js",
       "assets/**/*"
     ],
     "extraResources": [
@@ -60,7 +61,7 @@
       "shortcutName": "Guild Manager Standalone"
     },
     "nsisWeb": {
-      "appPackageUrl": "https://guild-manager-backend.onrender.com/updates",
+      "appPackageUrl": "http://localhost:3334/updates",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
@@ -71,7 +72,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://guild-manager-backend.onrender.com/updates"
+        "url": "http://localhost:3334/updates"
       }
     ]
   },

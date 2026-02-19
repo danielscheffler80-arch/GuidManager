@@ -1,4 +1,1 @@
-{
-    "backendUrl": "https://guild-manager-backend.onrender.com",
-    "mode": "client"
-}
+{ "backendUrl": "http://localhost:3334", "mode": "host" } 

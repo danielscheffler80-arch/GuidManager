@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { formatRealm, capitalizeName } from '../utils/formatUtils';
+import { formatRealm, capitalizeName, getClassColor } from '../utils/formatUtils';
 import { storage } from '../utils/storage';
 import { useGuild } from '../contexts/GuildContext';
 
@@ -163,14 +163,6 @@ export default function Dashboard() {
     }
   }, [selectedGuild, hubData?.hasMain]);
 
-  const getClassColor = (classId: number) => {
-    const colors: Record<number, string> = {
-      1: '#C79C6E', 2: '#F58CBA', 3: '#ABD473', 4: '#FFF569',
-      5: '#FFFFFF', 6: '#C41F3B', 7: '#0070DE', 8: '#69CCF0',
-      9: '#9482C9', 10: '#00FF96', 11: '#FF7D0A', 12: '#A330C9', 13: '#33937F'
-    };
-    return colors[classId] || '#D1D9E0';
-  };
 
   if (isLoading) {
     return (
@@ -197,7 +189,7 @@ export default function Dashboard() {
             disabled={syncStatus === 'syncing'}
             className={`px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-2 ${syncStatus === 'syncing'
               ? 'bg-gray-800 text-gray-500 cursor-not-allowed'
-              : 'bg-accent text-white hover:bg-[#b340d9] active:scale-95'
+              : 'bg-accent text-white hover:bg-magenta-700 active:scale-95'
               }`}
           >
             {syncStatus === 'syncing' ? (
@@ -286,7 +278,7 @@ export default function Dashboard() {
         .stat-badge {
           background: rgba(163, 48, 201, 0.1);
           border: 1px solid rgba(163, 48, 201, 0.2);
-          color: #A330C9;
+          color: var(--accent);
           padding: 4px 10px;
           border-radius: 8px;
           font-size: 10px;
@@ -356,7 +348,7 @@ export default function Dashboard() {
               return (
                 <div
                   key={raid.id}
-                  className="p-5 bg-[#121212] border border-[#A330C9]/20 rounded-2xl hover:bg-[#181818] hover:border-[#A330C9]/50 hover:shadow-[0_8px_30px_rgba(163,48,201,0.1)] transition-all duration-300 cursor-pointer group"
+                  className="p-5 bg-[#121212] border border-[var(--accent)]/20 rounded-2xl hover:bg-[#181818] hover:border-[var(--accent)]/50 hover:shadow-[0_8px_30px_rgba(163,48,201,0.1)] transition-all duration-300 cursor-pointer group"
                   onClick={() => {
                     localStorage.setItem('auto_select_raid_id', String(raid.id));
                     window.location.hash = '/raids';
@@ -368,15 +360,15 @@ export default function Dashboard() {
                       <span className="text-sm font-black text-white uppercase tracking-tight group-hover:text-accent transition-colors">{raid.title}</span>
                     </div>
                     <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border transition-all ${isMythic
-                      ? 'bg-[#A330C9] text-white border-[#A330C9] shadow-[0_0_10px_rgba(163,48,201,0.4)]'
-                      : 'bg-[#A330C9]/10 text-accent border-accent/20'
+                      ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-[0_0_10px_rgba(163,48,201,0.4)]'
+                      : 'bg-[var(--accent)]/10 text-accent border-accent/20'
                       }`}>
                       {raid.difficulty}
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs text-gray-500 font-bold uppercase tracking-tight">
                     <div className="flex items-center gap-2.5">
-                      <span className="text-[#A330C9] text-base opacity-70">📅</span>
+                      <span className="text-[var(--accent)] text-base opacity-70">📅</span>
                       <span className="group-hover:text-gray-300 transition-colors">
                         {new Date(raid.startTime).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })} • {new Date(raid.startTime).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}
                       </span>

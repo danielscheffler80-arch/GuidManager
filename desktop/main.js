@@ -10,21 +10,30 @@ app.disableHardwareAcceleration();
 const projectRoot = path.join(__dirname, '..');
 const isPackaged = app.isPackaged;
 
-// Config laden - Prüfe Projekt-Root (Dev) oder Ressourcen-Ordner (Produktion)
+const configPath = isPackaged
+  ? path.join(process.resourcesPath, 'app-config.json')
+  : path.join(projectRoot, 'app-config.json');
+
+const windowStatePath = isPackaged
+  ? path.join(app.getPath('userData'), 'window-state.json')
+  : path.join(projectRoot, 'window-state.json');
+
 let config = { backendUrl: 'http://localhost:3334', mode: 'host' };
 try {
-  const configPath = isPackaged
-    ? path.join(process.resourcesPath, 'app-config.json')
-    : path.join(projectRoot, 'app-config.json');
-
   if (fs.existsSync(configPath)) {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    console.log(`Config geladen von ${configPath}:`, config);
-  } else {
-    console.log(`Keine Config gefunden unter ${configPath}, verwende Default.`);
   }
 } catch (err) {
   console.error('Fehler beim Laden der config:', err);
+}
+
+let windowState = { width: 1440, height: 1000, x: undefined, y: undefined };
+try {
+  if (fs.existsSync(windowStatePath)) {
+    windowState = JSON.parse(fs.readFileSync(windowStatePath, 'utf8'));
+  }
+} catch (err) {
+  console.error('Fehler beim Laden des Window-States:', err);
 }
 
 // IPC Handler für externes Öffnen von URLs
@@ -49,8 +58,10 @@ let frontendProc = null;
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1440,
-    height: 1000,
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
     title: "Guild Manager",
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -67,6 +78,44 @@ function createWindow() {
       } catch { }
       return undefined;
     })(),
+  });
+
+  let saveTimeout;
+  const saveState = () => {
+    if (saveTimeout) clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(() => {
+      // Don't save if minimized or maximized logic might be needed but let's keep it simple
+      if (win.isMinimized() || win.isMaximized()) return;
+
+      const bounds = win.getBounds();
+      windowState = {
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y
+      };
+
+      try {
+        fs.writeFileSync(windowStatePath, JSON.stringify(windowState));
+      } catch (err) {
+        console.error('Failed to save window state:', err);
+      }
+    }, 500);
+  };
+
+  win.on('resize', saveState);
+  win.on('move', saveState);
+  win.on('close', () => {
+    // Force final save if not minimized
+    if (!win.isMinimized()) {
+      const bounds = win.getBounds();
+      fs.writeFileSync(windowStatePath, JSON.stringify({
+        width: bounds.width,
+        height: bounds.height,
+        x: bounds.x,
+        y: bounds.y
+      }));
+    }
   });
 
   // Berechtigungen für Kamera/Mikrofon automatisch erteilen
@@ -134,6 +183,22 @@ function createWindow() {
   Menu.setApplicationMenu(menu);
 }
 
+// Fullscreen Handlers
+ipcMain.handle('toggle-window-fullscreen', () => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (win) {
+    win.setFullScreen(!win.isFullScreen());
+  }
+});
+
+ipcMain.handle('set-window-fullscreen', (event, flag) => {
+  const win = BrowserWindow.getFocusedWindow();
+  if (win) {
+    win.setFullScreen(flag);
+  }
+});
+}
+
 function startProcesses() {
   if (app.isPackaged) return;
 
@@ -141,11 +206,21 @@ function startProcesses() {
 
   // Backend nur starten wenn wir NICHT im Client Modus sind
   if (config.mode !== 'client') {
-    console.log('Starte Backend...');
-    backendProc = spawn('npm.cmd', ['run', 'dev'], {
+    console.log('Starte Backend (minimiert)...');
+    backendProc = spawn('cmd.exe', ['/c', 'start', '/min', 'npm.cmd', 'run', 'dev'], {
       cwd: path.join(projectRoot, 'backend'),
       shell: true,
       stdio: 'inherit'
+    });
+
+    backendProc.on('error', (err) => {
+      console.error('[MAIN] FEHLER beim Starten des Backends:', err);
+    });
+
+    backendProc.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`[MAIN] Backend mit Fehler beendet (Code: ${code})`);
+      }
     });
   } else {
     console.log('Client Modus: Backend wird nicht gestartet.');

@@ -13,49 +13,53 @@ import userRouter from './routes/user';
 import guildRouter from './routes/guild';
 import debugRouter from './routes/debug';
 import { initSocketService } from './services/socketService';
+import prisma from './prisma';
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: true, // Erlaube alle Origins
-    methods: ['GET', 'POST'],
-    credentials: true
-  },
-});
-
-// Request Logger für Callback Fehlersuche
-app.use((req, _res, next) => {
-  if (req.path.includes('callback')) {
-    console.log(`[REQUEST-LOG] ${req.method} ${req.url} from ${req.ip}`);
-  }
-  next();
-});
 
 app.use(cors({
   origin: true, // Erlaube alle Origins für Remote-Zugriff
   credentials: true
 }));
 app.use(express.json());
+app.use('/updates', express.static(path.join(__dirname, '../updates')));
+
+// Request Logger (erweitert)
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (req.path !== '/health') {
+      console.log(`[REQUEST] ${req.method} ${req.url} - ${res.statusCode} (${duration}ms)`);
+    }
+  });
+  next();
+});
 
 // Health
 app.get('/health', async (_req, res) => {
   try {
-    // Kurzer Prisma-Check
-    const { PrismaClient } = require('@prisma/client');
-    const prisma = new PrismaClient();
-    const userCount = await prisma.user.count();
+    // Timeout für DB Check
+    const dbPromise = prisma.user.count();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Database Timeout')), 5000)
+    );
+
+    const userCount = await Promise.race([dbPromise, timeoutPromise]) as number;
+
     res.json({
       ok: true,
       database: 'connected',
       userCount,
       time: new Date().toISOString()
     });
-  } catch (err) {
-    res.json({
-      ok: true,
+  } catch (err: any) {
+    console.error(`[HEALTH] Fehler: ${err.message}`);
+    res.status(500).json({
+      ok: false,
       database: 'error',
-      message: (err as Error).message,
+      message: err.message,
       time: new Date().toISOString()
     });
   }
@@ -73,6 +77,13 @@ app.use('/updates', express.static(path.join(__dirname, '../updates')));
 
 
 // Initialize Socket Service
+const io = new Server(server, {
+  cors: {
+    origin: true,
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+});
 initSocketService(io);
 
 // Fallback
@@ -80,6 +91,7 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3334;
 server.listen(port, () => {
   console.log(`Backend listening on http://localhost:${port} (PID: ${process.pid})`);
   console.log(`BNET_REDIRECT_URI at runtime: ${process.env.BNET_REDIRECT_URI}`);
+  console.log(`DATABASE_URL starts with: ${process.env.DATABASE_URL?.substring(0, 20)}...`);
 });
 
 export default app;

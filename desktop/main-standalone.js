@@ -12,7 +12,7 @@ const isPackaged = app.isPackaged;
 const projectRoot = path.join(__dirname, '..');
 
 // Config laden - Prüfe Ressourcen-Ordner (Produktion) oder Projekt-Root (Dev)
-let config = { backendUrl: 'http://localhost:3000', mode: 'client' };
+let config = { backendUrl: 'http://localhost:3334', mode: 'host' };
 try {
   const configPath = isPackaged
     ? path.join(process.resourcesPath, 'app-config.json')
@@ -20,9 +20,9 @@ try {
 
   if (fs.existsSync(configPath)) {
     config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-    // Fix legacy port if present
-    if (config.backendUrl && config.backendUrl.includes(':3334')) {
-      config.backendUrl = config.backendUrl.replace(':3334', ':3000');
+    // Standardize to 3334
+    if (config.backendUrl && config.backendUrl.includes(':3000')) {
+      config.backendUrl = config.backendUrl.replace(':3000', ':3334');
     }
     console.log(`Config geladen von ${configPath}:`, config);
   } else {
@@ -34,9 +34,9 @@ try {
 
 // Update Endpoint Discovery
 const UPDATER_URLS = [
-  'http://localhost:3000/updates',
-  'http://192.168.178.65:3000/updates',
-  'http://93.207.23.221:3000/updates',
+  'http://localhost:3334/updates',
+  'http://192.168.178.65:3334/updates',
+  'http://93.207.23.221:3334/updates',
   'https://guild-manager-backend.onrender.com/updates'
 ];
 
@@ -285,10 +285,35 @@ function createWindow() {
   });
 }
 
+let backendProc = null;
 let frontendProc = null;
 
 function startProcesses() {
   if (app.isPackaged) return;
+
+  const projectRoot = path.join(__dirname, '..');
+
+  // Backend nur starten wenn wir NICHT im Client Modus sind
+  if (config.mode !== 'client') {
+    console.log('Starte Backend...');
+    backendProc = spawn('npm.cmd', ['run', 'dev'], {
+      cwd: path.join(projectRoot, 'backend'),
+      shell: true,
+      stdio: 'inherit'
+    });
+
+    backendProc.on('error', (err) => {
+      console.error('[MAIN] FEHLER beim Starten des Backends:', err);
+    });
+
+    backendProc.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`[MAIN] Backend mit Fehler beendet (Code: ${code})`);
+      }
+    });
+  } else {
+    console.log('Client Modus: Backend wird nicht gestartet.');
+  }
 
   // Frontend IMMER starten im Dev Mode (damit localhost:5173 verfügbar ist)
   console.log('Starte Frontend...');
@@ -301,11 +326,16 @@ function startProcesses() {
 
 function killProcesses() {
   if (process.platform === 'win32') {
+    if (backendProc) {
+      exec(`taskkill /pid ${backendProc.pid} /T /F`);
+      backendProc = null;
+    }
     if (frontendProc) {
       exec(`taskkill /pid ${frontendProc.pid} /T /F`);
       frontendProc = null;
     }
   } else {
+    if (backendProc) backendProc.kill();
     if (frontendProc) frontendProc.kill();
   }
 }

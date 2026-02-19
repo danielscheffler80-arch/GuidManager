@@ -15,8 +15,9 @@ interface GuildContextType {
     guilds: Guild[];
     selectedGuild: Guild | null;
     setSelectedGuild: (guild: Guild | null) => void;
-    selectedRosterView: 'main' | 'all';
-    setSelectedRosterView: (view: 'main' | 'all') => void;
+    selectedRosterView: string;
+    setSelectedRosterView: (view: string) => void;
+    availableRosters: any[];
     myCharacters: any[];
     loading: boolean;
     isRosterSyncing: boolean;
@@ -28,6 +29,7 @@ interface GuildContextType {
     setRosterSortField: (field: 'role' | 'ilvl' | 'rank') => void;
     error: string | null;
     refresh: () => Promise<void>;
+    refreshRosters: () => Promise<void>;
 }
 
 const GuildContext = createContext<GuildContextType | undefined>(undefined);
@@ -36,7 +38,8 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const { user } = useAuth();
     const [guilds, setGuilds] = useState<Guild[]>([]);
     const [selectedGuild, setSelectedGuild] = useState<Guild | null>(null);
-    const [selectedRosterView, setSelectedRosterView] = useState<'main' | 'all'>('main');
+    const [selectedRosterView, setSelectedRosterView] = useState<string>('all');
+    const [availableRosters, setAvailableRosters] = useState<any[]>([]);
     const [myCharacters, setMyCharacters] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isRosterSyncing, setIsRosterSyncing] = useState(false);
@@ -75,8 +78,25 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             let filteredGuilds = allGuildsFromApi;
             if (user?.guildMemberships && user.guildMemberships.length > 0) {
                 const myGuildIds = user.guildMemberships.map((m: any) => m.guildId);
-                filteredGuilds = allGuildsFromApi.filter((g: any) => myGuildIds.includes(g.id));
+                // Ensure IDs are compared as strings or numbers consistently
+                filteredGuilds = allGuildsFromApi.filter((g: any) => myGuildIds.includes(g.id) || myGuildIds.includes(String(g.id)));
+
+                // Fallback: If filtered list is empty but API returned guilds, and we have memberships, 
+                // something might be wrong with ID types. Trust API if it returns "my" guilds.
+                // Actually, getGuilds() in service might be returning ALL guilds, not just mine?
+                // GuildService.getGuilds() usually calls /api/user/guilds which returns user's guilds.
+                // So we shouldn't filter again if the API already does.
+                // Let's check what API returns.
+                if (filteredGuilds.length === 0 && allGuildsFromApi.length > 0) {
+                    console.warn('Filtered guilds empty but API returned guilds. IDs might imply mismatch.', {
+                        myGuildIds,
+                        apiGuildIds: allGuildsFromApi.map((g: any) => g.id)
+                    });
+                    // If we trust the API to return only my guilds:
+                    filteredGuilds = allGuildsFromApi;
+                }
             } else {
+                console.log('User has no guild memberships in context');
                 filteredGuilds = [];
             }
 
@@ -105,6 +125,11 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             const finalGuild = preferredGuild || filteredGuilds[0];
             setSelectedGuild(finalGuild);
 
+            if (finalGuild) {
+                const rData = await GuildService.getRosters(finalGuild.id);
+                setAvailableRosters(rData.rosters || []);
+            }
+
             if (mainGuildId && !savedGuildId) {
                 localStorage.setItem('selectedGuildId', String(mainGuildId));
             }
@@ -116,6 +141,25 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             setLoading(false);
         }
     }, [user]);
+
+    const refreshRosters = useCallback(async () => {
+        if (!selectedGuild) return;
+        try {
+            const rData = await GuildService.getRosters(selectedGuild.id);
+            const rosters = rData.rosters || [];
+            setAvailableRosters(rosters);
+
+            // Falls das aktuelle Roster gelöscht wurde, auf 'all' zurücksetzen
+            if (selectedRosterView !== 'all' && selectedRosterView !== 'main') {
+                const stillExists = rosters.find((r: any) => String(r.id) === String(selectedRosterView));
+                if (!stillExists) {
+                    setSelectedRosterView('all');
+                }
+            }
+        } catch (err) {
+            console.error('[GuildContext] Refresh rosters failed:', err);
+        }
+    }, [selectedGuild, selectedRosterView]);
 
     const changeSelectedGuild = (guild: Guild | null) => {
         setSelectedGuild(guild);
@@ -137,6 +181,7 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             setSelectedGuild: changeSelectedGuild,
             selectedRosterView,
             setSelectedRosterView,
+            availableRosters,
             myCharacters,
             loading,
             isRosterSyncing,
@@ -147,7 +192,8 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             rosterSortField,
             setRosterSortField,
             error,
-            refresh: init
+            refresh: init,
+            refreshRosters
         }}>
             {children}
         </GuildContext.Provider>

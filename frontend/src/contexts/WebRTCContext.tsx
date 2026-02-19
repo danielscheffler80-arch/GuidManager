@@ -38,6 +38,7 @@ interface WebRTCContextType {
     updateConstraints: (constraints: any) => Promise<void>;
     filter: string;
     setFilter: (f: string) => void;
+    changeStreamQuality: (streamId: string, quality: string) => void;
 }
 
 const WebRTCContext = createContext<WebRTCContextType | undefined>(undefined);
@@ -101,6 +102,8 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                     await handleAnswer(from, signal);
                 } else if (signal.candidate) {
                     await handleCandidate(from, signal.candidate, connectionRole);
+                } else if (signal.type === 'quality-request') {
+                    await handleQualityRequest(from, signal.quality);
                 }
             } catch (err: any) {
                 console.error('[WebRTC] Signal error:', err);
@@ -114,72 +117,43 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         };
     }, []);
 
-    const createPeerConnection = (userId: string, isInitiator: boolean, currentSocket: Socket | null) => {
-        const pc = new RTCPeerConnection({
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' },
-                { urls: 'stun:stun2.l.google.com:19302' },
-                { urls: 'stun:stun.nextcloud.com:443' }
-            ],
-            iceCandidatePoolSize: 10
-        });
+    // ... (createPeerConnection, etc.)
 
-        pc.onicecandidate = (event) => {
-            if (event.candidate && (currentSocket || socket)) {
-                const s = currentSocket || socket;
-                // As the Initiator, I am the Viewer. As the Responder, I am the Streamer.
-                const role = isInitiator ? 'viewer' : 'streamer';
-                s?.emit('signal', { to: userId, signal: { candidate: event.candidate }, connectionRole: role });
+    const handleQualityRequest = async (from: string, quality: string) => {
+        console.log(`[WebRTC] Received quality request from ${from}: ${quality}`);
+        const pc = outgoingPCs.current.get(from);
+        if (pc) {
+            let bitrate = 6000;
+            let scaleFactor = 1.0;
+
+            switch (quality) {
+                case '1080p':
+                    bitrate = 6000;
+                    scaleFactor = 1.0;
+                    break;
+                case '720p':
+                    bitrate = 2500;
+                    scaleFactor = 1.5; // Downscale by 1.5 (1080 -> 720)
+                    break;
+                case '480p':
+                    bitrate = 1000;
+                    scaleFactor = 2.25; // Downscale by 2.25 (1080 -> 480)
+                    break;
+                case '360p':
+                    bitrate = 600;
+                    scaleFactor = 3.0;
+                    break;
+                default: // original/auto
+                    bitrate = currentConstraintsRef.current?.bitrate || 6000;
+                    scaleFactor = 1.0;
+                    break;
             }
-        };
 
-        pc.ontrack = (event) => {
-            if (!isInitiator) return;
-            const streams = event.streams;
-            const stream = streams[0];
-            if (stream) {
-                setRemoteStream(stream);
-                setIsConnecting(false);
-            }
-        };
-
-        if (!isInitiator && localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => {
-                pc.addTrack(track, localStreamRef.current!);
-            });
-            // Initial bitrate setting
-            const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
-            setVideoBitrate(pc, targetBitrate);
+            await setVideoBitrate(pc, bitrate, 'detail', scaleFactor);
         }
-
-        pc.onconnectionstatechange = () => {
-            if (pc.connectionState === 'connected') {
-                if (!isInitiator) {
-                    const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
-                    const targetMode = currentConstraintsRef.current?.optimizationMode || 'detail';
-                    setVideoBitrate(pc, targetBitrate, targetMode);
-                }
-            }
-            if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-                if (incomingPC.current?.id === userId) {
-                    setRemoteStream(null);
-                    setIsConnecting(false);
-                    incomingPC.current = null;
-                }
-                outgoingPCs.current.delete(userId);
-            }
-        };
-
-        if (isInitiator) {
-            pc.addTransceiver('video', { direction: 'recvonly' });
-            pc.addTransceiver('audio', { direction: 'recvonly' });
-        }
-
-        return pc;
     };
 
-    const setVideoBitrate = async (pc: RTCPeerConnection, bitrate: number, optimizationMode?: string) => {
+    const setVideoBitrate = async (pc: RTCPeerConnection, bitrate: number, optimizationMode?: string, scaleFactor: number = 1.0) => {
         try {
             const senders = pc.getSenders();
             const videoSender = senders.find(s => s.track?.kind === 'video');
@@ -202,39 +176,154 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
                 // Enforce CBR by setting minBitrate equal to maxBitrate (if supported)
                 (parameters.encodings[0] as any).minBitrate = bps;
 
+                // Set resolution scaling
+                parameters.encodings[0].scaleResolutionDownBy = scaleFactor;
+
                 // Apply degradation preference
                 parameters.degradationPreference = degradationPreference;
 
                 await videoSender.setParameters(parameters);
-                console.log(`[WebRTC] Bitrate set to ${bitrate}kbps (${degradationPreference}) for user`);
+                console.log(`[WebRTC] Bitrate set to ${bitrate}kbps (Scale: ${scaleFactor}) for user`);
             }
         } catch (err) {
             console.warn('[WebRTC] Could not set bitrate/parameters:', err);
         }
     };
 
+    // ... (activeStreams, etc.)
+
+    const changeStreamQuality = (streamId: string, quality: string) => {
+        if (!socket) return;
+        console.log(`[WebRTC] Requesting quality '${quality}' for stream ${streamId}`);
+        socket.emit('signal', { to: streamId, signal: { type: 'quality-request', quality }, connectionRole: 'viewer' });
+    };
+
+    return (
+        <WebRTCContext.Provider value={{
+            activeStreams, isStreaming, isConnecting, localStream, remoteStream, socket,
+            startStream, stopStream, viewStream, clearView, updateMetadata, updateConstraints,
+            filter, setFilter, changeStreamQuality
+        }}>
+            const pc = new RTCPeerConnection({
+                iceServers: [
+            {urls: 'stun:stun.l.google.com:19302' },
+            {urls: 'stun:stun1.l.google.com:19302' },
+            {urls: 'stun:stun2.l.google.com:19302' },
+            {urls: 'stun:stun.nextcloud.com:443' }
+            ],
+            iceCandidatePoolSize: 10
+        });
+
+        pc.onicecandidate = (event) => {
+            if (event.candidate && (currentSocket || socket)) {
+                const s = currentSocket || socket;
+            // As the Initiator, I am the Viewer. As the Responder, I am the Streamer.
+            const role = isInitiator ? 'viewer' : 'streamer';
+            s?.emit('signal', {to: userId, signal: {candidate: event.candidate }, connectionRole: role });
+            }
+        };
+
+        pc.ontrack = (event) => {
+            if (!isInitiator) return;
+            const streams = event.streams;
+            const stream = streams[0];
+            if (stream) {
+                setRemoteStream(stream);
+            setIsConnecting(false);
+            }
+        };
+
+            if (!isInitiator && localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach(track => {
+                    pc.addTrack(track, localStreamRef.current!);
+                });
+            // Initial bitrate setting
+            const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
+            setVideoBitrate(pc, targetBitrate);
+        }
+
+        pc.onconnectionstatechange = () => {
+            if (pc.connectionState === 'connected') {
+                if (!isInitiator) {
+                    const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
+            const targetMode = currentConstraintsRef.current?.optimizationMode || 'detail';
+            setVideoBitrate(pc, targetBitrate, targetMode);
+                }
+            }
+            if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+                if (incomingPC.current?.id === userId) {
+                setRemoteStream(null);
+            setIsConnecting(false);
+            incomingPC.current = null;
+                }
+            outgoingPCs.current.delete(userId);
+            }
+        };
+
+            if (isInitiator) {
+                pc.addTransceiver('video', { direction: 'recvonly' });
+            pc.addTransceiver('audio', {direction: 'recvonly' });
+        }
+
+            return pc;
+    };
+
+    const setVideoBitrate = async (pc: RTCPeerConnection, bitrate: number, optimizationMode?: string) => {
+        try {
+            const senders = pc.getSenders();
+            const videoSender = senders.find(s => s.track?.kind === 'video');
+            if (videoSender) {
+                // Determine degradation preference
+                let degradationPreference: RTCDegradationPreference = 'balanced';
+            if (optimizationMode === 'detail') {
+                degradationPreference = 'maintain-resolution';
+                } else if (optimizationMode === 'gaming' || optimizationMode === 'motion') {
+                degradationPreference = 'maintain-framerate';
+                }
+
+            const parameters = videoSender.getParameters();
+            if (!parameters.encodings || parameters.encodings.length === 0) {
+                parameters.encodings = [{}];
+                }
+
+            const bps = bitrate * 1000;
+            parameters.encodings[0].maxBitrate = bps;
+            // Enforce CBR by setting minBitrate equal to maxBitrate (if supported)
+            (parameters.encodings[0] as any).minBitrate = bps;
+
+            // Apply degradation preference
+            parameters.degradationPreference = degradationPreference;
+
+            await videoSender.setParameters(parameters);
+            console.log(`[WebRTC] Bitrate set to ${bitrate}kbps (${degradationPreference}) for user`);
+            }
+        } catch (err) {
+                console.warn('[WebRTC] Could not set bitrate/parameters:', err);
+        }
+    };
+
     const preferCodec = (sdp: string, codec: string) => {
         const lines = sdp.split('\r\n');
         const mLineIndex = lines.findIndex(line => line.startsWith('m=video'));
-        if (mLineIndex === -1) return sdp;
+            if (mLineIndex === -1) return sdp;
 
-        const payloadRE = new RegExp(`a=rtpmap:(\\d+) ${codec}/90000`);
-        const payloads: string[] = [];
-        for (let i = 0; i < lines.length; i++) {
+            const payloadRE = new RegExp(`a=rtpmap:(\\d+) ${codec}/90000`);
+            const payloads: string[] = [];
+            for (let i = 0; i < lines.length; i++) {
             const match = lines[i].match(payloadRE);
             if (match) payloads.push(match[1]);
         }
 
-        if (payloads.length === 0) return sdp;
+            if (payloads.length === 0) return sdp;
 
-        const mLine = lines[mLineIndex];
-        const parts = mLine.split(' ');
-        const media = parts.slice(0, 3);
+            const mLine = lines[mLineIndex];
+            const parts = mLine.split(' ');
+            const media = parts.slice(0, 3);
         const remainingPayloads = parts.slice(3).filter(p => !payloads.includes(p));
 
-        // Reconstruct m-line with preferred payloads first
-        lines[mLineIndex] = [...media, ...payloads, ...remainingPayloads].join(' ');
-        return lines.join('\r\n');
+            // Reconstruct m-line with preferred payloads first
+            lines[mLineIndex] = [...media, ...payloads, ...remainingPayloads].join(' ');
+            return lines.join('\r\n');
     };
 
     const processCandidateQueue = async (userId: string, pc: RTCPeerConnection) => {
@@ -242,70 +331,70 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         if (queue.length > 0) {
             while (queue.length > 0) {
                 const candidate = queue.shift();
-                if (candidate) {
+            if (candidate) {
                     try {
-                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                await pc.addIceCandidate(new RTCIceCandidate(candidate));
                     } catch (e: any) {
-                        console.error('[WebRTC] Error adding queued candidate:', e);
+                console.error('[WebRTC] Error adding queued candidate:', e);
                     }
                 }
             }
         }
-        candidateQueues.current.delete(userId);
+            candidateQueues.current.delete(userId);
     };
 
     const handleOffer = async (from: string, offer: RTCSessionDescriptionInit, currentSocket: Socket) => {
         // CLOSE OLD PC IF EXISTS (Bugfix: Resource leak and connection collision)
         const oldPc = outgoingPCs.current.get(from);
-        if (oldPc) {
-            console.log('[WebRTC] Closing old outgoing connection to', from);
+            if (oldPc) {
+                console.log('[WebRTC] Closing old outgoing connection to', from);
             oldPc.close();
         }
 
-        const pc = createPeerConnection(from, false, currentSocket);
-        outgoingPCs.current.set(from, pc);
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        await processCandidateQueue(from, pc);
-        let answer = await pc.createAnswer();
+            const pc = createPeerConnection(from, false, currentSocket);
+            outgoingPCs.current.set(from, pc);
+            await pc.setRemoteDescription(new RTCSessionDescription(offer));
+            await processCandidateQueue(from, pc);
+            let answer = await pc.createAnswer();
 
-        // Encoder-Präferenz anwenden (H.264 für GPU/Hardware)
-        const encoder = currentConstraintsRef.current?.encoder || 'gpu';
-        if (encoder === 'gpu') {
-            answer.sdp = preferCodec(answer.sdp || '', 'H264');
+            // Encoder-Präferenz anwenden (H.264 für GPU/Hardware)
+            const encoder = currentConstraintsRef.current?.encoder || 'gpu';
+            if (encoder === 'gpu') {
+                answer.sdp = preferCodec(answer.sdp || '', 'H264');
             console.log('[WebRTC] GPU Mode: Preferred H264 in Answer');
         } else {
-            console.log('[WebRTC] CPU Mode: Using default codec priority');
+                console.log('[WebRTC] CPU Mode: Using default codec priority');
         }
 
-        await pc.setLocalDescription(answer);
-        currentSocket.emit('signal', { to: from, signal: answer, connectionRole: 'streamer' });
+            await pc.setLocalDescription(answer);
+            currentSocket.emit('signal', {to: from, signal: answer, connectionRole: 'streamer' });
     };
 
     const handleAnswer = async (from: string, answer: RTCSessionDescriptionInit) => {
-        // Answers always come from the streamer to the viewer (incomingPC)
-        let pc = incomingPC.current?.id === from ? incomingPC.current.pc : null;
-        if (pc) {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                // Answers always come from the streamer to the viewer (incomingPC)
+                let pc = incomingPC.current?.id === from ? incomingPC.current.pc : null;
+            if (pc) {
+                await pc.setRemoteDescription(new RTCSessionDescription(answer));
             await processCandidateQueue(from, pc);
         }
     };
 
     const handleCandidate = async (from: string, candidate: RTCIceCandidateInit, role?: 'viewer' | 'streamer') => {
-        // If the sender is a 'viewer', the candidate belongs to our 'outgoingPC' (we are streaming to them)
-        // If the sender is a 'streamer', the candidate belongs to our 'incomingPC' (we are watching them)
-        let pc: RTCPeerConnection | null | undefined = null;
+                // If the sender is a 'viewer', the candidate belongs to our 'outgoingPC' (we are streaming to them)
+                // If the sender is a 'streamer', the candidate belongs to our 'incomingPC' (we are watching them)
+                let pc: RTCPeerConnection | null | undefined = null;
 
-        if (role === 'viewer') {
-            pc = outgoingPCs.current.get(from);
+            if (role === 'viewer') {
+                pc = outgoingPCs.current.get(from);
         } else if (role === 'streamer') {
-            pc = (incomingPC.current?.id === from) ? incomingPC.current.pc : null;
+                pc = (incomingPC.current?.id === from) ? incomingPC.current.pc : null;
         } else {
-            // Fallback for older versions
-            pc = outgoingPCs.current.get(from);
+                // Fallback for older versions
+                pc = outgoingPCs.current.get(from);
             if (!pc && incomingPC.current?.id === from) pc = incomingPC.current.pc;
         }
 
-        if (pc && pc.remoteDescription) {
+            if (pc && pc.remoteDescription) {
             try {
                 await pc.addIceCandidate(new RTCIceCandidate(candidate));
             } catch (e: any) {
@@ -318,110 +407,110 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const startStream = async (sourceId: string, constraints: any, metadata: any) => {
-        let stream: MediaStream;
-        let audioContext: AudioContext;
+                let stream: MediaStream;
+            let audioContext: AudioContext;
 
-        // Save constraints for future peer connections
-        currentConstraintsRef.current = constraints;
+            // Save constraints for future peer connections
+            currentConstraintsRef.current = constraints;
 
-        try {
-            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+            try {
+                audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             audioContextRef.current = audioContext;
         } catch (e: any) {
-            console.error('[WebRTC] Failed to initialize AudioContext:', e);
-            log('audiocontext_init_failed', { error: e.message });
+                console.error('[WebRTC] Failed to initialize AudioContext:', e);
+            log('audiocontext_init_failed', {error: e.message });
             // If AudioContext fails, we can still proceed with video only
             throw new Error('Audio-System konnte nicht initialisiert werden. Bitte lade die Seite neu.');
         }
 
-        const destination = audioContext.createMediaStreamDestination();
+            const destination = audioContext.createMediaStreamDestination();
 
-        // Ensure AudioContext is active (browsers often suspend it until interaction)
-        if (audioContext.state === 'suspended') {
-            await audioContext.resume();
+            // Ensure AudioContext is active (browsers often suspend it until interaction)
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
             console.log('[WebRTC] AudioContext resumed');
         }
 
-        try {
-            log('start_stream_requested', { sourceId, constraints });
+            try {
+                log('start_stream_requested', { sourceId, constraints });
 
             if (constraints.sourceType === 'camera') {
                 console.warn('[WebRTC] Capturing CAMERA:', sourceId);
-                log('webrtc_capturing_camera', { sourceId });
+            log('webrtc_capturing_camera', {sourceId});
 
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            deviceId: { exact: sourceId },
-                            width: { ideal: constraints.width },
-                            height: { ideal: constraints.height },
-                            frameRate: { ideal: constraints.fps }
-                        },
-                        audio: false
-                    });
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        deviceId: { exact: sourceId },
+                        width: { ideal: constraints.width },
+                        height: { ideal: constraints.height },
+                        frameRate: { ideal: constraints.fps }
+                    },
+                    audio: false
+                });
                 } catch (camErr: any) {
-                    console.error('[WebRTC] Primary camera capture failed:', camErr);
+                console.error('[WebRTC] Primary camera capture failed:', camErr);
 
-                    if (camErr.name === 'NotReadableError') {
-                        console.warn('[WebRTC] NotReadableError detected. Source might be in use. Retrying with loose constraints...');
-                        // Fallback: Try without 'exact' or specific device (will pick default)
-                        try {
-                            stream = await navigator.mediaDevices.getUserMedia({
-                                video: true,
-                                audio: false
-                            });
-                            console.warn('[WebRTC] Fallback capture SUCCESS (default camera)');
+            if (camErr.name === 'NotReadableError') {
+                console.warn('[WebRTC] NotReadableError detected. Source might be in use. Retrying with loose constraints...');
+            // Fallback: Try without 'exact' or specific device (will pick default)
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: true,
+                    audio: false
+                });
+            console.warn('[WebRTC] Fallback capture SUCCESS (default camera)');
                         } catch (fallbackErr: any) {
-                            console.error('[WebRTC] Fallback capture also failed:', fallbackErr);
-                            throw new Error(`Kamera konnte nicht gestartet werden (NotReadableError). 
-                            Dies passiert oft, wenn die Kamera (z.B. OBS Virtual Camera) bereits von einem anderen Programm verwendet wird oder in OBS noch nicht gestartet wurde.`);
+                console.error('[WebRTC] Fallback capture also failed:', fallbackErr);
+            throw new Error(`Kamera konnte nicht gestartet werden (NotReadableError).
+            Dies passiert oft, wenn die Kamera (z.B. OBS Virtual Camera) bereits von einem anderen Programm verwendet wird oder in OBS noch nicht gestartet wurde.`);
                         }
                     } else {
                         throw camErr;
                     }
                 }
-                console.warn('[WebRTC] Camera capture SUCCESS:', stream.id);
+            console.warn('[WebRTC] Camera capture SUCCESS:', stream.id);
                 // Optimierung für Kamera (OBS/Meld)
                 stream.getVideoTracks().forEach(track => {
                     if ((track as any).contentHint !== undefined) {
-                        (track as any).contentHint = 'motion';
+                (track as any).contentHint = 'motion';
                     }
-                    console.log(`[WebRTC] Camera track state:`, {
-                        label: track.label,
-                        enabled: track.enabled,
-                        readyState: track.readyState,
-                        muted: track.muted
+            console.log(`[WebRTC] Camera track state:`, {
+                label: track.label,
+            enabled: track.enabled,
+            readyState: track.readyState,
+            muted: track.muted
                     });
                 });
             } else {
                 const videoConstraints: any = {
-                    mandatory: {
-                        chromeMediaSource: 'desktop',
-                        chromeMediaSourceId: sourceId,
-                        maxWidth: constraints.width,
-                        maxHeight: constraints.height,
-                        maxFrameRate: constraints.fps
+                mandatory: {
+                chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            maxWidth: constraints.width,
+            maxHeight: constraints.height,
+            maxFrameRate: constraints.fps
                     }
                 };
 
-                console.warn('[WebRTC] Capturing DESKTOP:', { sourceId, videoConstraints });
-                log('webrtc_capturing_video', { videoConstraints });
+            console.warn('[WebRTC] Capturing DESKTOP:', {sourceId, videoConstraints});
+            log('webrtc_capturing_video', {videoConstraints});
 
-                try {
-                    stream = await navigator.mediaDevices.getUserMedia({
-                        video: videoConstraints
-                    } as any);
-                    console.warn('[WebRTC] Desktop capture SUCCESS:', stream.id);
-                    // Use configurable optimization mode (default: detail)
-                    const mode = constraints.optimizationMode || 'detail';
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: videoConstraints
+                } as any);
+            console.warn('[WebRTC] Desktop capture SUCCESS:', stream.id);
+            // Use configurable optimization mode (default: detail)
+            const mode = constraints.optimizationMode || 'detail';
                     stream.getVideoTracks().forEach(track => {
                         if ((track as any).contentHint !== undefined) {
-                            (track as any).contentHint = mode;
+                (track as any).contentHint = mode;
                         }
                     });
                 } catch (videoErr: any) {
-                    console.error('[WebRTC] Video capture failed (desktop branch):', videoErr);
-                    throw videoErr;
+                console.error('[WebRTC] Video capture failed (desktop branch):', videoErr);
+            throw videoErr;
                 }
             }
 
@@ -429,14 +518,14 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             if (constraints.micId) {
                 try {
                     const micStream = await navigator.mediaDevices.getUserMedia({
-                        audio: { deviceId: { exact: constraints.micId } }
+                audio: {deviceId: {exact: constraints.micId } }
                     });
-                    const micSource = audioContext.createMediaStreamSource(micStream);
-                    const micGain = audioContext.createGain();
-                    micGain.gain.value = constraints.micMuted ? 0 : 1;
-                    micSource.connect(micGain).connect(destination);
+            const micSource = audioContext.createMediaStreamSource(micStream);
+            const micGain = audioContext.createGain();
+            micGain.gain.value = constraints.micMuted ? 0 : 1;
+            micSource.connect(micGain).connect(destination);
                 } catch (e: any) {
-                    console.error('[WebRTC] Failed to capture Mic:', e);
+                console.error('[WebRTC] Failed to capture Mic:', e);
                 }
             }
 
@@ -444,37 +533,37 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             if (constraints.audioIds) {
                 for (let i = 0; i < constraints.audioIds.length; i++) {
                     const audioId = constraints.audioIds[i];
-                    if (!audioId) continue;
+            if (!audioId) continue;
 
-                    try {
-                        let extraStream: MediaStream | null = null;
-                        if (audioId === 'default') {
-                            console.log('[WebRTC] Capturing System Sound (desktop)...');
-                            const systemAudioConstraints: any = {
-                                audio: {
-                                    mandatory: {
-                                        chromeMediaSource: 'desktop',
-                                        chromeMediaSourceId: sourceId
+            try {
+                let extraStream: MediaStream | null = null;
+            if (audioId === 'default') {
+                console.log('[WebRTC] Capturing System Sound (desktop)...');
+            const systemAudioConstraints: any = {
+                audio: {
+                mandatory: {
+                chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId
                                     }
                                 },
-                                video: false
+            video: false
                             };
-                            extraStream = await navigator.mediaDevices.getUserMedia(systemAudioConstraints as any);
+            extraStream = await navigator.mediaDevices.getUserMedia(systemAudioConstraints as any);
                         } else {
-                            // First attempt to capture as is (might be input or virtual loopback)
-                            extraStream = await navigator.mediaDevices.getUserMedia({
-                                audio: { deviceId: { exact: audioId } }
-                            });
+                // First attempt to capture as is (might be input or virtual loopback)
+                extraStream = await navigator.mediaDevices.getUserMedia({
+                    audio: { deviceId: { exact: audioId } }
+                });
                         }
 
-                        if (extraStream) {
+            if (extraStream) {
                             const source = audioContext.createMediaStreamSource(extraStream);
-                            const gain = audioContext.createGain();
-                            gain.gain.value = constraints.mutedAudio[i] ? 0 : 1;
-                            source.connect(gain).connect(destination);
+            const gain = audioContext.createGain();
+            gain.gain.value = constraints.mutedAudio[i] ? 0 : 1;
+            source.connect(gain).connect(destination);
                         }
                     } catch (e: any) {
-                        console.error(`[WebRTC] Failed to capture extra channel ${i} (${audioId}):`, e);
+                console.error(`[WebRTC] Failed to capture extra channel ${i} (${audioId}):`, e);
                         // Don't throw, just skip this channel so the rest of the stream can work
                     }
                 }
@@ -490,83 +579,91 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             setIsStreaming(true);
             socket?.emit('start-stream', metadata);
         } catch (error: any) {
-            console.error('[WebRTC] Error starting stream:', error);
+                console.error('[WebRTC] Error starting stream:', error);
             setIsStreaming(false);
             if (audioContextRef.current) {
                 audioContextRef.current.close();
-                audioContextRef.current = null;
+            audioContextRef.current = null;
             }
             throw error;
         }
     };
 
     const stopStream = () => {
-        localStreamRef.current?.getTracks().forEach(track => track.stop());
-        setLocalStream(null);
-        localStreamRef.current = null;
-        setIsStreaming(false);
-        socket?.emit('stop-stream');
+                localStreamRef.current?.getTracks().forEach(track => track.stop());
+            setLocalStream(null);
+            localStreamRef.current = null;
+            setIsStreaming(false);
+            socket?.emit('stop-stream');
 
         outgoingPCs.current.forEach(pc => pc.close());
-        outgoingPCs.current.clear();
+            outgoingPCs.current.clear();
 
-        if (incomingPC.current) {
-            incomingPC.current.pc.close();
+            if (incomingPC.current) {
+                incomingPC.current.pc.close();
             incomingPC.current = null;
         }
 
-        if (audioContextRef.current) {
-            audioContextRef.current.close().catch(console.error);
+            if (audioContextRef.current) {
+                audioContextRef.current.close().catch(console.error);
             audioContextRef.current = null;
         }
 
-        candidateQueues.current.clear();
-        setRemoteStream(null);
-        setIsConnecting(false);
+            candidateQueues.current.clear();
+            setRemoteStream(null);
+            setIsConnecting(false);
     };
 
     const viewStream = async (streamId: string, joinCode?: string) => {
         if (incomingPC.current) {
-            incomingPC.current.pc.close();
+                incomingPC.current.pc.close();
             candidateQueues.current.delete(incomingPC.current.id);
         }
 
-        setRemoteStream(null);
-        setIsConnecting(true);
+            setRemoteStream(null);
+            setIsConnecting(true);
 
-        const pc = createPeerConnection(streamId, true, socket);
-        incomingPC.current = { id: streamId, pc };
+            const pc = createPeerConnection(streamId, true, socket);
+            incomingPC.current = {id: streamId, pc };
 
-        try {
+            try {
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            socket?.emit('signal', { to: streamId, signal: offer, connectionRole: 'viewer', joinCode });
+            socket?.emit('signal', {to: streamId, signal: offer, connectionRole: 'viewer', joinCode });
         } catch (e) {
-            console.error('[WebRTC] ViewStream: Failed to create offer:', e);
+                console.error('[WebRTC] ViewStream: Failed to create offer:', e);
             setIsConnecting(false);
         }
     };
 
     const clearView = () => {
-        if (incomingPC.current) {
-            incomingPC.current.pc.close();
+        // Explicitly stop all tracks to ensure audio cuts off immediately
+        if (remoteStream) {
+                remoteStream.getTracks().forEach(track => {
+                    track.stop();
+                    track.enabled = false;
+                });
+        }
+
+            if (incomingPC.current) {
+                incomingPC.current.pc.close();
             candidateQueues.current.delete(incomingPC.current.id);
             incomingPC.current = null;
         }
-        setRemoteStream(null);
-        setIsConnecting(false);
+            setRemoteStream(null);
+            setIsConnecting(false);
     };
 
     const updateMetadata = (metadata: any) => {
         if (!isStreaming) return;
-        socket?.emit('update-stream-metadata', metadata);
-        log('metadata_updated', metadata);
+            socket?.emit('update-stream-metadata', metadata);
+            log('metadata_updated', metadata);
     };
 
     const updateConstraints = async (constraints: any) => {
-        currentConstraintsRef.current = { ...currentConstraintsRef.current, ...constraints };
+                currentConstraintsRef.current = { ...currentConstraintsRef.current, ...constraints };
 
-        if (isStreaming && localStreamRef.current) {
+            if (isStreaming && localStreamRef.current) {
             const mode = currentConstraintsRef.current.optimizationMode || 'detail';
             const bitrate = currentConstraintsRef.current.bitrate || 6000;
 
@@ -578,33 +675,33 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
 
             localStreamRef.current.getVideoTracks().forEach(track => {
                 if ((track as any).contentHint !== undefined) {
-                    (track as any).contentHint = contentHint;
+                (track as any).contentHint = contentHint;
                 }
             });
 
             // Apply to all active peer connections
             const results = Array.from(outgoingPCs.current.entries()).map(async ([userId, pc]) => {
                 if (pc.connectionState === 'connected') {
-                    await setVideoBitrate(pc, bitrate, mode);
+                await setVideoBitrate(pc, bitrate, mode);
                 }
             });
             await Promise.all(results);
         }
     };
 
-    return (
-        <WebRTCContext.Provider value={{
-            activeStreams, isStreaming, isConnecting, localStream, remoteStream, socket,
-            startStream, stopStream, viewStream, clearView, updateMetadata, updateConstraints,
-            filter, setFilter
-        }}>
-            {children}
-        </WebRTCContext.Provider>
-    );
+            return (
+            <WebRTCContext.Provider value={{
+                activeStreams, isStreaming, isConnecting, localStream, remoteStream, socket,
+                startStream, stopStream, viewStream, clearView, updateMetadata, updateConstraints,
+                filter, setFilter
+            }}>
+                {children}
+            </WebRTCContext.Provider>
+            );
 };
 
 export const useWebRTC = () => {
     const context = useContext(WebRTCContext);
-    if (!context) throw new Error('useWebRTC must be used within WebRTCProvider');
-    return context;
+            if (!context) throw new Error('useWebRTC must be used within WebRTCProvider');
+            return context;
 };
