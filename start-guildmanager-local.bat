@@ -15,8 +15,8 @@ cd backend
 call npx prisma generate
 cd ..
 
-:: 4. Ensure app-config.json is set up for local
-echo { "backendUrl": "http://localhost:3334", "mode": "host" } > app-config.json
+:: 4. Ensure app-config.json is set up for local (localhost-first, cloud fallback)
+echo { "backendUrls": ["http://localhost:3334", "https://guild-manager-backend.onrender.com"], "backendUrl": "https://guild-manager-backend.onrender.com", "mode": "auto" } > app-config.json
 
 echo [GuildManager] Configuration ready.
 echo [GuildManager] Starting Desktop App (Backend will be started automatically)...
