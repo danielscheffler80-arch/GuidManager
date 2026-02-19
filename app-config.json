@@ -1,1 +1,1 @@
-{ "backendUrl": "https://xavaguildmanager-backend.onrender.com", "mode": "client" } 
+{ "backendUrls": ["http://localhost:3334", "https://guild-manager-backend.onrender.com"], "backendUrl": "https://guild-manager-backend.onrender.com", "mode": "auto" } 
