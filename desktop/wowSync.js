@@ -50,6 +50,9 @@ class WoWKeystoneSync {
         this.watching = true;
         console.log(`[WoWSync] Starte Überwachung von ${this.accountPath}`);
 
+        // Scanne Accounts und stelle sicher, dass das Addon installiert ist
+        this.ensureAddonInstalled();
+
         // Scanne alle Accounts
         const accounts = fs.readdirSync(this.accountPath);
         for (const account of accounts) {
@@ -72,6 +75,46 @@ class WoWKeystoneSync {
         });
     }
 
+    ensureAddonInstalled() {
+        try {
+            if (!this.wowPath) return;
+            const addonPath = path.join(this.wowPath, '_retail_', 'Interface', 'AddOns', 'GuildManagerBridgeSync');
+            const oldAddonPath = path.join(this.wowPath, '_retail_', 'Interface', 'AddOns', 'GuildManagerBridge');
+
+            this.logToFile(`Prüfe Addon-Installation unter: ${addonPath}`);
+
+            // 1. Alte Version löschen, falls vorhanden (auf Wunsch des Users für Sauberkeit)
+            if (fs.existsSync(oldAddonPath)) {
+                this.logToFile(`Alte Addon-Version gefunden. Lösche ${oldAddonPath}...`);
+                fs.rmSync(oldAddonPath, { recursive: true, force: true });
+            }
+
+            // 2. Prüfe ob neue Version da ist
+            if (!fs.existsSync(addonPath)) {
+                this.logToFile(`Addon nicht gefunden. Installiere...`);
+                fs.mkdirSync(addonPath, { recursive: true });
+
+                const assetsPath = path.join(__dirname, 'assets', 'addon');
+                if (fs.existsSync(assetsPath)) {
+                    const files = fs.readdirSync(assetsPath);
+                    for (const file of files) {
+                        const src = path.join(assetsPath, file);
+                        const dest = path.join(addonPath, file);
+                        fs.copyFileSync(src, dest);
+                        this.logToFile(`Kopiert: ${file}`);
+                    }
+                    this.logToFile('Addon erfolgreich installiert.');
+                } else {
+                    this.logToFile(`FEHLER: Addon-Assets nicht gefunden unter ${assetsPath}`);
+                }
+            } else {
+                this.logToFile('Addon ist bereits installiert.');
+            }
+        } catch (err) {
+            this.logToFile(`FEHLER bei Addon-Installation: ${err.message}`);
+        }
+    }
+
     logToFile(message) {
         try {
             const logPath = path.join(__dirname, 'sync-debug.log');
@@ -90,19 +133,23 @@ class WoWKeystoneSync {
 
             this.logToFile(`Parse Datei: ${filePath}`);
 
-            // Wir suchen gezielt nach den Einträgen in der "keys" Tabelle
-            // Format: ["keys"] = { ["Char-Realm"] = { ["level"] = X, ... } }
+            // Wir suchen den Inhalt der "keys" Tabelle. 
+            // Da WoW-SavedVariables geschachtelt sind, nehmen wir alles nach dem "keys" Start.
+            const keysStartMarker = '["keys"] = {';
+            const startIndex = content.indexOf(keysStartMarker);
 
-            const keysBlockMatch = /\["keys"\]\s*=\s*\{([\s\S]+?)\n\s*\}/.exec(content);
-            if (!keysBlockMatch) {
-                this.logToFile('Keine "keys" Tabelle im SavedVariable gefunden.');
+            if (startIndex === -1) {
+                this.logToFile('Marker ["keys"] = { nicht gefunden.');
                 return;
             }
 
-            const keysContent = keysBlockMatch[1];
+            // Wir nehmen den Rest des Files ab dem Marker
+            const keysContent = content.substring(startIndex + keysStartMarker.length);
             const keys = [];
 
-            const charEntryRegex = /\["([^"]+)"\]\s*=\s*\{([^}]+)\}/g;
+            // Regex für Charakter-Einträge: ["Name-Realm"] = { ... }
+            // Wir suchen nach dem Muster: ["irgendwas-mit-bindestrich"] = { ... }
+            const charEntryRegex = /\["([^"]+-[^"]+)"\]\s*=\s*\{([\s\S]+?)\}/g;
             let match;
 
             while ((match = charEntryRegex.exec(keysContent)) !== null) {
@@ -130,8 +177,7 @@ class WoWKeystoneSync {
                 }
             }
 
-            // Unabhängig davon, ob Keys gefunden wurden, senden wir den Sync ab
-            this.logToFile(`${keys.length} Keys in Lua gefunden. Aktualisiere Cloud...`);
+            this.logToFile(`${keys.length} Keys erfolgreich extrahiert. Sende an Cloud...`);
             await this.sendToBackend(keys);
         } catch (err) {
             this.logToFile(`FEHLER beim Parsen: ${err.message}`);
