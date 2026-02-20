@@ -342,107 +342,152 @@ export default function MythicPlus() {
 
       {/* --- Dashboard: Mythic+ Signups --- */}
       {(signupsForMyKeys.length > 0 || myOutgoingSignups.length > 0) && (
-        <div className="grid grid-cols-1 gap-6">
+        <div className="flex flex-col gap-6">
           {/* Signups for MY Keys */}
           {signupsForMyKeys.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1 px-1">
                 Anfragen für meine Keys
               </h2>
-              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
                 {signupsForMyKeys.map((s: any) => {
+                  const char = s.character;
+                  if (!char) return null;
+                  const charUrlName = char.name?.toLowerCase();
+                  const realmSlug = getRealmSlug(char.realm || '');
+
                   // Find the full key object to get ALL signups (confirmed + this one)
-                  const fullKey = filteredMains.find(m => m.id === s.key.character?.mainId)?.keys?.[0] ||
+                  const fullKey = filteredMains.find(m => m.id === s.key?.character?.mainId)?.keys?.[0] ||
                     filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId)?.keys?.[0];
                   const confirmedSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
 
-                  // Simple SVG role icons
-                  const RoleIcon = ({ role }: { role: string }) => {
-                    if (role === 'Tank') return <svg width="10" height="10" viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
-                    if (role === 'Healer' || role === 'Heal') return <svg width="10" height="10" viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
-                    return <svg width="10" height="10" viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
+                  // Build the 5 slots
+                  // 1. Owner
+                  // 2. Confirmed Signups
+                  // 3. Pending (if any, but usually we just show confirmed/filled)
+                  const keyholder = s.key?.character;
+                  const allFilled = [
+                    { role: keyholder?.role || 'DPS', char: keyholder, isOwner: true },
+                    ...confirmedSignups.map((sig: any) => ({ role: sig.primaryRole || 'DPS', char: sig.character, isOwner: false }))
+                  ].slice(0, 5);
+
+                  const RoleIcon = ({ role, size = 12 }: { role: string, size?: number }) => {
+                    if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
+                    if (role === 'Healer' || role === 'Heal') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
+                    return <svg width={size} height={size} viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
                   };
 
-                  const groupSlots = [
-                    { role: 'Tank' },
-                    { role: 'Healer' },
-                    { role: 'DPS' },
-                    { role: 'DPS' },
-                    { role: 'DPS' }
-                  ].map((slot, idx) => {
-                    // Find person for this role
-                    // Owner takes their role first
-                    const ownerRole = 'DPS'; // Default or from key info if we had it. Character class might suggest.
-                    // Let's just fill slots from confirmed players + owner
-                    const confirmedPlayers = [
-                      { role: 'Tank', char: s.key.character?.role === 'Tank' ? s.key.character : confirmedSignups.find((sig: any) => sig.primaryRole === 'Tank' || sig.secondaryRole === 'Tank')?.character },
-                      { role: 'Healer', char: s.key.character?.role === 'Healer' ? s.key.character : confirmedSignups.find((sig: any) => sig.primaryRole === 'Healer' || sig.secondaryRole === 'Healer' || sig.primaryRole === 'Heal')?.character },
-                      { role: 'DPS', char: s.key.character?.role === 'DPS' ? s.key.character : null } // Need better logic for multiple DPS
-                    ];
-                    // Actually let's just use a simple list of filled people
-                    const allFilled = [{ role: 'Keyholder', char: s.key.character }, ...confirmedSignups.map((sig: any) => ({ role: sig.primaryRole, char: sig.character }))].slice(0, 5);
-                    const current = allFilled[idx];
-
-                    return (
-                      <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold ${current && current.char ? 'bg-[#1a1a1a] border-gray-700/50' : 'bg-transparent border-dashed border-gray-800 text-gray-800'}`}>
-                        {current && current.char ? (
-                          <>
-                            <RoleIcon role={current.role} />
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: getClassColor(current.char?.classId || current.char?.class) }}></div>
-                            <span style={{ color: getClassColor(current.char?.classId || current.char?.class) }}>{capitalizeName(current.char?.name)}</span>
-                          </>
-                        ) : (
-                          <span>Slot {idx + 1}</span>
-                        )}
-                      </div>
-                    );
-                  });
-
                   return (
-                    <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '16px' }} className="flex flex-col gap-4">
-                      {/* Row 1: Single Line Info */}
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-base" style={{ color: getClassColor(s.character?.classId || s.character?.class) }}>
-                          {capitalizeName(s.character?.name)}
-                        </span>
-                        <span className="text-gray-500 text-sm">Möchte mit für</span>
-                        <span className="text-[var(--accent)] font-bold text-sm">+{s.key.level} {s.key.dungeon}</span>
-
-                        <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-2 py-0.5 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
-                          {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
-                        </span>
-
-                        <div className="flex items-center gap-3 ml-2 border-l border-gray-800 pl-4">
-                          <div className="flex flex-col">
-                            <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Main</span>
-                            <span className="text-[11px] text-white font-bold">{s.primaryRole}</span>
+                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] p-5 flex flex-col gap-5">
+                      {/* Row 1: Unified Char Row Design */}
+                      <div className="flex items-center justify-between w-full">
+                        {/* Name Column */}
+                        <div style={{ width: '220px' }} className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span
+                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.2em' }}
+                              className="font-bold leading-tight"
+                            >
+                              {capitalizeName(char.name)}
+                            </span>
+                            <span style={{
+                              fontSize: '8px',
+                              background: 'rgba(163,48,201,0.2)',
+                              color: 'var(--accent)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 900,
+                              letterSpacing: '1px',
+                              textTransform: 'uppercase',
+                              border: '1px solid #333'
+                            }}>
+                              Applicant
+                            </span>
                           </div>
-                          {s.secondaryRole && (
-                            <div className="flex flex-col">
-                              <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Alt</span>
-                              <span className="text-[11px] text-gray-400 font-bold">{s.secondaryRole}</span>
-                            </div>
-                          )}
+                          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{char.realm || 'Blackrock'}</span>
+                        </div>
+
+                        {/* ILVL Column */}
+                        <div className="w-[80px] text-center flex flex-col">
+                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">ILVL</span>
+                          <span className="text-lg font-black" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
+                        </div>
+
+                        {/* RIO Column */}
+                        <div className="w-[80px] text-center flex flex-col">
+                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">RIO</span>
+                          <span className="text-lg font-black" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
+                        </div>
+
+                        {/* Raid Progress Column */}
+                        <div className="w-[140px] text-center flex flex-col">
+                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">Raid Progress</span>
+                          <span className="text-[12px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
                         </div>
 
                         <div className="flex-1"></div>
 
-                        <div className="flex gap-2">
-                          {s.status === 'pending' && (
-                            <>
-                              <button onClick={() => handleUpdateSignup(s.id, 'accepted')} className="bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Annehmen</button>
-                              <button onClick={() => handleUpdateSignup(s.id, 'declined')} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Ablehnen</button>
-                            </>
-                          )}
-                          <button onClick={() => handleRemoveSignup(s.id)} className="px-3 py-2 text-gray-600 hover:text-white bg-[#222] hover:bg-red-500/20 hover:border-red-500/30 border border-gray-800/50 rounded-lg transition-all" title="Löschen">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                          </button>
+                        {/* Key Info + Actions */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[11px] text-gray-400 font-bold">{s.key?.dungeon}</span>
+                            <span className="text-xl font-black text-white">+{s.key?.level}</span>
+                          </div>
+
+                          <div className="flex gap-2">
+                            {s.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={() => handleUpdateSignup(s.id, 'accepted')}
+                                  className="bg-green-500/10 hover:bg-green-500 text-green-500 hover:text-white border border-green-500/20 px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                  Annehmen
+                                </button>
+                                <button
+                                  onClick={() => handleUpdateSignup(s.id, 'declined')}
+                                  className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20 px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                >
+                                  Ablehnen
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handleRemoveSignup(s.id)}
+                              className="px-3 py-2.5 bg-[#222] border border-[#333] text-gray-600 hover:text-red-500 hover:border-red-500/30 rounded-lg transition-all"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                            </button>
+                          </div>
                         </div>
                       </div>
 
-                      {/* Row 2: 5 Member Buttons */}
-                      <div className="flex flex-wrap gap-2">
-                        {groupSlots}
+                      {/* Row 2: 5 Member Slots */}
+                      <div className="grid grid-cols-5 gap-3">
+                        {[0, 1, 2, 3, 4].map(idx => {
+                          const slot = allFilled[idx];
+                          return (
+                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
+                              {slot ? (
+                                <>
+                                  <RoleIcon role={slot.role} size={14} />
+                                  <div className="flex flex-col min-w-0">
+                                    <span
+                                      className="font-black text-[12px] truncate"
+                                      style={{ color: getClassColor(slot.char?.classId || slot.char?.class) }}
+                                    >
+                                      {capitalizeName(slot.char?.name)}
+                                    </span>
+                                    <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest leading-none">
+                                      {slot.isOwner ? 'Keyholder' : 'Mitglied'}
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">Empty</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -453,56 +498,135 @@ export default function MythicPlus() {
 
           {/* MY Signups */}
           {myOutgoingSignups.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1">
+            <div className="flex flex-col gap-3 mt-4">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1 px-1">
                 Meine Anmeldungen
               </h2>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {myOutgoingSignups.map((s: any) => (
-                  <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '16px 20px' }} className="flex justify-between items-center group">
-                    <div className="flex items-center gap-6">
-                      <div className="flex flex-col">
-                        <span className="font-bold text-base" style={{ color: getClassColor(s.character?.classId || s.character?.class) }}>
-                          {capitalizeName(s.character?.name)}
-                        </span>
-                        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-0.5">
-                          {s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}
-                        </span>
+              <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {myOutgoingSignups.map((s: any) => {
+                  const char = s.character;
+                  if (!char) return null;
+                  const charUrlName = char.name?.toLowerCase();
+                  const realmSlug = getRealmSlug(char.realm || '');
+
+                  // Find the full key object to get group status
+                  const fullKey = filteredMains.find(m => m.id === s.key?.character?.mainId)?.keys?.[0] ||
+                    filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId)?.keys?.[0];
+                  const confirmedSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
+                  const keyholder = s.key?.character;
+                  const allFilled = [
+                    { role: keyholder?.role || 'DPS', char: keyholder, isOwner: true },
+                    ...confirmedSignups.map((sig: any) => ({ role: sig.primaryRole || 'DPS', char: sig.character, isOwner: false }))
+                  ].slice(0, 5);
+
+                  const RoleIcon = ({ role, size = 12 }: { role: string, size?: number }) => {
+                    if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
+                    if (role === 'Healer' || role === 'Heal') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
+                    return <svg width={size} height={size} viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
+                  };
+
+                  return (
+                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] p-5 flex flex-col gap-5">
+                      {/* Row 1: Unified Char Row Design */}
+                      <div className="flex items-center justify-between w-full">
+                        {/* Name Column */}
+                        <div style={{ width: '220px' }} className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <span
+                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.2em' }}
+                              className="font-bold leading-tight"
+                            >
+                              {capitalizeName(char.name)}
+                            </span>
+                            <span className={`text-[9px] px-2 py-0.5 rounded border font-black uppercase tracking-widest ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
+                              {s.status === 'accepted' ? 'Accepted' : s.status === 'declined' ? 'Declined' : 'Pending'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{char.realm || 'Blackrock'}</span>
+                        </div>
+
+                        {/* ILVL Column */}
+                        <div className="w-[80px] text-center flex flex-col">
+                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">ILVL</span>
+                          <span className="text-lg font-black" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
+                        </div>
+
+                        {/* RIO Column */}
+                        <div className="w-[80px] text-center flex flex-col">
+                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">RIO</span>
+                          <span className="text-lg font-black" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
+                        </div>
+
+                        {/* Raid Progress Column */}
+                        <div className="w-[140px] text-center flex flex-col">
+                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">Raid Progress</span>
+                          <span className="text-[12px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
+                        </div>
+
+                        <div className="flex-1"></div>
+
+                        {/* Key Info + Actions */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex flex-col items-end">
+                            <span className="text-[11px] text-gray-400 font-bold">{s.key?.dungeon}</span>
+                            <span className="text-xl font-black text-white">+{s.key?.level}</span>
+                          </div>
+
+                          <button
+                            onClick={() => handleRemoveSignup(s.id)}
+                            style={{
+                              background: 'rgba(163,48,201,0.05)',
+                              border: '1px solid rgba(163,48,201,0.2)',
+                              color: '#666',
+                              padding: '8px 16px',
+                              borderRadius: '8px',
+                              fontSize: '10px',
+                              fontWeight: 900,
+                              textTransform: 'uppercase',
+                              letterSpacing: '1px',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              whiteSpace: 'nowrap' as const,
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.05)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.2)'; e.currentTarget.style.color = '#666'; }}
+                          >
+                            Zurückziehen
+                          </button>
+                        </div>
                       </div>
 
-                      <p className="text-sm text-gray-400">
-                        Angemeldet für <span className="text-white font-bold">+{s.key.level} {s.key.dungeon}</span>
-                      </p>
+                      {/* Row 2: 5 Member Slots */}
+                      <div className="grid grid-cols-5 gap-3">
+                        {[0, 1, 2, 3, 4].map(idx => {
+                          const slot = allFilled[idx];
+                          return (
+                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
+                              {slot ? (
+                                <>
+                                  <RoleIcon role={slot.role} size={14} />
+                                  <div className="flex flex-col min-w-0">
+                                    <span
+                                      className="font-black text-[12px] truncate"
+                                      style={{ color: getClassColor(slot.char?.classId || slot.char?.class) }}
+                                    >
+                                      {capitalizeName(slot.char?.name)}
+                                    </span>
+                                    <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest leading-none">
+                                      {slot.isOwner ? 'Keyholder' : 'Mitglied'}
+                                    </span>
+                                  </div>
+                                </>
+                              ) : (
+                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">Empty</span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-6">
-                      <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-3 py-1.5 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
-                        {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
-                      </span>
-
-                      <button
-                        onClick={() => handleRemoveSignup(s.id)}
-                        style={{
-                          background: 'rgba(163,48,201,0.1)',
-                          border: '1px solid rgba(163,48,201,0.3)',
-                          color: '#fff',
-                          padding: '6px 14px',
-                          borderRadius: '8px',
-                          fontSize: '10px',
-                          fontWeight: 800,
-                          textTransform: 'uppercase',
-                          letterSpacing: '1px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          whiteSpace: 'nowrap' as const,
-                        }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
-                      >
-                        Zurückziehen
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
