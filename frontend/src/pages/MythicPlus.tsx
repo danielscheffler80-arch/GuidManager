@@ -238,9 +238,9 @@ export default function MythicPlus() {
               <button
                 onClick={() => handleSignup(key)}
                 style={{
-                  background: 'rgba(200,200,200,0.08)',
-                  border: '1px solid rgba(200,200,200,0.2)',
-                  color: '#ccc',
+                  background: '#A330C9',
+                  border: '1px solid #A330C9',
+                  color: '#fff',
                   padding: '4px 10px',
                   borderRadius: '6px',
                   fontSize: '9px',
@@ -251,8 +251,8 @@ export default function MythicPlus() {
                   transition: 'all 0.2s',
                   whiteSpace: 'nowrap' as const,
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(200,200,200,0.08)'; e.currentTarget.style.color = '#ccc'; e.currentTarget.style.borderColor = 'rgba(200,200,200,0.2)'; }}
+                onMouseOver={(e) => { e.currentTarget.style.background = '#b84ddb'; e.currentTarget.style.borderColor = '#b84ddb'; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = '#A330C9'; e.currentTarget.style.borderColor = '#A330C9'; }}
               >
                 Join
               </button>
