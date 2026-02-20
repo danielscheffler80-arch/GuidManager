@@ -37,6 +37,21 @@ const Header: React.FC = () => {
   const [updateStatus, setUpdateStatus] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState<string>('0.6.6');
 
+  // Mythic filter state
+  const [mSearch, setMSearch] = useState('');
+  const [mMin, setMMin] = useState('');
+  const [mMax, setMMax] = useState('');
+
+  const dispatchMythicFilter = (search: string, min: string, max: string) => {
+    window.dispatchEvent(new CustomEvent('mythic-key-filter', {
+      detail: {
+        search,
+        min: min ? parseInt(min) : 0,
+        max: max ? parseInt(max) : 99
+      }
+    }));
+  };
+
   useEffect(() => {
     if (window.electronAPI?.getVersion) {
       window.electronAPI.getVersion().then(setAppVersion);
@@ -158,27 +173,74 @@ const Header: React.FC = () => {
                 >Geschützt</button>
               </>
             ) : pathname === '/mythic' ? (
-              <input
-                type="text"
-                placeholder="Key suchen..."
-                onChange={(e) => {
-                  window.dispatchEvent(new CustomEvent('mythic-key-filter', { detail: e.target.value }));
-                }}
-                style={{
-                  background: '#2A2A2A',
-                  border: '1px solid #444',
-                  color: '#fff',
-                  padding: '5px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  outline: 'none',
-                  width: '180px',
-                  transition: 'border-color 0.2s',
-                }}
-                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.currentTarget.style.borderColor = '#444')}
-              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Key suchen..."
+                  value={mSearch}
+                  onChange={(e) => {
+                    setMSearch(e.target.value);
+                    dispatchMythicFilter(e.target.value, mMin, mMax);
+                  }}
+                  style={{
+                    background: '#2A2A2A',
+                    border: '1px solid #444',
+                    color: '#fff',
+                    padding: '5px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.8rem',
+                    fontWeight: 600,
+                    outline: 'none',
+                    width: '160px',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = '#444')}
+                />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#222', padding: '2px 6px', borderRadius: '6px', border: '1px solid #333' }}>
+                  <span style={{ fontSize: '0.65rem', color: '#666', fontWeight: 800 }}>LVL</span>
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={mMin}
+                    onChange={(e) => {
+                      setMMin(e.target.value);
+                      dispatchMythicFilter(mSearch, e.target.value, mMax);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      width: '35px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      outline: 'none',
+                      textAlign: 'center'
+                    }}
+                  />
+                  <span style={{ color: '#444' }}>-</span>
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={mMax}
+                    onChange={(e) => {
+                      setMMax(e.target.value);
+                      dispatchMythicFilter(mSearch, mMin, e.target.value);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      width: '35px',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      outline: 'none',
+                      textAlign: 'center'
+                    }}
+                  />
+                </div>
+              </div>
             ) : (
               // Roster page left controls
               <>

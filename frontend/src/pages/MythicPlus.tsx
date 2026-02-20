@@ -8,7 +8,7 @@ import { SignupModal } from '../components/SignupModal';
 import { CharacterService } from '../api/characterService';
 
 export default function MythicPlus() {
-  const { guilds, selectedGuild, setSelectedGuild, loading: guildLoading } = useGuild();
+  const { selectedGuild, loading: guildLoading } = useGuild();
   const { user } = useAuth();
 
   const [mains, setMains] = useState<any[]>([]);
@@ -18,7 +18,7 @@ export default function MythicPlus() {
   const [syncing, setSyncing] = useState(false);
   const [selectedKey, setSelectedKey] = useState<any>(null);
   const [showSignupModal, setShowSignupModal] = useState(false);
-  const [keyFilter, setKeyFilter] = useState('');
+  const [keyFilter, setKeyFilter] = useState({ search: '', min: 0, max: 99 });
 
   useEffect(() => {
     loadMyCharacters();
@@ -91,7 +91,14 @@ export default function MythicPlus() {
 
   // Listen for key filter from header search
   useEffect(() => {
-    const filterHandler = (e: any) => setKeyFilter((e as CustomEvent).detail || '');
+    const filterHandler = (e: any) => {
+      const detail = (e as CustomEvent).detail;
+      if (typeof detail === 'string') {
+        setKeyFilter(prev => ({ ...prev, search: detail }));
+      } else if (detail) {
+        setKeyFilter(detail);
+      }
+    };
     window.addEventListener('mythic-key-filter', filterHandler);
     return () => window.removeEventListener('mythic-key-filter', filterHandler);
   }, []);
@@ -279,13 +286,39 @@ export default function MythicPlus() {
     </div>
   );
 
+  const matchesFilter = (char: any) => {
+    const q = keyFilter.search?.toLowerCase() || '';
+    const nameMatch = char.name?.toLowerCase().includes(q);
+    const key = char.keys?.[0];
+
+    // Dungeon Name Match
+    const dungeonMatch = key && key.dungeon?.toLowerCase().includes(q);
+
+    // Level Range Match
+    const levelMatch = key ? (key.level >= keyFilter.min && key.level <= keyFilter.max) : false;
+
+    // If searching for text, must match name or dungeon
+    const textMatch = q ? (nameMatch || dungeonMatch) : true;
+
+    // If we have level filtering, it must match the key level
+    const isLevelFiltering = keyFilter.min > 0 || keyFilter.max < 99;
+    if (isLevelFiltering && !key) return false;
+
+    return textMatch && (isLevelFiltering ? levelMatch : true);
+  };
+
+  const filteredMains = mains.filter(main => {
+    const mainMatch = matchesFilter(main);
+    const altMatch = main.alts?.some((alt: any) => matchesFilter(alt));
+    return mainMatch || altMatch;
+  });
+
   return (
     <section className="page-container p-4 md:p-8 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-500">
 
       {/* --- Dashboard: Mythic+ Signups --- */}
       {(signupsForMyKeys.length > 0 || myOutgoingSignups.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Signups for MY Keys */}
           {signupsForMyKeys.length > 0 && (
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
               <div className="bg-gradient-to-r from-[#222] to-[#1a1a1a] p-4 border-b border-gray-800">
@@ -308,17 +341,11 @@ export default function MythicPlus() {
                         {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
                       </span>
                     </div>
-
                     <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-wider mb-3">
                       <span className="bg-[#222] text-gray-300 px-2 py-1 rounded">Main: {s.primaryRole}</span>
-                      {s.secondaryRole && (
-                        <span className="bg-[#222] text-gray-500 px-2 py-1 rounded">Alt: {s.secondaryRole}</span>
-                      )}
+                      {s.secondaryRole && <span className="bg-[#222] text-gray-500 px-2 py-1 rounded">Alt: {s.secondaryRole}</span>}
                     </div>
-                    {s.message && (
-                      <p className="text-xs text-gray-400 italic bg-[#222]/50 p-2 rounded-lg mb-3 border border-gray-800/50 block w-full whitespace-normal break-words">"{s.message}"</p>
-                    )}
-
+                    {s.message && <p className="text-xs text-gray-400 italic bg-[#222]/50 p-2 rounded-lg mb-3 border border-gray-800/50 block w-full whitespace-normal break-words">"{s.message}"</p>}
                     <div className="flex gap-2">
                       {s.status === 'pending' && (
                         <>
@@ -336,7 +363,6 @@ export default function MythicPlus() {
             </div>
           )}
 
-          {/* MY Signups */}
           {myOutgoingSignups.length > 0 && (
             <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
               <div className="bg-gradient-to-r from-[#222] to-[#1a1a1a] p-4 border-b border-gray-800">
@@ -350,12 +376,8 @@ export default function MythicPlus() {
                   <div key={s.id} className="bg-[#111] border border-gray-700/50 p-3 rounded-xl flex justify-between items-center group">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-sm" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
-                          {capitalizeName(s.character.name)}
-                        </span>
-                        <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest bg-[#222] px-1.5 py-0.5 rounded">
-                          {s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}
-                        </span>
+                        <span className="font-bold text-sm" style={{ color: getClassColor(s.character.classId || s.character.class) }}>{capitalizeName(s.character.name)}</span>
+                        <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest bg-[#222] px-1.5 py-0.5 rounded">{s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}</span>
                       </div>
                       <p className="text-xs text-gray-400">Angemeldet für <span className="text-white font-bold">+{s.key.level} {s.key.dungeon}</span></p>
                     </div>
@@ -363,9 +385,7 @@ export default function MythicPlus() {
                       <span className={`px-2 py-1 rounded-md uppercase tracking-wider font-bold text-[9px] ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10' : s.status === 'declined' ? 'text-red-500 bg-red-500/10' : 'text-yellow-500 bg-yellow-500/10'}`}>
                         {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
                       </span>
-                      <button onClick={() => handleRemoveSignup(s.id)} className="text-[10px] text-red-500/70 hover:text-red-400 uppercase font-bold tracking-widest transition-colors">
-                        Zurückziehen
-                      </button>
+                      <button onClick={() => handleRemoveSignup(s.id)} className="text-[10px] text-red-500/70 hover:text-red-400 uppercase font-bold tracking-widest transition-colors">Zurückziehen</button>
                     </div>
                   </div>
                 ))}
@@ -375,29 +395,25 @@ export default function MythicPlus() {
         </div>
       )}
 
-      {/* --- Roster-Style Keys List (grouped by main with twink expand) --- */}
+      {/* --- Roster-Style Keys List --- */}
       <div className="flex flex-col gap-[2px]">
-        {mains.filter(main => {
-          if (!keyFilter.trim()) return true;
-          const q = keyFilter.toLowerCase();
-          // Check main's keys
-          const mainMatch = main.keys?.some((k: any) => k.dungeon?.toLowerCase().includes(q));
-          // Check alts' keys
-          const altMatch = main.alts?.some((a: any) => a.keys?.some((k: any) => k.dungeon?.toLowerCase().includes(q)));
-          // Check character name
-          const nameMatch = main.name?.toLowerCase().includes(q);
-          return mainMatch || altMatch || nameMatch;
-        }).map(main => {
+        {filteredMains.map(main => {
           const mainKey = main.keys && main.keys.length > 0 ? main.keys[0] : null;
           const hasAlts = main.alts && main.alts.length > 0;
-          const isExpanded = expandedMains.includes(main.id);
+
+          const altMatches = main.alts?.filter((alt: any) => matchesFilter(alt)) || [];
+          const filterActive = keyFilter.search || keyFilter.min > 0 || keyFilter.max < 99;
+
+          // Auto-expand if ANY alt has a key (default) or matches the filter
+          const anyAltHasKey = main.alts?.some((a: any) => a.keys?.length > 0);
+          const anyAltMatches = filterActive && altMatches.length > 0;
+
+          const isExpanded = expandedMains.includes(main.id) || anyAltHasKey || anyAltMatches;
 
           return (
             <div key={main.id} className="flex flex-col">
-              {/* Main row */}
               {renderCharRow(main, true, mainKey)}
 
-              {/* Twink expand button */}
               {hasAlts && (
                 <div style={{ marginLeft: '16px', marginTop: '-1px' }}>
                   <button
@@ -426,16 +442,11 @@ export default function MythicPlus() {
                     <svg style={{ width: '10px', height: '10px', transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </button>
 
-                  {/* Expanded twink rows */}
                   {isExpanded && (
                     <div className="flex flex-col gap-[2px] mt-[2px] ml-4 animate-in slide-in-from-top-2 duration-200">
-                      {main.alts.map((alt: any) => {
+                      {(filterActive ? altMatches : main.alts).map((alt: any) => {
                         const altKey = alt.keys && alt.keys.length > 0 ? alt.keys[0] : null;
-                        return (
-                          <div key={alt.id}>
-                            {renderCharRow(alt, false, altKey)}
-                          </div>
-                        );
+                        return <div key={alt.id}>{renderCharRow(alt, false, altKey)}</div>;
                       })}
                     </div>
                   )}
@@ -445,7 +456,7 @@ export default function MythicPlus() {
           );
         })}
 
-        {mains.length === 0 && !loading && (
+        {filteredMains.length === 0 && !loading && (
           <div className="flex flex-col items-center justify-center py-24 bg-[#1a1a1a] rounded-2xl border border-dashed border-gray-800">
             <svg className="w-16 h-16 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
             <p className="text-gray-400 font-bold text-lg">Keine Mythic+ Keys gefunden</p>
@@ -454,7 +465,6 @@ export default function MythicPlus() {
         )}
       </div>
 
-      {/* --- Modals --- */}
       {showSignupModal && (
         <SignupModal
           selectedKey={selectedKey}
