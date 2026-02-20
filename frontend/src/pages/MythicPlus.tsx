@@ -229,39 +229,36 @@ export default function MythicPlus() {
         <div style={{ flex: 1 }}></div>
 
         {/* Key + Join */}
-        <div style={{ width: '220px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
-          <div style={{ textAlign: 'center' as const }}>
-            <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Key</div>
-            {key ? (
-              <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#FF8000' }}>
+        <div style={{ width: '280px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+          {key ? (
+            <>
+              <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#ccc', whiteSpace: 'nowrap' as const }}>
                 {key.dungeon} +{key.level}
               </div>
-            ) : (
-              <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#555' }}>-</div>
-            )}
-          </div>
-          {key && (
-            <button
-              onClick={() => handleSignup(key)}
-              style={{
-                background: 'rgba(163,48,201,0.15)',
-                border: '1px solid rgba(163,48,201,0.3)',
-                color: 'var(--accent)',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontSize: '9px',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap' as const,
-              }}
-              onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; }}
-              onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.15)'; e.currentTarget.style.color = 'var(--accent)'; }}
-            >
-              Join
-            </button>
+              <button
+                onClick={() => handleSignup(key)}
+                style={{
+                  background: 'rgba(200,200,200,0.08)',
+                  border: '1px solid rgba(200,200,200,0.2)',
+                  color: '#ccc',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap' as const,
+                }}
+                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(200,200,200,0.08)'; e.currentTarget.style.color = '#ccc'; e.currentTarget.style.borderColor = 'rgba(200,200,200,0.2)'; }}
+              >
+                Join
+              </button>
+            </>
+          ) : (
+            <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#555' }}>-</div>
           )}
         </div>
       </div>
