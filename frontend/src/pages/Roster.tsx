@@ -473,8 +473,17 @@ export default function Roster() {
         <div className="flex flex-col gap-[2px]">
           {filteredRosterMembers.map((member) => {
             const rank = (member as any).rank;
-            // Extern nur wenn nicht in der ausgewählten Gilde
-            const isActuallyExternal = member.guildId !== selectedGuild?.id;
+
+            // In 'Alle Mitglieder' (selectedRosterView === 'all'), we never show the "Extern" tag.
+            // A character is only "Extern" in a specific roster if they don't natively belong to the selected guild.
+            const isNativelyFromOtherGuild = member.guildId && member.guildId !== selectedGuild?.id;
+            const isMissingGuildId = !member.guildId; // Can happen with fresh battle.net sync before guild sync
+
+            // We consider them external IF we are in a specific roster AND they don't belong to the guild natively.
+            // If they are missing a guild ID but have a rank from the guild character list, we assume they belong to the guild.
+            const isActuallyExternal = selectedRosterView !== 'all' &&
+              (isNativelyFromOtherGuild || (isMissingGuildId && rank === null));
+
             const rankName = isActuallyExternal ? 'Extern' : getRankName(rank);
 
             const classIconKeys: Record<number, string> = {
