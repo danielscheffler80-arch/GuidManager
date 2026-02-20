@@ -270,7 +270,7 @@ export default function MythicPlus() {
                   onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
                   onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
                 >
-                  Anmeldungen
+                  Join
                 </button>
               ) : (
                 <button
@@ -342,64 +342,111 @@ export default function MythicPlus() {
 
       {/* --- Dashboard: Mythic+ Signups --- */}
       {(signupsForMyKeys.length > 0 || myOutgoingSignups.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6">
           {/* Signups for MY Keys */}
           {signupsForMyKeys.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500 mb-1 ml-1">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1">
                 Anfragen für meine Keys
               </h2>
-              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                {signupsForMyKeys.map((s: any) => (
-                  <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '12px 16px' }} className="flex flex-col gap-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex flex-col">
+              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+                {signupsForMyKeys.map((s: any) => {
+                  // Find the full key object to get ALL signups (confirmed + this one)
+                  const fullKey = filteredMains.find(m => m.id === s.key.character?.mainId)?.keys?.[0] ||
+                    filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId)?.keys?.[0];
+                  const confirmedSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
+
+                  // Simple SVG role icons
+                  const RoleIcon = ({ role }: { role: string }) => {
+                    if (role === 'Tank') return <svg width="10" height="10" viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
+                    if (role === 'Healer' || role === 'Heal') return <svg width="10" height="10" viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
+                    return <svg width="10" height="10" viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
+                  };
+
+                  const groupSlots = [
+                    { role: 'Tank' },
+                    { role: 'Healer' },
+                    { role: 'DPS' },
+                    { role: 'DPS' },
+                    { role: 'DPS' }
+                  ].map((slot, idx) => {
+                    // Find person for this role
+                    // Owner takes their role first
+                    const ownerRole = 'DPS'; // Default or from key info if we had it. Character class might suggest.
+                    // Let's just fill slots from confirmed players + owner
+                    const confirmedPlayers = [
+                      { role: 'Tank', char: s.key.character?.role === 'Tank' ? s.key.character : confirmedSignups.find((sig: any) => sig.primaryRole === 'Tank' || sig.secondaryRole === 'Tank')?.character },
+                      { role: 'Healer', char: s.key.character?.role === 'Healer' ? s.key.character : confirmedSignups.find((sig: any) => sig.primaryRole === 'Healer' || sig.secondaryRole === 'Healer' || sig.primaryRole === 'Heal')?.character },
+                      { role: 'DPS', char: s.key.character?.role === 'DPS' ? s.key.character : null } // Need better logic for multiple DPS
+                    ];
+                    // Actually let's just use a simple list of filled people
+                    const allFilled = [{ role: 'Keyholder', char: s.key.character }, ...confirmedSignups.map((sig: any) => ({ role: sig.primaryRole, char: sig.character }))].slice(0, 5);
+                    const current = allFilled[idx];
+
+                    return (
+                      <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold ${current ? 'bg-[#1a1a1a] border-gray-700/50' : 'bg-transparent border-dashed border-gray-800 text-gray-800'}`}>
+                        {current ? (
+                          <>
+                            <RoleIcon role={current.role} />
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: getClassColor(current.char.classId || current.char.class) }}></div>
+                            <span style={{ color: getClassColor(current.char.classId || current.char.class) }}>{capitalizeName(current.char.name)}</span>
+                          </>
+                        ) : (
+                          <span>Slot {idx + 1}</span>
+                        )}
+                      </div>
+                    );
+                  });
+
+                  return (
+                    <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '16px' }} className="flex flex-col gap-4">
+                      {/* Row 1: Single Line Info */}
+                      <div className="flex items-center gap-3">
                         <span className="font-bold text-base" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
                           {capitalizeName(s.character.name)}
                         </span>
-                        <span className="text-gray-400 text-[11px] font-medium mt-0.5">
-                          Möchte mit für <span className="text-accent font-bold">+{s.key.level} {s.key.dungeon}</span>
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-2 py-1 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
+                        <span className="text-gray-500 text-sm">Möchte mit für</span>
+                        <span className="text-[var(--accent)] font-bold text-sm">+{s.key.level} {s.key.dungeon}</span>
+
+                        <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-2 py-0.5 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
                           {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
                         </span>
-                      </div>
-                    </div>
 
-                    <div className="flex flex-wrap gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Main</span>
-                        <span className="text-[10px] text-white font-bold">{s.primaryRole}</span>
-                      </div>
-                      {s.secondaryRole && (
-                        <div className="flex flex-col">
-                          <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Alt</span>
-                          <span className="text-[10px] text-gray-400 font-bold">{s.secondaryRole}</span>
+                        <div className="flex items-center gap-3 ml-2 border-l border-gray-800 pl-4">
+                          <div className="flex flex-col">
+                            <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Main</span>
+                            <span className="text-[11px] text-white font-bold">{s.primaryRole}</span>
+                          </div>
+                          {s.secondaryRole && (
+                            <div className="flex flex-col">
+                              <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Alt</span>
+                              <span className="text-[11px] text-gray-400 font-bold">{s.secondaryRole}</span>
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
 
-                    {s.message && (
-                      <div className="bg-black/20 p-2 rounded-lg border border-white/5">
-                        <p className="text-[11px] text-gray-500 italic block w-full whitespace-normal break-words leading-relaxed">"{s.message}"</p>
+                        <div className="flex-1"></div>
+
+                        <div className="flex gap-2">
+                          {s.status === 'pending' && (
+                            <>
+                              <button onClick={() => handleUpdateSignup(s.id, 'accepted')} className="bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Annehmen</button>
+                              <button onClick={() => handleUpdateSignup(s.id, 'declined')} className="bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Ablehnen</button>
+                            </>
+                          )}
+                          <button onClick={() => handleRemoveSignup(s.id)} className="px-3 py-2 text-gray-600 hover:text-white bg-[#222] hover:bg-red-500/20 hover:border-red-500/30 border border-gray-800/50 rounded-lg transition-all" title="Löschen">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
+                        </div>
                       </div>
-                    )}
 
-                    <div className="flex gap-2 mt-1">
-                      {s.status === 'pending' && (
-                        <>
-                          <button onClick={() => handleUpdateSignup(s.id, 'accepted')} className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Annehmen</button>
-                          <button onClick={() => handleUpdateSignup(s.id, 'declined')} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Ablehnen</button>
-                        </>
-                      )}
-                      <button onClick={() => handleRemoveSignup(s.id)} className="px-3 text-gray-600 hover:text-white bg-[#222] hover:bg-red-500/20 hover:border-red-500/30 border border-gray-800/50 rounded-lg transition-all" title="Löschen">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
+                      {/* Row 2: 5 Member Buttons */}
+                      <div className="flex flex-wrap gap-2">
+                        {groupSlots}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
@@ -407,30 +454,50 @@ export default function MythicPlus() {
           {/* MY Signups */}
           {myOutgoingSignups.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500 mb-1 ml-1">
+              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1">
                 Meine Anmeldungen
               </h2>
               <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {myOutgoingSignups.map((s: any) => (
-                  <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '12px 16px' }} className="flex justify-between items-center group">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
+                  <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '16px 20px' }} className="flex justify-between items-center group">
+                    <div className="flex items-center gap-6">
+                      <div className="flex flex-col">
                         <span className="font-bold text-base" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
                           {capitalizeName(s.character.name)}
                         </span>
-                        <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest bg-black/30 px-2 py-0.5 rounded border border-white/5">
+                        <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-0.5">
                           {s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}
                         </span>
                       </div>
-                      <p className="text-[11px] text-gray-400">
+
+                      <p className="text-sm text-gray-400">
                         Angemeldet für <span className="text-white font-bold">+{s.key.level} {s.key.dungeon}</span>
                       </p>
                     </div>
-                    <div className="flex flex-col items-end gap-3">
-                      <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-2 py-1 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
+                    <div className="flex items-center gap-6">
+                      <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-3 py-1.5 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
                         {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
                       </span>
-                      <button onClick={() => handleRemoveSignup(s.id)} className="text-[9px] text-red-500/50 hover:text-red-500 uppercase font-black tracking-[0.15em] transition-all bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/0 hover:border-red-500/20">
+
+                      <button
+                        onClick={() => handleRemoveSignup(s.id)}
+                        style={{
+                          background: 'rgba(163,48,201,0.1)',
+                          border: '1px solid rgba(163,48,201,0.3)',
+                          color: '#fff',
+                          padding: '6px 14px',
+                          borderRadius: '8px',
+                          fontSize: '10px',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '1px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          whiteSpace: 'nowrap' as const,
+                        }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.borderColor = '#ef4444'; }}
+                        onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
+                      >
                         Zurückziehen
                       </button>
                     </div>
