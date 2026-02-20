@@ -346,7 +346,7 @@ export default function MythicPlus() {
           {/* Signups for MY Keys */}
           {signupsForMyKeys.length > 0 && (
             <div className="flex flex-col gap-3">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1 px-1">
+              <h2 className="text-[13px] font-black uppercase tracking-[0.4em] text-gray-500 mb-2 ml-1 px-1 border-l-2 border-accent pl-4">
                 Anfragen für meine Keys
               </h2>
               <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
@@ -361,15 +361,37 @@ export default function MythicPlus() {
                     filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId)?.keys?.[0];
                   const confirmedSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
 
-                  // Build the 5 slots
-                  // 1. Owner
-                  // 2. Confirmed Signups
-                  // 3. Pending (if any, but usually we just show confirmed/filled)
+                  // Build the 5 slots STRICTLY: Tank, Heal, DPS, DPS, DPS
                   const keyholder = s.key?.character;
-                  const allFilled = [
-                    { role: keyholder?.role || 'DPS', char: keyholder, isOwner: true },
-                    ...confirmedSignups.map((sig: any) => ({ role: sig.primaryRole || 'DPS', char: sig.character, isOwner: false }))
-                  ].slice(0, 5);
+
+                  // Fill slots based on roles
+                  const slots = [
+                    { role: 'Tank', char: null as any },
+                    { role: 'Healer', char: null as any },
+                    { role: 'DPS', char: null as any },
+                    { role: 'DPS', char: null as any },
+                    { role: 'DPS', char: null as any }
+                  ];
+
+                  // 1. Place Keyholder
+                  const khRole = keyholder?.role === 'Heal' ? 'Healer' : keyholder?.role;
+                  if (khRole === 'Tank') slots[0].char = keyholder;
+                  else if (khRole === 'Healer') slots[1].char = keyholder;
+                  else {
+                    const freeDpsIdx = slots.findIndex(sl => sl.role === 'DPS' && !sl.char);
+                    if (freeDpsIdx !== -1) slots[freeDpsIdx].char = keyholder;
+                  }
+
+                  // 2. Place Confirmed Signups
+                  confirmedSignups.forEach((sig: any) => {
+                    const role = (sig.primaryRole === 'Heal' || sig.primaryRole === 'Healer') ? 'Healer' : (sig.primaryRole === 'Tank' ? 'Tank' : 'DPS');
+                    if (role === 'Tank' && !slots[0].char) slots[0].char = sig.character;
+                    else if (role === 'Healer' && !slots[1].char) slots[1].char = sig.character;
+                    else {
+                      const freeDpsIdx = slots.findIndex(sl => sl.role === 'DPS' && !sl.char);
+                      if (freeDpsIdx !== -1) slots[freeDpsIdx].char = sig.character;
+                    }
+                  });
 
                   const RoleIcon = ({ role, size = 12 }: { role: string, size?: number }) => {
                     if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
@@ -410,19 +432,19 @@ export default function MythicPlus() {
                         {/* ILVL Column */}
                         <div className="w-[80px] text-center flex flex-col">
                           <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">ILVL</span>
-                          <span className="text-lg font-black" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
+                          <span className="text-xl font-black text-white" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
                         </div>
 
                         {/* RIO Column */}
                         <div className="w-[80px] text-center flex flex-col">
                           <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">RIO</span>
-                          <span className="text-lg font-black" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
+                          <span className="text-xl font-black text-white" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
                         </div>
 
                         {/* Raid Progress Column */}
                         <div className="w-[140px] text-center flex flex-col">
                           <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">Raid Progress</span>
-                          <span className="text-[12px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
+                          <span className="text-[13px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
                         </div>
 
                         <div className="flex-1"></div>
@@ -463,11 +485,11 @@ export default function MythicPlus() {
 
                       {/* Row 2: 5 Member Slots */}
                       <div className="grid grid-cols-5 gap-3">
-                        {[0, 1, 2, 3, 4].map(idx => {
-                          const slot = allFilled[idx];
+                        {slots.map((slot, idx) => {
+                          const isOwner = slot.char?.id === keyholder?.id;
                           return (
-                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
-                              {slot ? (
+                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot.char ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
+                              {slot.char ? (
                                 <>
                                   <RoleIcon role={slot.role} size={14} />
                                   <div className="flex flex-col min-w-0">
@@ -478,12 +500,12 @@ export default function MythicPlus() {
                                       {capitalizeName(slot.char?.name)}
                                     </span>
                                     <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest leading-none">
-                                      {slot.isOwner ? 'Keyholder' : 'Mitglied'}
+                                      {isOwner ? 'Keyholder' : slot.role}
                                     </span>
                                   </div>
                                 </>
                               ) : (
-                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">Empty</span>
+                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">{slot.role} Slot</span>
                               )}
                             </div>
                           );
@@ -499,7 +521,7 @@ export default function MythicPlus() {
           {/* MY Signups */}
           {myOutgoingSignups.length > 0 && (
             <div className="flex flex-col gap-3 mt-4">
-              <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 mb-1 ml-1 px-1">
+              <h2 className="text-[13px] font-black uppercase tracking-[0.4em] text-gray-500 mb-2 ml-1 px-1 border-l-2 border-accent pl-4">
                 Meine Anmeldungen
               </h2>
               <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
@@ -509,15 +531,39 @@ export default function MythicPlus() {
                   const charUrlName = char.name?.toLowerCase();
                   const realmSlug = getRealmSlug(char.realm || '');
 
-                  // Find the full key object to get group status
+                  // Build the 5 slots STRICTLY: Tank, Heal, DPS, DPS, DPS
                   const fullKey = filteredMains.find(m => m.id === s.key?.character?.mainId)?.keys?.[0] ||
                     filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId)?.keys?.[0];
                   const confirmedSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
                   const keyholder = s.key?.character;
-                  const allFilled = [
-                    { role: keyholder?.role || 'DPS', char: keyholder, isOwner: true },
-                    ...confirmedSignups.map((sig: any) => ({ role: sig.primaryRole || 'DPS', char: sig.character, isOwner: false }))
-                  ].slice(0, 5);
+
+                  const slots = [
+                    { role: 'Tank', char: null as any },
+                    { role: 'Healer', char: null as any },
+                    { role: 'DPS', char: null as any },
+                    { role: 'DPS', char: null as any },
+                    { role: 'DPS', char: null as any }
+                  ];
+
+                  // 1. Place Keyholder
+                  const khRole = keyholder?.role === 'Heal' ? 'Healer' : keyholder?.role;
+                  if (khRole === 'Tank') slots[0].char = keyholder;
+                  else if (khRole === 'Healer') slots[1].char = keyholder;
+                  else {
+                    const freeDpsIdx = slots.findIndex(sl => sl.role === 'DPS' && !sl.char);
+                    if (freeDpsIdx !== -1) slots[freeDpsIdx].char = keyholder;
+                  }
+
+                  // 2. Place Confirmed Signups
+                  confirmedSignups.forEach((sig: any) => {
+                    const role = (sig.primaryRole === 'Heal' || sig.primaryRole === 'Healer') ? 'Healer' : (sig.primaryRole === 'Tank' ? 'Tank' : 'DPS');
+                    if (role === 'Tank' && !slots[0].char) slots[0].char = sig.character;
+                    else if (role === 'Healer' && !slots[1].char) slots[1].char = sig.character;
+                    else {
+                      const freeDpsIdx = slots.findIndex(sl => sl.role === 'DPS' && !sl.char);
+                      if (freeDpsIdx !== -1) slots[freeDpsIdx].char = sig.character;
+                    }
+                  });
 
                   const RoleIcon = ({ role, size = 12 }: { role: string, size?: number }) => {
                     if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
@@ -548,19 +594,19 @@ export default function MythicPlus() {
                         {/* ILVL Column */}
                         <div className="w-[80px] text-center flex flex-col">
                           <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">ILVL</span>
-                          <span className="text-lg font-black" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
+                          <span className="text-xl font-black text-white" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
                         </div>
 
                         {/* RIO Column */}
                         <div className="w-[80px] text-center flex flex-col">
                           <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">RIO</span>
-                          <span className="text-lg font-black" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
+                          <span className="text-xl font-black text-white" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
                         </div>
 
                         {/* Raid Progress Column */}
                         <div className="w-[140px] text-center flex flex-col">
                           <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">Raid Progress</span>
-                          <span className="text-[12px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
+                          <span className="text-[13px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
                         </div>
 
                         <div className="flex-1"></div>
@@ -598,11 +644,11 @@ export default function MythicPlus() {
 
                       {/* Row 2: 5 Member Slots */}
                       <div className="grid grid-cols-5 gap-3">
-                        {[0, 1, 2, 3, 4].map(idx => {
-                          const slot = allFilled[idx];
+                        {slots.map((slot, idx) => {
+                          const isOwner = slot.char?.id === keyholder?.id;
                           return (
-                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
-                              {slot ? (
+                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot.char ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
+                              {slot.char ? (
                                 <>
                                   <RoleIcon role={slot.role} size={14} />
                                   <div className="flex flex-col min-w-0">
@@ -613,12 +659,12 @@ export default function MythicPlus() {
                                       {capitalizeName(slot.char?.name)}
                                     </span>
                                     <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest leading-none">
-                                      {slot.isOwner ? 'Keyholder' : 'Mitglied'}
+                                      {isOwner ? 'Keyholder' : slot.role}
                                     </span>
                                   </div>
                                 </>
                               ) : (
-                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">Empty</span>
+                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">{slot.role} Slot</span>
                               )}
                             </div>
                           );
