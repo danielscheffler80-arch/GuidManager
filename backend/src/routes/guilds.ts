@@ -480,21 +480,27 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
       let dungeonName = key.dungeon;
       if (dungeonName && dungeonName.startsWith('MapID:')) {
         const mapId = parseInt(dungeonName.replace('MapID:', ''));
+        // Verified ChallengeMode IDs from Raider.io API
         const DUNGEON_MAP: Record<number, string> = {
-          // TWW Season 1+2
-          501: 'The Stonevault', 502: 'The Dawnbreaker', 503: 'Ara-Kara', 504: 'City of Threads',
-          505: 'Cinderbrew Meadery', 506: 'Darkflame Cleft', 507: 'Priory of the Sacred Flame',
-          508: 'The Rookery',
-          // Legacy / Returning
-          353: 'Siege of Boralus', 375: 'Mists of Tirna Scithe', 376: 'The Necrotic Wake',
-          370: 'Halls of Atonement', 392: 'Tazavesh: So\'leah\'s Gambit', 391: 'Tazavesh: Streets of Wonder',
-          2441: 'Tazavesh: So\'leah\'s Gambit',
-          // Midnight S1 (speculative IDs, will be updated)
-          657: 'Return to Karazhan', 1501: 'Court of Stars',
-          2515: 'The Azure Vault', 2521: 'Algeth\'ar Academy',
-          // More legacy dungeons
-          380: 'Theater of Pain', 381: 'De Other Side',
-          377: 'Spires of Ascension', 378: 'Plaguefall',
+          // TWW Dungeons
+          501: 'The Stonevault', 502: 'City of Threads', 503: 'Ara-Kara, City of Echoes',
+          504: 'Darkflame Cleft', 505: 'The Dawnbreaker', 506: 'Cinderbrew Meadery',
+          507: 'Grim Batol', 499: 'Priory of the Sacred Flame', 500: 'The Rookery',
+          525: 'Operation: Floodgate', 542: 'Eco-Dome Al\'dani',
+          // Shadowlands
+          375: 'Mists of Tirna Scithe', 376: 'The Necrotic Wake', 378: 'Halls of Atonement',
+          382: 'Theater of Pain',
+          // BfA
+          353: 'Siege of Boralus', 247: 'The MOTHERLODE!!',
+          370: 'Mechagon Workshop',
+          // Shadowlands M+ returning
+          391: 'Tazavesh: Streets of Wonder', 392: 'Tazavesh: So\'leah\'s Gambit',
+          // Legion 
+          197: 'Eye of Azshara', 198: 'Darkheart Thicket', 199: 'Black Rook Hold',
+          200: 'Halls of Valor', 206: 'Neltharion\'s Lair', 207: 'Vault of the Wardens',
+          208: 'Maw of Souls', 209: 'The Arcway', 210: 'Court of Stars',
+          227: 'Return to Karazhan: Lower', 233: 'Cathedral of Eternal Night',
+          234: 'Return to Karazhan: Upper', 239: 'Seat of the Triumvirate',
         };
         dungeonName = DUNGEON_MAP[mapId] || `Dungeon (${mapId})`;
         console.log(`[AddonSync] Resolved MapID ${mapId} -> ${dungeonName}`);
