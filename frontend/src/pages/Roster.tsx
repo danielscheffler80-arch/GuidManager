@@ -86,8 +86,17 @@ export default function Roster() {
       : false;
 
     if (selectedRosterView === 'all') {
-      const isActuallyExternal = member.guildId !== selectedGuild?.id && !(member as any).userId;
-      if (isActuallyExternal) return false;
+      // In "Alle Mitglieder", we strictly ONLY show characters that belong to this guild.
+      // No external characters, even if they belong to a user in the guild or were manually added somewhere.
+      const rawRank = (member as any).rank;
+      const rank = rawRank === null || rawRank === undefined ? null : Number(rawRank);
+
+      const isNativelyFromOtherGuild = member.guildId && member.guildId !== selectedGuild?.id;
+      const isMissingGuildId = !member.guildId; // Can happen with fresh battle.net sync before guild sync
+
+      const belongsToThisGuild = !isNativelyFromOtherGuild && !(isMissingGuildId && rank === null);
+
+      if (!belongsToThisGuild) return false;
       return (filter && filter !== 'all' && filter.trim().length > 0) ? matchesFilter : true;
     }
 
