@@ -404,11 +404,9 @@ export default function MythicPlus() {
           const altMatches = main.alts?.filter((alt: any) => matchesFilter(alt)) || [];
           const filterActive = keyFilter.search || keyFilter.min > 0 || keyFilter.max < 99;
 
-          // Auto-expand if ANY alt has a key (default) or matches the filter
-          const anyAltHasKey = main.alts?.some((a: any) => a.keys?.length > 0);
           const anyAltMatches = filterActive && altMatches.length > 0;
 
-          const isExpanded = expandedMains.includes(main.id) || anyAltHasKey || anyAltMatches;
+          const isExpanded = expandedMains.includes(main.id) || anyAltMatches;
 
           return (
             <div key={main.id} className="flex flex-col">
