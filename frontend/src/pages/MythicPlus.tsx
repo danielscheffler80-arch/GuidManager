@@ -384,12 +384,12 @@ export default function MythicPlus() {
                     const current = allFilled[idx];
 
                     return (
-                      <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold ${current ? 'bg-[#1a1a1a] border-gray-700/50' : 'bg-transparent border-dashed border-gray-800 text-gray-800'}`}>
-                        {current ? (
+                      <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[10px] font-bold ${current && current.char ? 'bg-[#1a1a1a] border-gray-700/50' : 'bg-transparent border-dashed border-gray-800 text-gray-800'}`}>
+                        {current && current.char ? (
                           <>
                             <RoleIcon role={current.role} />
-                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: getClassColor(current.char.classId || current.char.class) }}></div>
-                            <span style={{ color: getClassColor(current.char.classId || current.char.class) }}>{capitalizeName(current.char.name)}</span>
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: getClassColor(current.char?.classId || current.char?.class) }}></div>
+                            <span style={{ color: getClassColor(current.char?.classId || current.char?.class) }}>{capitalizeName(current.char?.name)}</span>
                           </>
                         ) : (
                           <span>Slot {idx + 1}</span>
@@ -402,8 +402,8 @@ export default function MythicPlus() {
                     <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '16px' }} className="flex flex-col gap-4">
                       {/* Row 1: Single Line Info */}
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-base" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
-                          {capitalizeName(s.character.name)}
+                        <span className="font-bold text-base" style={{ color: getClassColor(s.character?.classId || s.character?.class) }}>
+                          {capitalizeName(s.character?.name)}
                         </span>
                         <span className="text-gray-500 text-sm">Möchte mit für</span>
                         <span className="text-[var(--accent)] font-bold text-sm">+{s.key.level} {s.key.dungeon}</span>
@@ -462,8 +462,8 @@ export default function MythicPlus() {
                   <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '16px 20px' }} className="flex justify-between items-center group">
                     <div className="flex items-center gap-6">
                       <div className="flex flex-col">
-                        <span className="font-bold text-base" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
-                          {capitalizeName(s.character.name)}
+                        <span className="font-bold text-base" style={{ color: getClassColor(s.character?.classId || s.character?.class) }}>
+                          {capitalizeName(s.character?.name)}
                         </span>
                         <span className="text-[10px] text-gray-500 uppercase font-black tracking-widest mt-0.5">
                           {s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}
