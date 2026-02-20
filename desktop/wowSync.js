@@ -158,6 +158,8 @@ class WoWKeystoneSync {
 
                 const levelMatch = /\["level"\]\s*=\s*(\d+)/.exec(dataBlock);
                 const dungeonMatch = /\["dungeonName"\]\s*=\s*"([^"]+)"/.exec(dataBlock);
+                const timestampMatch = /\["timestamp"\]\s*=\s*(\d+)/.exec(dataBlock);
+                const sourceMatch = /\["source"\]\s*=\s*"([^"]+)"/.exec(dataBlock);
 
                 if (levelMatch && dungeonMatch) {
                     const parts = charKey.split('-');
@@ -171,6 +173,8 @@ class WoWKeystoneSync {
                             realm: realm,
                             level: parseInt(levelMatch[1]),
                             dungeon: dungeonMatch[1],
+                            timestamp: timestampMatch ? parseInt(timestampMatch[1]) : null,
+                            source: sourceMatch ? sourceMatch[1] : 'native',
                             isFromBag: true
                         });
                     }

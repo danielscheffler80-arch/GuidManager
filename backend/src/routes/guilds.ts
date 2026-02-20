@@ -503,6 +503,9 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
               where: { characterId: character.id, isFromBag: true } as any
             });
 
+            // Use addon-provided timestamp if available, otherwise use now
+            const detectedAt = key.timestamp ? new Date(key.timestamp * 1000) : new Date();
+
             const newKey = await (prisma as any).mythicKey.create({
               data: {
                 characterId: character.id,
@@ -510,10 +513,11 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
                 level: key.level,
                 affixes: '[]',
                 isFromBag: true,
-                completed: false
+                completed: false,
+                createdAt: detectedAt
               } as any
             });
-            console.log(`[AddonSync] SUCCESS: Created new key ID ${newKey.id} for ${character.name} (Old signups auto-cleared)`);
+            console.log(`[AddonSync] SUCCESS: Created new key ID ${newKey.id} for ${character.name} (Source: ${key.source || 'native'}, Detected: ${detectedAt.toISOString()})`);
           }
         } catch (dbErr: any) {
           console.error(`[AddonSync] DB ERROR for ${character.name}:`, dbErr.message);

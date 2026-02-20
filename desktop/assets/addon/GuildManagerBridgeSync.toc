@@ -1,7 +1,7 @@
 ## Interface: 120000
 ## Title: Guild Manager Bridge Sync
 ## Author: Xava
-## Version: 1.3.0
+## Version: 1.4.0
 ## Notes: Bridge for WoW to Guild Manager Desktop App (Persistent Version)
 ## SavedVariables: GuildManagerBridgeDB
 
