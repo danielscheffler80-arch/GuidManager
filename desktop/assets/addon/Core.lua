@@ -76,13 +76,11 @@ end
 
 -- AlterEgo Integration: Read keystone data from AlterEgo for all tracked characters
 local function ScanAlterEgo()
-    if not AlterEgoDB then return end -- AlterEgo not installed
-    if not AlterEgoDB.db then return end
+    if not AlterEgoDB then return 0 end
     
-    -- AlterEgo stores characters under db.global.characters or db.characters (depending on version)
+    -- Find characters table in AlterEgo's DB structure
     local characters = nil
     
-    -- Try different AlterEgo DB structures
     if AlterEgoDB.db and AlterEgoDB.db.global and AlterEgoDB.db.global.characters then
         characters = AlterEgoDB.db.global.characters
     elseif AlterEgoDB.global and AlterEgoDB.global.characters then
@@ -97,49 +95,78 @@ local function ScanAlterEgo()
                 characters[key] = val
             end
         end
-        if next(characters) == nil then return end
+        if next(characters) == nil then return 0 end
     end
-    
-    if not GuildManagerBridgeDB then GuildManagerBridgeDB = {} end
-    if not GuildManagerBridgeDB.keys then GuildManagerBridgeDB.keys = {} end
     
     local currentChar = UnitName("player") .. "-" .. GetRealmName()
     local count = 0
     
     for guid, charData in pairs(characters) do
-        -- Skip if no mythicplus data
         if charData and charData.mythicplus and charData.mythicplus.keystone then
             local ks = charData.mythicplus.keystone
             
-            -- AlterEgo stores: mapId, challengeModeID, level, link, color, itemId
             if ks.level and ks.level > 0 and (ks.mapId or ks.challengeModeID) then
-                -- Resolve character name from AlterEgo info
-                local charName = nil
-                local charRealm = nil
-                
-                if charData.info and charData.info.name then
-                    charName = charData.info.name
-                end
-                if charData.info and charData.info.realm then
-                    charRealm = charData.info.realm
-                end
+                local charName = charData.info and charData.info.name
+                local charRealm = charData.info and charData.info.realm
                 
                 if charName and charRealm then
                     local charKey = charName .. "-" .. charRealm
                     
                     -- Don't overwrite native scan for the currently logged-in character
                     if charKey ~= currentChar then
-                        local mapID = ks.mapId or ks.challengeModeID
-                        local dungeonName = GetDungeonName(mapID)
-                        
                         local existing = GuildManagerBridgeDB.keys[charKey]
-                        if not existing or existing.level ~= ks.level or existing.mapID ~= mapID then
+                        -- Don't overwrite native source with alterego source
+                        if not existing or existing.source ~= "native" then
+                            local mapID = ks.mapId or ks.challengeModeID
+                            local dungeonName = GetDungeonName(mapID)
+                            
+                            if not existing or existing.level ~= ks.level or existing.mapID ~= mapID then
+                                GuildManagerBridgeDB.keys[charKey] = {
+                                    level = ks.level,
+                                    mapID = mapID,
+                                    dungeonName = dungeonName or "Unknown",
+                                    timestamp = time(),
+                                    source = "alterego"
+                                }
+                                count = count + 1
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return count
+end
+
+-- BigWigs Integration: Read keystone data from BigWigs3DB.myKeystones
+local function ScanBigWigs()
+    if not BigWigs3DB or not BigWigs3DB.myKeystones then return 0 end
+    
+    local currentChar = UnitName("player") .. "-" .. GetRealmName()
+    local count = 0
+    
+    for guid, data in pairs(BigWigs3DB.myKeystones) do
+        if data.name and data.realm and data.keyLevel and data.keyMap then
+            local charKey = data.name .. "-" .. data.realm
+            
+            -- Don't overwrite native scan for the currently logged-in character
+            if charKey ~= currentChar then
+                -- Skip entries with level 0 (no key)
+                if data.keyLevel > 0 and data.keyMap > 0 then
+                    local existing = GuildManagerBridgeDB.keys[charKey]
+                    -- Don't overwrite native source with bigwigs source
+                    if not existing or existing.source ~= "native" then
+                        local dungeonName = GetDungeonName(data.keyMap)
+                        
+                        if not existing or existing.level ~= data.keyLevel or existing.mapID ~= data.keyMap then
                             GuildManagerBridgeDB.keys[charKey] = {
-                                level = ks.level,
-                                mapID = mapID,
+                                level = data.keyLevel,
+                                mapID = data.keyMap,
                                 dungeonName = dungeonName or "Unknown",
                                 timestamp = time(),
-                                source = "alterego"
+                                source = "bigwigs"
                             }
                             count = count + 1
                         end
@@ -149,8 +176,20 @@ local function ScanAlterEgo()
         end
     end
     
-    if count > 0 then
-        print("|cff00aaff[GuildManager]|r AlterEgo: |cff00ff00" .. count .. " additional keystones|r imported from alts.")
+    return count
+end
+
+-- Unified external addon scanner
+local function ScanExternalAddons()
+    if not GuildManagerBridgeDB then GuildManagerBridgeDB = {} end
+    if not GuildManagerBridgeDB.keys then GuildManagerBridgeDB.keys = {} end
+    
+    local totalImported = 0
+    totalImported = totalImported + ScanAlterEgo()
+    totalImported = totalImported + ScanBigWigs()
+    
+    if totalImported > 0 then
+        print("|cff00aaff[GuildManager]|r Imported |cff00ff00" .. totalImported .. " keystones|r from external addons (AlterEgo, BigWigs).")
     end
 end
 
@@ -159,8 +198,8 @@ f:SetScript("OnEvent", function(self, event, ...)
         if not GuildManagerBridgeDB then GuildManagerBridgeDB = {} end
         print("|cff00aaff[GuildManager]|r Bridge v1.4.0 active. Tracking keystones.")
         ScanKeystone()
-        -- Delay AlterEgo scan slightly to ensure its SavedVariables are loaded
-        C_Timer.After(3, ScanAlterEgo)
+        -- Delay external addon scan to ensure their SavedVariables are loaded
+        C_Timer.After(3, ScanExternalAddons)
     else
         ScanKeystone()
     end
@@ -170,7 +209,7 @@ end)
 SLASH_GMBRIDGE1 = "/gmbridge"
 SlashCmdList["GMBRIDGE"] = function(msg)
     if msg == "scan" then
-        ScanAlterEgo()
+        ScanExternalAddons()
         return
     end
     
