@@ -121,13 +121,7 @@ export default function MythicPlus() {
   return (
     <section className="page-container p-4 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-[#1a1a1a]/80 backdrop-blur-md p-6 rounded-2xl border border-gray-800 shadow-2xl">
-        <div>
-          <h1 className="text-4xl font-black italic uppercase tracking-tighter text-white drop-shadow-lg">
-            Mythic<span className="text-accent">+</span> Keys
-          </h1>
-          <p className="text-gray-400 text-sm mt-1">Gilden-Keys, Twinks und Gruppensuche</p>
-        </div>
+      <div className="flex justify-end items-center gap-4 bg-[#1a1a1a]/80 backdrop-blur-md p-4 rounded-2xl border border-gray-800 shadow-2xl">
         <button
           onClick={handleSync}
           disabled={syncing}
