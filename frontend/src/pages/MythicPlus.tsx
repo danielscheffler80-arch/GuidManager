@@ -400,16 +400,21 @@ export default function MythicPlus() {
                   };
 
                   return (
-                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] p-5 flex flex-col gap-5">
+                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] flex flex-col gap-4" style={{ padding: '16px' }}>
                       {/* Row 1: Unified Char Row Design */}
                       <div className="flex items-center justify-between w-full">
                         {/* Name Column */}
                         <div style={{ width: '220px', flexShrink: 0 }}>
-                          <div className="flex items-center gap-2">
-                            <span
-                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.1em', fontWeight: 'bold' }}
-                              className="leading-tight"
-                            >
+                          <div
+                            style={{
+                              fontWeight: 'bold',
+                              fontSize: '1.1em',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <span style={{ color: getClassColor(char.classId || char.class) }}>
                               {capitalizeName(char.name)}
                             </span>
                             <span style={{
@@ -457,9 +462,8 @@ export default function MythicPlus() {
 
                         {/* Key Info + Actions */}
                         <div className="flex items-center gap-4">
-                          <div className="flex flex-col items-end">
-                            <span className="text-[11px] text-gray-400 font-bold">{s.key?.dungeon}</span>
-                            <span className="text-xl font-black text-white">+{s.key?.level}</span>
+                          <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#ccc', whiteSpace: 'nowrap' }}>
+                            {s.key?.dungeon} +{s.key?.level}
                           </div>
 
                           <div className="flex gap-2">
@@ -500,22 +504,22 @@ export default function MythicPlus() {
                                 background: '#1D1E1F',
                                 border: '1px solid #333',
                                 borderRadius: '10px',
-                                padding: '8px 12px',
+                                padding: '2px 10px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '10px',
-                                height: '48px',
+                                gap: '8px',
+                                height: '26px',
                                 transition: 'all 0.2s'
                               }}
                               className={slot.char ? '' : 'opacity-40 border-dashed border-gray-800'}
                             >
-                              <RoleIcon role={slot.role} size={14} />
+                              <RoleIcon role={slot.role} size={12} />
                               {slot.char ? (
-                                <div className="flex flex-col min-w-0">
+                                <div className="flex flex-row items-center gap-2 min-w-0">
                                   <span
                                     style={{
                                       color: getClassColor(slot.char?.classId || slot.char?.class),
-                                      fontSize: '0.95em',
+                                      fontSize: '0.85em',
                                       fontWeight: 'bold',
                                       whiteSpace: 'nowrap',
                                       overflow: 'hidden',
@@ -524,12 +528,12 @@ export default function MythicPlus() {
                                   >
                                     {capitalizeName(slot.char?.name)}
                                   </span>
-                                  <span style={{ fontSize: '0.7em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  <span style={{ fontSize: '0.65em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     {isOwner ? 'Keyholder' : slot.role}
                                   </span>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: '0.8em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                <span style={{ fontSize: '0.75em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                   {slot.role} Slot
                                 </span>
                               )}
@@ -603,14 +607,29 @@ export default function MythicPlus() {
                       <div className="flex items-center justify-between w-full">
                         {/* Name Column */}
                         <div style={{ width: '220px', flexShrink: 0 }}>
-                          <div className="flex items-center gap-2">
-                            <span
-                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.1em', fontWeight: 'bold' }}
-                              className="leading-tight"
-                            >
+                          <div
+                            style={{
+                              fontWeight: 'bold',
+                              fontSize: '1.1em',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <span style={{ color: getClassColor(char.classId || char.class) }}>
                               {capitalizeName(char.name)}
                             </span>
-                            <span className={`text-[9px] px-2 py-0.5 rounded border font-black uppercase tracking-widest ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
+                            <span style={{
+                              fontSize: '8px',
+                              background: s.status === 'accepted' ? 'rgba(16,185,129,0.1)' : s.status === 'declined' ? 'rgba(239,68,68,0.1)' : 'rgba(163,48,201,0.2)',
+                              color: s.status === 'accepted' ? '#10B981' : s.status === 'declined' ? '#EF4444' : 'var(--accent)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: 900,
+                              letterSpacing: '1px',
+                              textTransform: 'uppercase',
+                              border: '1px solid #333'
+                            }}>
                               {s.status === 'accepted' ? 'Accepted' : s.status === 'declined' ? 'Declined' : 'Pending'}
                             </span>
                           </div>
@@ -685,22 +704,22 @@ export default function MythicPlus() {
                                 background: '#1D1E1F',
                                 border: '1px solid #333',
                                 borderRadius: '10px',
-                                padding: '8px 12px',
+                                padding: '2px 10px',
                                 display: 'flex',
                                 alignItems: 'center',
-                                gap: '10px',
-                                height: '48px',
+                                gap: '8px',
+                                height: '26px',
                                 transition: 'all 0.2s'
                               }}
                               className={slot.char ? '' : 'opacity-40 border-dashed border-gray-800'}
                             >
-                              <RoleIcon role={slot.role} size={14} />
+                              <RoleIcon role={slot.role} size={12} />
                               {slot.char ? (
-                                <div className="flex flex-col min-w-0">
+                                <div className="flex flex-row items-center gap-2 min-w-0">
                                   <span
                                     style={{
                                       color: getClassColor(slot.char?.classId || slot.char?.class),
-                                      fontSize: '0.95em',
+                                      fontSize: '0.85em',
                                       fontWeight: 'bold',
                                       whiteSpace: 'nowrap',
                                       overflow: 'hidden',
@@ -709,12 +728,12 @@ export default function MythicPlus() {
                                   >
                                     {capitalizeName(slot.char?.name)}
                                   </span>
-                                  <span style={{ fontSize: '0.7em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  <span style={{ fontSize: '0.65em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                     {isOwner ? 'Keyholder' : slot.role}
                                   </span>
                                 </div>
                               ) : (
-                                <span style={{ fontSize: '0.8em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                <span style={{ fontSize: '0.75em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
                                   {slot.role} Slot
                                 </span>
                               )}
