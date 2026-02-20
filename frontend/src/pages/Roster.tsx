@@ -510,15 +510,15 @@ export default function Roster() {
 
                     if (!selectedRoster && !isMain && selectedRosterView !== 'all') return 1;
                     if (selectedRosterView === 'all') return 1;
-
-                    const r = Number((member as any).rank);
+                    const rawRank = (member as any).rank;
+                    const r = rawRank === null || rawRank === undefined ? null : Number(rawRank);
                     const isActuallyExternal = member.guildId !== selectedGuild?.id;
 
                     let isInRost = false;
                     if (isMain) {
                       const isEx = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
                       const isIn = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
-                      const hasR = !isActuallyExternal && metadata?.visibleRanks?.includes(r);
+                      const hasR = !isActuallyExternal && r !== null && metadata?.visibleRanks?.includes(r);
                       isInRost = (hasR && !isEx) || isIn;
                     } else if (selectedRoster) {
                       const isEx = selectedRoster.excludedCharacterIds?.includes(member.id);
