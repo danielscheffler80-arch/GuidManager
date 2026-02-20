@@ -343,41 +343,58 @@ export default function MythicPlus() {
       {/* --- Dashboard: Mythic+ Signups --- */}
       {(signupsForMyKeys.length > 0 || myOutgoingSignups.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Signups for MY Keys */}
           {signupsForMyKeys.length > 0 && (
-            <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
-              <div className="bg-gradient-to-r from-[#222] to-[#1a1a1a] p-4 border-b border-gray-800">
-                <h2 className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
-                  Anfragen für meine Keys
-                </h2>
-              </div>
-              <div className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[400px]">
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500 mb-1 ml-1">
+                Anfragen für meine Keys
+              </h2>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {signupsForMyKeys.map((s: any) => (
-                  <div key={s.id} className="bg-[#111] border border-gray-800 p-3 rounded-xl hover:border-gray-700 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <div>
-                        <p className="font-bold text-sm" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
+                  <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '12px 16px' }} className="flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-base" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
                           {capitalizeName(s.character.name)}
-                        </p>
-                        <p className="text-xs text-gray-500">Möchte mit für <span className="text-accent font-bold">+{s.key.level} {s.key.dungeon}</span></p>
+                        </span>
+                        <span className="text-gray-400 text-[11px] font-medium mt-0.5">
+                          Möchte mit für <span className="text-accent font-bold">+{s.key.level} {s.key.dungeon}</span>
+                        </span>
                       </div>
-                      <span className={`px-2 py-1 rounded-md uppercase tracking-wider font-bold text-[9px] ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border border-yellow-500/20'}`}>
-                        {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
-                      </span>
+                      <div className="flex flex-col items-end gap-2">
+                        <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-2 py-1 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
+                          {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-[10px] uppercase font-bold tracking-wider mb-3">
-                      <span className="bg-[#222] text-gray-300 px-2 py-1 rounded">Main: {s.primaryRole}</span>
-                      {s.secondaryRole && <span className="bg-[#222] text-gray-500 px-2 py-1 rounded">Alt: {s.secondaryRole}</span>}
+
+                    <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Main</span>
+                        <span className="text-[10px] text-white font-bold">{s.primaryRole}</span>
+                      </div>
+                      {s.secondaryRole && (
+                        <div className="flex flex-col">
+                          <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Alt</span>
+                          <span className="text-[10px] text-gray-400 font-bold">{s.secondaryRole}</span>
+                        </div>
+                      )}
                     </div>
-                    {s.message && <p className="text-xs text-gray-400 italic bg-[#222]/50 p-2 rounded-lg mb-3 border border-gray-800/50 block w-full whitespace-normal break-words">"{s.message}"</p>}
-                    <div className="flex gap-2">
+
+                    {s.message && (
+                      <div className="bg-black/20 p-2 rounded-lg border border-white/5">
+                        <p className="text-[11px] text-gray-500 italic block w-full whitespace-normal break-words leading-relaxed">"{s.message}"</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 mt-1">
                       {s.status === 'pending' && (
                         <>
-                          <button onClick={() => handleUpdateSignup(s.id, 'accepted')} className="flex-1 text-green-400 bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 py-1.5 rounded-lg text-xs font-bold transition-all">Annehmen</button>
-                          <button onClick={() => handleUpdateSignup(s.id, 'declined')} className="flex-1 text-red-500 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 py-1.5 rounded-lg text-xs font-bold transition-all">Ablehnen</button>
+                          <button onClick={() => handleUpdateSignup(s.id, 'accepted')} className="flex-1 bg-green-500/10 hover:bg-green-500/20 text-green-500 border border-green-500/20 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Annehmen</button>
+                          <button onClick={() => handleUpdateSignup(s.id, 'declined')} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">Ablehnen</button>
                         </>
                       )}
-                      <button onClick={() => handleRemoveSignup(s.id)} className="px-3 text-gray-500 hover:text-white bg-[#222] hover:bg-red-500/20 hover:border-red-500/30 border border-gray-800 rounded-lg transition-all" title="Löschen">
+                      <button onClick={() => handleRemoveSignup(s.id)} className="px-3 text-gray-600 hover:text-white bg-[#222] hover:bg-red-500/20 hover:border-red-500/30 border border-gray-800/50 rounded-lg transition-all" title="Löschen">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
@@ -387,29 +404,35 @@ export default function MythicPlus() {
             </div>
           )}
 
+          {/* MY Signups */}
           {myOutgoingSignups.length > 0 && (
-            <div className="bg-[#1a1a1a] rounded-2xl border border-gray-800 shadow-xl overflow-hidden flex flex-col">
-              <div className="bg-gradient-to-r from-[#222] to-[#1a1a1a] p-4 border-b border-gray-800">
-                <h2 className="text-lg font-black uppercase tracking-widest text-white flex items-center gap-2">
-                  <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                  Meine Anmeldungen
-                </h2>
-              </div>
-              <div className="p-4 space-y-3 flex-1 overflow-y-auto max-h-[400px]">
+            <div className="flex flex-col gap-3">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em] text-gray-500 mb-1 ml-1">
+                Meine Anmeldungen
+              </h2>
+              <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
                 {myOutgoingSignups.map((s: any) => (
-                  <div key={s.id} className="bg-[#111] border border-gray-700/50 p-3 rounded-xl flex justify-between items-center group">
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-sm" style={{ color: getClassColor(s.character.classId || s.character.class) }}>{capitalizeName(s.character.name)}</span>
-                        <span className="text-gray-500 text-[10px] uppercase font-bold tracking-widest bg-[#222] px-1.5 py-0.5 rounded">{s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}</span>
+                  <div key={s.id} style={{ background: '#1D1E1F', border: '1px solid #333', borderRadius: '12px', padding: '12px 16px' }} className="flex justify-between items-center group">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-base" style={{ color: getClassColor(s.character.classId || s.character.class) }}>
+                          {capitalizeName(s.character.name)}
+                        </span>
+                        <span className="text-gray-500 text-[10px] uppercase font-black tracking-widest bg-black/30 px-2 py-0.5 rounded border border-white/5">
+                          {s.primaryRole} {s.secondaryRole ? `/ ${s.secondaryRole}` : ''}
+                        </span>
                       </div>
-                      <p className="text-xs text-gray-400">Angemeldet für <span className="text-white font-bold">+{s.key.level} {s.key.dungeon}</span></p>
+                      <p className="text-[11px] text-gray-400">
+                        Angemeldet für <span className="text-white font-bold">+{s.key.level} {s.key.dungeon}</span>
+                      </p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span className={`px-2 py-1 rounded-md uppercase tracking-wider font-bold text-[9px] ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10' : s.status === 'declined' ? 'text-red-500 bg-red-500/10' : 'text-yellow-500 bg-yellow-500/10'}`}>
+                    <div className="flex flex-col items-end gap-3">
+                      <span style={{ fontSize: '9px', fontWeight: 900, letterSpacing: '1px' }} className={`px-2 py-1 rounded uppercase border ${s.status === 'accepted' ? 'text-green-500 bg-green-500/10 border-green-500/20' : s.status === 'declined' ? 'text-red-500 bg-red-500/10 border-red-500/20' : 'text-yellow-500 bg-yellow-500/10 border-yellow-500/20'}`}>
                         {s.status === 'pending' ? 'Ausstehend' : s.status === 'accepted' ? 'Angenommen' : 'Abgelehnt'}
                       </span>
-                      <button onClick={() => handleRemoveSignup(s.id)} className="text-[10px] text-red-500/70 hover:text-red-400 uppercase font-bold tracking-widest transition-colors">Zurückziehen</button>
+                      <button onClick={() => handleRemoveSignup(s.id)} className="text-[9px] text-red-500/50 hover:text-red-500 uppercase font-black tracking-[0.15em] transition-all bg-red-500/5 hover:bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/0 hover:border-red-500/20">
+                        Zurückziehen
+                      </button>
                     </div>
                   </div>
                 ))}
