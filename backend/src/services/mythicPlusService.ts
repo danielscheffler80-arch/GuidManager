@@ -66,7 +66,7 @@ export class MythicPlusService {
 
                 processedUserIds.add(char.userId);
 
-                const alts = userChars.filter(c => c.id !== mainChar.id);
+                const alts = userChars.filter(c => c.id !== mainChar.id && c.isFavorite);
 
                 // Sammle alle eingehenden Bewerbungen auf die Keys dieses Users (Main + Alts)
                 const allKeysOfUser = [...mainChar.mythicKeys, ...alts.flatMap(a => a.mythicKeys)];
