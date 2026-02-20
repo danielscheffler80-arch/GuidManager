@@ -476,6 +476,30 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
 
       console.log(`[AddonSync] Target: ${lowerName} on ${lowerRealm} (+${key.level} ${key.dungeon})`);
 
+      // Resolve MapID-based dungeon names from BigWigs/AlterEgo
+      let dungeonName = key.dungeon;
+      if (dungeonName && dungeonName.startsWith('MapID:')) {
+        const mapId = parseInt(dungeonName.replace('MapID:', ''));
+        const DUNGEON_MAP: Record<number, string> = {
+          // TWW Season 1+2
+          501: 'The Stonevault', 502: 'The Dawnbreaker', 503: 'Ara-Kara', 504: 'City of Threads',
+          505: 'Cinderbrew Meadery', 506: 'Darkflame Cleft', 507: 'Priory of the Sacred Flame',
+          508: 'The Rookery',
+          // Legacy / Returning
+          353: 'Siege of Boralus', 375: 'Mists of Tirna Scithe', 376: 'The Necrotic Wake',
+          370: 'Halls of Atonement', 392: 'Tazavesh: So\'leah\'s Gambit', 391: 'Tazavesh: Streets of Wonder',
+          2441: 'Tazavesh: So\'leah\'s Gambit',
+          // Midnight S1 (speculative IDs, will be updated)
+          657: 'Return to Karazhan', 1501: 'Court of Stars',
+          2515: 'The Azure Vault', 2521: 'Algeth\'ar Academy',
+          // More legacy dungeons
+          380: 'Theater of Pain', 381: 'De Other Side',
+          377: 'Spires of Ascension', 378: 'Plaguefall',
+        };
+        dungeonName = DUNGEON_MAP[mapId] || `Dungeon (${mapId})`;
+        console.log(`[AddonSync] Resolved MapID ${mapId} -> ${dungeonName}`);
+      }
+
       const character = await prisma.character.findUnique({
         where: { name_realm: { name: lowerName, realm: lowerRealm } }
       });
@@ -490,7 +514,7 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
             where: { characterId: character.id, isFromBag: true }
           });
 
-          if (existingKey && existingKey.dungeon === key.dungeon && existingKey.level === key.level) {
+          if (existingKey && existingKey.dungeon === dungeonName && existingKey.level === key.level) {
             // Key is the same, just update timestamp
             await (prisma as any).mythicKey.update({
               where: { id: existingKey.id },
@@ -509,7 +533,7 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
             const newKey = await (prisma as any).mythicKey.create({
               data: {
                 characterId: character.id,
-                dungeon: key.dungeon,
+                dungeon: dungeonName,
                 level: key.level,
                 affixes: '[]',
                 isFromBag: true,
