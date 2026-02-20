@@ -156,6 +156,30 @@ export default function MythicPlus() {
 
   const getRealmSlug = (realm: string) => realm.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
 
+  const getClassIcon = (classId: number | string) => {
+    const classMap: Record<number | string, string> = {
+      1: 'warrior', 2: 'paladin', 3: 'hunter', 4: 'rogue', 5: 'priest', 6: 'deathknight',
+      7: 'shaman', 8: 'mage', 9: 'warlock', 10: 'monk', 11: 'druid', 12: 'demonhunter', 13: 'evoker'
+    };
+    const key = classMap[classId] || String(classId).toLowerCase().replace(/\s+/g, '');
+    return `https://render.worldofwarcraft.com/us/icons/56/classicon_${key}.jpg`;
+  };
+
+  const RoleIcon = ({ role, size = 12, char }: { role: string, size?: number, char?: any }) => {
+    if (char) {
+      return (
+        <img
+          src={getClassIcon(char.classId || char.class)}
+          style={{ width: size, height: size, borderRadius: '2px', objectFit: 'cover' }}
+          alt={char.class}
+        />
+      );
+    }
+    if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
+    if (role === 'Healer' || role === 'Heal') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
+    return <svg width={size} height={size} viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
+  };
+
   const renderCharRow = (char: any, isMain: boolean, key: any) => {
     const charUrlName = char.name.toLowerCase();
     const realmSlug = getRealmSlug(char.realm || '');
@@ -393,11 +417,7 @@ export default function MythicPlus() {
                     }
                   });
 
-                  const RoleIcon = ({ role, size = 12 }: { role: string, size?: number }) => {
-                    if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
-                    if (role === 'Healer' || role === 'Heal') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
-                    return <svg width={size} height={size} viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
-                  };
+                  const pendingSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'pending') || [];
 
                   return (
                     <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] flex flex-col gap-4" style={{ padding: '16px' }}>
@@ -461,7 +481,7 @@ export default function MythicPlus() {
                         <div className="flex-1"></div>
 
                         {/* Key Info + Actions */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center " style={{ gap: '5px' }}>
                           <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#ccc', whiteSpace: 'nowrap' }}>
                             {s.key?.dungeon} +{s.key?.level}
                           </div>
@@ -511,9 +531,9 @@ export default function MythicPlus() {
                                 height: '26px',
                                 transition: 'all 0.2s'
                               }}
-                              className={slot.char ? '' : 'opacity-40 border-dashed border-gray-800'}
+                              className={slot.char ? '' : 'opacity-100 border-dashed border-gray-800'}
                             >
-                              <RoleIcon role={slot.role} size={12} />
+                              <RoleIcon role={slot.role} size={12} char={slot.char} />
                               {slot.char ? (
                                 <div className="flex flex-row items-center gap-2 min-w-0">
                                   <span
@@ -532,11 +552,46 @@ export default function MythicPlus() {
                                     {isOwner ? 'Keyholder' : slot.role}
                                   </span>
                                 </div>
-                              ) : (
-                                <span style={{ fontSize: '0.75em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                                  {slot.role} Slot
-                                </span>
-                              )}
+                              ) : (() => {
+                                const rolePending = pendingSignups.filter((sig: any) => {
+                                  const sigRole = (sig.role === 'Healer' || sig.role === 'Heal' || sig.primaryRole === 'Heal' || sig.primaryRole === 'Healer') ? 'Healer' : (sig.role === 'Tank' || sig.primaryRole === 'Tank' ? 'Tank' : 'DPS');
+                                  return sigRole === slot.role;
+                                });
+
+                                if (rolePending.length > 0) {
+                                  return (
+                                    <select
+                                      onChange={(e) => {
+                                        if (e.target.value) handleUpdateSignup(Number(e.target.value), 'accepted');
+                                      }}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        color: 'var(--accent)',
+                                        fontSize: '0.75em',
+                                        fontWeight: 'bold',
+                                        width: '100%',
+                                        cursor: 'pointer',
+                                        outline: 'none',
+                                        appearance: 'none'
+                                      }}
+                                    >
+                                      <option value="" style={{ background: '#1D1E1F' }}>{slot.role} Slots ({rolePending.length})</option>
+                                      {rolePending.map((sig: any) => (
+                                        <option key={sig.id} value={sig.id} style={{ background: '#1D1E1F', color: '#fff' }}>
+                                          {capitalizeName(sig.character?.name)} ({sig.character?.mythicRating?.toFixed(0) || '-'})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  );
+                                }
+
+                                return (
+                                  <span style={{ fontSize: '0.75em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                    {slot.role} Slot
+                                  </span>
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -595,14 +650,8 @@ export default function MythicPlus() {
                     }
                   });
 
-                  const RoleIcon = ({ role, size = 12 }: { role: string, size?: number }) => {
-                    if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#3B82F6"><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
-                    if (role === 'Healer' || role === 'Heal') return <svg width={size} height={size} viewBox="0 0 24 24" fill="#10B981"><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
-                    return <svg width={size} height={size} viewBox="0 0 24 24" fill="#EF4444"><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
-                  };
-
                   return (
-                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] p-5 flex flex-col gap-5">
+                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] flex flex-col gap-4" style={{ padding: '16px' }}>
                       {/* Row 1: Unified Char Row Design */}
                       <div className="flex items-center justify-between w-full">
                         {/* Name Column */}
@@ -663,10 +712,9 @@ export default function MythicPlus() {
                         <div className="flex-1"></div>
 
                         {/* Key Info + Actions */}
-                        <div className="flex items-center gap-4">
-                          <div className="flex flex-col items-end">
-                            <span className="text-[11px] text-gray-400 font-bold">{s.key?.dungeon}</span>
-                            <span className="text-xl font-black text-white">+{s.key?.level}</span>
+                        <div className="flex items-center " style={{ gap: '5px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#ccc', whiteSpace: 'nowrap' }}>
+                            {s.key?.dungeon} +{s.key?.level}
                           </div>
 
                           <button
@@ -688,7 +736,7 @@ export default function MythicPlus() {
                             onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
                             onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.05)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.2)'; e.currentTarget.style.color = '#666'; }}
                           >
-                            Zurückziehen
+                            Quit
                           </button>
                         </div>
                       </div>
@@ -713,7 +761,7 @@ export default function MythicPlus() {
                               }}
                               className={slot.char ? '' : 'opacity-40 border-dashed border-gray-800'}
                             >
-                              <RoleIcon role={slot.role} size={12} />
+                              <RoleIcon role={slot.role} size={12} char={slot.char} />
                               {slot.char ? (
                                 <div className="flex flex-row items-center gap-2 min-w-0">
                                   <span
@@ -751,6 +799,9 @@ export default function MythicPlus() {
       )}
 
       {/* --- Roster-Style Keys List --- */}
+      <h2 className="text-[13px] font-black uppercase tracking-[0.4em] text-gray-500 mb-4 mt-6 ml-1 px-1 border-l-2 border-accent pl-4">
+        Keys from the Guild
+      </h2>
       <div className="flex flex-col gap-[2px]">
         {filteredMains.map(main => {
           const mainKey = main.keys && main.keys.length > 0 ? main.keys[0] : null;
