@@ -95,7 +95,8 @@ export default function Roster() {
       const rawRank = (member as any).rank;
       const rank = rawRank === null || rawRank === undefined ? null : Number(rawRank);
 
-      const isVisibleRank = rank !== null && metadata?.visibleRanks?.includes(rank);
+      const isActuallyExternal = member.guildId !== selectedGuild?.id;
+      const isVisibleRank = !isActuallyExternal && rank !== null && metadata?.visibleRanks?.includes(rank);
       const isExcluded = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
       const isIncluded = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
 
@@ -112,9 +113,10 @@ export default function Roster() {
     const rawRank = (member as any).rank;
     const rank = rawRank === null || rawRank === undefined ? null : Number(rawRank);
 
+    const isActuallyExternal = member.guildId !== selectedGuild?.id;
     const isExcluded = selectedRoster.excludedCharacterIds?.includes(member.id);
     const isIncluded = selectedRoster.includedCharacterIds?.includes(member.id);
-    const hasRank = rank !== null && selectedRoster.allowedRanks?.includes(rank);
+    const hasRank = !isActuallyExternal && rank !== null && selectedRoster.allowedRanks?.includes(rank);
 
     // Admin view: Show if they have the rank OR are explicitly included OR search matches
     if (isAdmin) return hasRank || isIncluded || matchesFilter;
@@ -510,17 +512,18 @@ export default function Roster() {
                     if (selectedRosterView === 'all') return 1;
 
                     const r = Number((member as any).rank);
+                    const isActuallyExternal = member.guildId !== selectedGuild?.id;
 
                     let isInRost = false;
                     if (isMain) {
                       const isEx = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
                       const isIn = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
-                      const hasR = metadata?.visibleRanks?.includes(r);
+                      const hasR = !isActuallyExternal && metadata?.visibleRanks?.includes(r);
                       isInRost = (hasR && !isEx) || isIn;
                     } else if (selectedRoster) {
                       const isEx = selectedRoster.excludedCharacterIds?.includes(member.id);
                       const isIn = selectedRoster.includedCharacterIds?.includes(member.id);
-                      const hasR = selectedRoster.allowedRanks?.includes(r);
+                      const hasR = !isActuallyExternal && selectedRoster.allowedRanks?.includes(r);
                       isInRost = (hasR && !isEx) || isIn;
                     } else {
                       return 1;
