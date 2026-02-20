@@ -225,6 +225,8 @@ model MythicKeySignup {
   characterId     Int
   status          String      @default("pending") // pending/accepted/declined
   message         String?
+  primaryRole     String      @default("DPS") // Tank/Healer/DPS
+  secondaryRole   String?     // Optional backup role
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
