@@ -174,31 +174,30 @@ const Header: React.FC = () => {
               </>
             ) : pathname === '/mythic' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="text"
-                  placeholder="Key suchen..."
-                  value={mSearch}
-                  onChange={(e) => {
-                    setMSearch(e.target.value);
-                    dispatchMythicFilter(e.target.value, mMin, mMax);
-                  }}
-                  style={{
-                    background: '#2A2A2A',
-                    border: '1px solid #444',
-                    color: '#fff',
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    outline: 'none',
-                    width: '160px',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                  onBlur={(e) => (e.currentTarget.style.borderColor = '#444')}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#222', padding: '2px 10px', borderRadius: '6px', border: '1px solid #333' }}>
+                  <span style={{ fontSize: '0.65rem', color: '#666', fontWeight: 800 }}>SUCHE</span>
+                  <input
+                    type="text"
+                    placeholder="Key..."
+                    value={mSearch}
+                    onChange={(e) => {
+                      setMSearch(e.target.value);
+                      dispatchMythicFilter(e.target.value, mMin, mMax);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '4px 0',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      outline: 'none',
+                      width: '140px',
+                    }}
+                  />
+                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#222', padding: '2px 6px', borderRadius: '6px', border: '1px solid #333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#222', padding: '2px 10px', borderRadius: '6px', border: '1px solid #333' }}>
                   <span style={{ fontSize: '0.65rem', color: '#666', fontWeight: 800 }}>LVL</span>
                   <input
                     type="number"
