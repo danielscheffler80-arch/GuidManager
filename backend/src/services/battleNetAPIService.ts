@@ -150,7 +150,7 @@ export class BattleNetAPIService {
                 race: getName(character.playable_race),
                 faction: typeof character.faction === 'object' ? character.faction.name : character.faction,
                 userId: userId,
-                guildId: guildId, // Link Guild
+                ...(guildId !== null ? { guildId } : {}),
                 lastSync: new Date()
               },
               create: {
@@ -163,7 +163,7 @@ export class BattleNetAPIService {
                 classId: character.playable_class.id,
                 race: getName(character.playable_race),
                 faction: typeof character.faction === 'object' ? character.faction.name : character.faction,
-                guildId: guildId, // Link Guild
+                ...(guildId !== null ? { guildId } : {}),
                 lastSync: new Date(),
               },
             });
