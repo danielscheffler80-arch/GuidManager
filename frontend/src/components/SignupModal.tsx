@@ -14,6 +14,8 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
     const { selectedGuild } = useGuild();
     const [myCharacters, setMyCharacters] = useState<any[]>([]);
     const [selectedCharId, setSelectedCharId] = useState<number | null>(null);
+    const [primaryRole, setPrimaryRole] = useState<string>('DPS');
+    const [secondaryRole, setSecondaryRole] = useState<string>('');
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -39,7 +41,7 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
         if (!selectedCharId || !selectedGuild) return;
         setSubmitting(true);
         try {
-            await MythicPlusService.signup(selectedGuild.id, selectedKey.id, selectedCharId, message);
+            await MythicPlusService.signup(selectedGuild.id, selectedKey.id, selectedCharId, primaryRole, secondaryRole || undefined, message);
             onSuccess();
         } catch (error) {
             console.error('Signup failed');
@@ -100,6 +102,47 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                                     )}
                                 </div>
                             )}
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2">Hauptrolle (Pflicht)</label>
+                            <div className="flex gap-2">
+                                {['Tank', 'Healer', 'DPS'].map(role => (
+                                    <button
+                                        key={`primary-${role}`}
+                                        onClick={() => {
+                                            setPrimaryRole(role);
+                                            if (secondaryRole === role) setSecondaryRole('');
+                                        }}
+                                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all border ${primaryRole === role ? 'bg-accent/20 border-accent text-white' : 'bg-[#222] border-gray-800 text-gray-400 hover:border-gray-600'}`}
+                                    >
+                                        {role}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-black uppercase tracking-widest text-gray-500 mb-2 flex justify-between items-end">
+                                <span>Zweitrolle (Optional)</span>
+                                {secondaryRole && (
+                                    <button onClick={() => setSecondaryRole('')} className="text-[10px] text-gray-600 hover:text-red-400">Zurücksetzen</button>
+                                )}
+                            </label>
+                            <div className="flex gap-2">
+                                {['Tank', 'Healer', 'DPS'].map(role => {
+                                    if (role === primaryRole) return null;
+                                    return (
+                                        <button
+                                            key={`secondary-${role}`}
+                                            onClick={() => setSecondaryRole(role)}
+                                            className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all border ${secondaryRole === role ? 'bg-gray-700/50 border-gray-500 text-white' : 'bg-[#222] border-gray-800 text-gray-500 hover:border-gray-600'}`}
+                                        >
+                                            {role === 'Healer' ? 'Heal' : role}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
 
                         <div>

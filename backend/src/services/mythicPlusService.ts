@@ -11,29 +11,29 @@ export class MythicPlusService {
         try {
             console.log(`[MythicPlusService] Fetching keys for guild ${guildId}...`);
 
-            // 1. Finde alle User-IDs, die Mitglieder dieser Gilde sind (via UserGuild)
-            const memberships = await prisma.userGuild.findMany({
-                where: { guildId },
-                select: { userId: true }
-            });
-            const memberUserIds = memberships.map(m => m.userId).filter(id => id !== null) as number[];
-
-            // 2. Hole ALLE Charaktere dieser User + alle Charaktere, die direkt der Gilde zugeordnet sind
+            // 1. Hole ALLE Charaktere dieser Gilde ODER die mit der Gilde assoziiert sind
             const characters = await prisma.character.findMany({
                 where: {
-                    OR: [
-                        { guildId: guildId },
-                        { userId: { in: memberUserIds } }
-                    ],
+                    guildId: guildId,
                     isActive: true
                 },
                 include: {
                     mythicKeys: {
-                        orderBy: { level: 'desc' }
-                    },
-                    mythicSignups: {
+                        orderBy: { level: 'desc' },
                         include: {
-                            character: true
+                            signups: {
+                                include: {
+                                    character: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            realm: true,
+                                            class: true,
+                                            classId: true
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -42,35 +42,44 @@ export class MythicPlusService {
             console.log(`[MythicPlusService] Found ${characters.length} characters related to guild ${guildId}.`);
 
             // 3. Gruppierung nach Usern (da wir Alts unter Mains zeigen wollen)
-            // Wir brauchen eine Liste von Usern, die Charaktere in dieser Gilde haben
-            const usersWithChars = [...new Set(characters.map(c => c.userId).filter(id => id !== null))] as number[];
-
-            // 4. Baue das Ergebnis auf
-            // Wir zeigen pro User einen "Main" Eintrag. 
-            // Wenn ein User mehrere Chars hat, nehmen wir den mit isMain=true als Kopf, sonst den ersten.
             const result = [];
             const processedUserIds = new Set<number>();
 
             for (const char of characters) {
+                // Bedingung: "als Main können nur die angezeigt werden, die in unserer app angemeldet sind und ihren main ausgewählt haben"
                 if (!char.userId) {
-                    // Charaktere ohne User (nur im Roster) zeigen wir als eigene Einträge
-                    result.push({
-                        ...char,
-                        alts: [],
-                        keys: char.mythicKeys,
-                        signups: char.mythicSignups || []
-                    });
-                    continue;
+                    continue; // Überspringen, da nicht angemeldeter Charakter
                 }
 
                 if (processedUserIds.has(char.userId)) continue;
 
-                // Alle Chars dieses Users finden
+                // Alle Chars dieses Users finden, die in DIESER Gilde sind
                 const userChars = characters.filter(c => c.userId === char.userId);
 
-                // Haupt-Charakter für diesen User finden (bevorzugt isMain)
-                const mainChar = userChars.find(c => c.isMain) || userChars[0];
+                // Haupt-Charakter für diesen User finden (zwingend isMain)
+                const mainChar = userChars.find(c => c.isMain);
+
+                // STRICT FILTERING: If the user hasn't explicitly set a main, they don't appear in M+ dashboard.
+                if (!mainChar) {
+                    continue;
+                }
+
+                processedUserIds.add(char.userId);
+
                 const alts = userChars.filter(c => c.id !== mainChar.id);
+
+                // Sammle alle eingehenden Bewerbungen auf die Keys dieses Users (Main + Alts)
+                const allKeysOfUser = [...mainChar.mythicKeys, ...alts.flatMap(a => a.mythicKeys)];
+                const allSignups = allKeysOfUser.flatMap(k =>
+                    k.signups.map(s => ({
+                        ...s,
+                        key: {
+                            id: k.id,
+                            dungeon: k.dungeon,
+                            level: k.level
+                        }
+                    }))
+                );
 
                 result.push({
                     ...mainChar,
@@ -79,10 +88,8 @@ export class MythicPlusService {
                         keys: alt.mythicKeys
                     })),
                     keys: mainChar.mythicKeys,
-                    signups: mainChar.mythicSignups || []
+                    signups: allSignups
                 });
-
-                processedUserIds.add(char.userId);
             }
 
             console.log(`[MythicPlusService] Successfully grouped ${result.length} entries.`);
@@ -96,14 +103,35 @@ export class MythicPlusService {
     /**
      * Signup for a specific key
      */
-    static async signupForKey(keyId: number, characterId: number, message?: string) {
+    static async signupForKey(keyId: number, characterId: number, primaryRole: string, secondaryRole?: string, message?: string) {
         return await (prisma as any).mythicKeySignup.create({
             data: {
                 keyId,
                 characterId,
+                primaryRole,
+                secondaryRole,
                 message,
                 status: 'pending'
             }
+        });
+    }
+
+    /**
+     * Update signup status (accept/decline)
+     */
+    static async updateSignupStatus(signupId: number, status: string) {
+        return await (prisma as any).mythicKeySignup.update({
+            where: { id: signupId },
+            data: { status }
+        });
+    }
+
+    /**
+     * Remove a signup
+     */
+    static async removeSignup(signupId: number) {
+        return await (prisma as any).mythicKeySignup.delete({
+            where: { id: signupId }
         });
     }
 

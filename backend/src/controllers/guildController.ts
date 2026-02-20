@@ -15,13 +15,14 @@ export class GuildController {
                 where: { userId }
             });
 
-            const mainChar = userChars.find(c => c.isMain) || userChars[0];
+            const mainChar = userChars.find(c => c.isMain);
 
+            // Gilden Kontext Check: Ohne gefundenen Gildenparameter oder Main gibt es nichts zu zeigen
             if (!mainChar && !requestedGuildId) {
                 return res.json({
                     success: true,
                     hasMain: false,
-                    message: 'Kein Charakter gefunden.'
+                    message: 'Bitte wähle in den Einstellungen zuerst einen Main aus.'
                 });
             }
 

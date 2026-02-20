@@ -33,12 +33,39 @@ export const MythicPlusService = {
     },
 
     // Signup for a key
-    signup: async (guildId: number, keyId: number, characterId: number, message?: string) => {
+    signup: async (guildId: number, keyId: number, characterId: number, primaryRole: string, secondaryRole?: string, message?: string) => {
         const headers: HeadersInit = getAuthHeader() as Record<string, string>;
         const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/mythic/${keyId}/signup`, {
             method: 'POST',
-            headers,
-            body: JSON.stringify({ characterId, message })
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ characterId, primaryRole, secondaryRole, message })
+        });
+        return response.json();
+    },
+
+    // Update signup status (accept/decline)
+    updateSignupStatus: async (guildId: number, signupId: number, status: string) => {
+        const headers: HeadersInit = getAuthHeader() as Record<string, string>;
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/mythic/signups/${signupId}`, {
+            method: 'PATCH',
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+        });
+        return response.json();
+    },
+
+    // Remove own signup or delete signup as key owner
+    removeSignup: async (guildId: number, signupId: number) => {
+        const headers: HeadersInit = getAuthHeader() as Record<string, string>;
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/mythic/signups/${signupId}`, {
+            method: 'DELETE',
+            headers
         });
         return response.json();
     }

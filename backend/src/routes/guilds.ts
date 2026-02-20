@@ -484,23 +484,37 @@ router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
         results.matched.push(`${character.name}-${character.realm}`);
         console.log(`[AddonSync] MATCH: Found ${character.name} (ID: ${character.id}, Guild: ${character.guildId})`);
 
-        // Upsert key
+        // Upsert key carefully to preserve signups if unchanged
         try {
-          await (prisma as any).mythicKey.deleteMany({
-            where: { characterId: character.id, isFromBag: true } as any
+          const existingKey = await (prisma as any).mythicKey.findFirst({
+            where: { characterId: character.id, isFromBag: true }
           });
 
-          const newKey = await (prisma as any).mythicKey.create({
-            data: {
-              characterId: character.id,
-              dungeon: key.dungeon,
-              level: key.level,
-              affixes: '[]',
-              isFromBag: true,
-              completed: false
-            } as any
-          });
-          console.log(`[AddonSync] SUCCESS: Created key ID ${newKey.id} for ${character.name}`);
+          if (existingKey && existingKey.dungeon === key.dungeon && existingKey.level === key.level) {
+            // Key is the same, just update timestamp
+            await (prisma as any).mythicKey.update({
+              where: { id: existingKey.id },
+              data: { updatedAt: new Date() }
+            });
+            console.log(`[AddonSync] SKIP: Key unchanged for ${character.name}`);
+          } else {
+            // Key changed or new, delete old and create new (Cascades delete to signups)
+            await (prisma as any).mythicKey.deleteMany({
+              where: { characterId: character.id, isFromBag: true } as any
+            });
+
+            const newKey = await (prisma as any).mythicKey.create({
+              data: {
+                characterId: character.id,
+                dungeon: key.dungeon,
+                level: key.level,
+                affixes: '[]',
+                isFromBag: true,
+                completed: false
+              } as any
+            });
+            console.log(`[AddonSync] SUCCESS: Created new key ID ${newKey.id} for ${character.name} (Old signups auto-cleared)`);
+          }
         } catch (dbErr: any) {
           console.error(`[AddonSync] DB ERROR for ${character.name}:`, dbErr.message);
         }
@@ -537,9 +551,14 @@ router.get('/guilds/:guildId/mythic', authMiddleware, async (req: AuthenticatedR
 // POST /api/guilds/:guildId/mythic/:keyId/signup - Anmeldung für einen Key
 router.post('/guilds/:guildId/mythic/:keyId/signup', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const { keyId } = req.params;
-  const { characterId, message } = req.body;
+  const { characterId, primaryRole, secondaryRole, message } = req.body;
+
+  if (!primaryRole) {
+    return res.status(400).json({ error: 'Primary role is required' });
+  }
+
   try {
-    const signup = await MythicPlusService.signupForKey(Number(keyId), Number(characterId), message);
+    const signup = await MythicPlusService.signupForKey(Number(keyId), Number(characterId), primaryRole, secondaryRole, message);
     res.status(201).json({ signup });
   } catch (error) {
     res.status(500).json({ error: 'Failed to signup for key' });
