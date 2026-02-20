@@ -404,11 +404,11 @@ export default function MythicPlus() {
                       {/* Row 1: Unified Char Row Design */}
                       <div className="flex items-center justify-between w-full">
                         {/* Name Column */}
-                        <div style={{ width: '220px' }} className="flex flex-col">
+                        <div style={{ width: '220px', flexShrink: 0 }}>
                           <div className="flex items-center gap-2">
                             <span
-                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.2em' }}
-                              className="font-bold leading-tight"
+                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.1em', fontWeight: 'bold' }}
+                              className="leading-tight"
                             >
                               {capitalizeName(char.name)}
                             </span>
@@ -426,25 +426,31 @@ export default function MythicPlus() {
                               Applicant
                             </span>
                           </div>
-                          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{char.realm || 'Blackrock'}</span>
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>{char.realm || 'Blackrock'}</div>
                         </div>
 
                         {/* ILVL Column */}
-                        <div className="w-[80px] text-center flex flex-col">
-                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">ILVL</span>
-                          <span className="text-xl font-black text-white" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
+                        <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>ILVL</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>
+                            {char.averageItemLevel || '-'}
+                          </div>
                         </div>
 
                         {/* RIO Column */}
-                        <div className="w-[80px] text-center flex flex-col">
-                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">RIO</span>
-                          <span className="text-xl font-black text-white" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
+                        <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>RIO</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>
+                            {char.mythicRating?.toFixed(0) || '-'}
+                          </div>
                         </div>
 
                         {/* Raid Progress Column */}
-                        <div className="w-[140px] text-center flex flex-col">
-                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">Raid Progress</span>
-                          <span className="text-[13px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
+                        <div style={{ width: '180px', flexShrink: 0, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(char.raidProgress || '') }}>
+                            {char.raidProgress || '-'}
+                          </div>
                         </div>
 
                         <div className="flex-1"></div>
@@ -488,24 +494,44 @@ export default function MythicPlus() {
                         {slots.map((slot, idx) => {
                           const isOwner = slot.char?.id === keyholder?.id;
                           return (
-                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot.char ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
+                            <div
+                              key={idx}
+                              style={{
+                                background: '#1D1E1F',
+                                border: '1px solid #333',
+                                borderRadius: '10px',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                height: '48px',
+                                transition: 'all 0.2s'
+                              }}
+                              className={slot.char ? '' : 'opacity-40 border-dashed border-gray-800'}
+                            >
+                              <RoleIcon role={slot.role} size={14} />
                               {slot.char ? (
-                                <>
-                                  <RoleIcon role={slot.role} size={14} />
-                                  <div className="flex flex-col min-w-0">
-                                    <span
-                                      className="font-black text-[12px] truncate"
-                                      style={{ color: getClassColor(slot.char?.classId || slot.char?.class) }}
-                                    >
-                                      {capitalizeName(slot.char?.name)}
-                                    </span>
-                                    <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest leading-none">
-                                      {isOwner ? 'Keyholder' : slot.role}
-                                    </span>
-                                  </div>
-                                </>
+                                <div className="flex flex-col min-w-0">
+                                  <span
+                                    style={{
+                                      color: getClassColor(slot.char?.classId || slot.char?.class),
+                                      fontSize: '0.95em',
+                                      fontWeight: 'bold',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis'
+                                    }}
+                                  >
+                                    {capitalizeName(slot.char?.name)}
+                                  </span>
+                                  <span style={{ fontSize: '0.7em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {isOwner ? 'Keyholder' : slot.role}
+                                  </span>
+                                </div>
                               ) : (
-                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">{slot.role} Slot</span>
+                                <span style={{ fontSize: '0.8em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                  {slot.role} Slot
+                                </span>
                               )}
                             </div>
                           );
@@ -576,11 +602,11 @@ export default function MythicPlus() {
                       {/* Row 1: Unified Char Row Design */}
                       <div className="flex items-center justify-between w-full">
                         {/* Name Column */}
-                        <div style={{ width: '220px' }} className="flex flex-col">
+                        <div style={{ width: '220px', flexShrink: 0 }}>
                           <div className="flex items-center gap-2">
                             <span
-                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.2em' }}
-                              className="font-bold leading-tight"
+                              style={{ color: getClassColor(char.classId || char.class), fontSize: '1.1em', fontWeight: 'bold' }}
+                              className="leading-tight"
                             >
                               {capitalizeName(char.name)}
                             </span>
@@ -588,25 +614,31 @@ export default function MythicPlus() {
                               {s.status === 'accepted' ? 'Accepted' : s.status === 'declined' ? 'Declined' : 'Pending'}
                             </span>
                           </div>
-                          <span className="text-[10px] text-gray-600 font-bold uppercase tracking-widest">{char.realm || 'Blackrock'}</span>
+                          <div style={{ fontSize: '0.8em', color: '#666' }}>{char.realm || 'Blackrock'}</div>
                         </div>
 
                         {/* ILVL Column */}
-                        <div className="w-[80px] text-center flex flex-col">
-                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">ILVL</span>
-                          <span className="text-xl font-black text-white" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</span>
+                        <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>ILVL</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>
+                            {char.averageItemLevel || '-'}
+                          </div>
                         </div>
 
                         {/* RIO Column */}
-                        <div className="w-[80px] text-center flex flex-col">
-                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">RIO</span>
-                          <span className="text-xl font-black text-white" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</span>
+                        <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>RIO</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>
+                            {char.mythicRating?.toFixed(0) || '-'}
+                          </div>
                         </div>
 
                         {/* Raid Progress Column */}
-                        <div className="w-[140px] text-center flex flex-col">
-                          <span className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-1">Raid Progress</span>
-                          <span className="text-[13px] font-black" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</span>
+                        <div style={{ width: '180px', flexShrink: 0, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
+                          <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(char.raidProgress || '') }}>
+                            {char.raidProgress || '-'}
+                          </div>
                         </div>
 
                         <div className="flex-1"></div>
@@ -647,24 +679,44 @@ export default function MythicPlus() {
                         {slots.map((slot, idx) => {
                           const isOwner = slot.char?.id === keyholder?.id;
                           return (
-                            <div key={idx} className={`flex items-center gap-3 p-3 rounded-xl border h-12 transition-all ${slot.char ? 'bg-[#161616] border-gray-800' : 'bg-transparent border-dashed border-gray-800/50'}`}>
+                            <div
+                              key={idx}
+                              style={{
+                                background: '#1D1E1F',
+                                border: '1px solid #333',
+                                borderRadius: '10px',
+                                padding: '8px 12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '10px',
+                                height: '48px',
+                                transition: 'all 0.2s'
+                              }}
+                              className={slot.char ? '' : 'opacity-40 border-dashed border-gray-800'}
+                            >
+                              <RoleIcon role={slot.role} size={14} />
                               {slot.char ? (
-                                <>
-                                  <RoleIcon role={slot.role} size={14} />
-                                  <div className="flex flex-col min-w-0">
-                                    <span
-                                      className="font-black text-[12px] truncate"
-                                      style={{ color: getClassColor(slot.char?.classId || slot.char?.class) }}
-                                    >
-                                      {capitalizeName(slot.char?.name)}
-                                    </span>
-                                    <span className="text-[8px] text-gray-600 font-bold uppercase tracking-widest leading-none">
-                                      {isOwner ? 'Keyholder' : slot.role}
-                                    </span>
-                                  </div>
-                                </>
+                                <div className="flex flex-col min-w-0">
+                                  <span
+                                    style={{
+                                      color: getClassColor(slot.char?.classId || slot.char?.class),
+                                      fontSize: '0.95em',
+                                      fontWeight: 'bold',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis'
+                                    }}
+                                  >
+                                    {capitalizeName(slot.char?.name)}
+                                  </span>
+                                  <span style={{ fontSize: '0.7em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                    {isOwner ? 'Keyholder' : slot.role}
+                                  </span>
+                                </div>
                               ) : (
-                                <span className="text-[10px] text-gray-800 font-black uppercase tracking-[0.2em] w-full text-center">{slot.role} Slot</span>
+                                <span style={{ fontSize: '0.8em', color: '#444', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                                  {slot.role} Slot
+                                </span>
                               )}
                             </div>
                           );
