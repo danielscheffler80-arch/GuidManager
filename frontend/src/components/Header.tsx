@@ -136,7 +136,7 @@ const Header: React.FC = () => {
           )}
         </div>
 
-        {(isStreamsPage || pathname === '/roster' || pathname === '/mythic-plus') && (
+        {(isStreamsPage || pathname === '/roster' || pathname === '/mythic') && (
           <div className="header-page-filters" style={{ display: 'flex', gap: '8px', marginLeft: '20px', alignItems: 'center' }}>
             {isStreamsPage ? (
               <>
@@ -157,7 +157,7 @@ const Header: React.FC = () => {
                   className={`head-filter ${filter === 'protected' ? 'active' : ''}`}
                 >Geschützt</button>
               </>
-            ) : pathname === '/mythic-plus' ? (
+            ) : pathname === '/mythic' ? (
               <button
                 id="header-sync-keys-btn"
                 style={{
