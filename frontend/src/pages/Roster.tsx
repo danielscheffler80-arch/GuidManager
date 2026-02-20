@@ -86,7 +86,7 @@ export default function Roster() {
       : false;
 
     if (selectedRosterView === 'all') {
-      const isActuallyExternal = member.guildId !== selectedGuild?.id;
+      const isActuallyExternal = member.guildId !== selectedGuild?.id && !(member as any).userId;
       if (isActuallyExternal) return false;
       return (filter && filter !== 'all' && filter.trim().length > 0) ? matchesFilter : true;
     }
@@ -99,14 +99,11 @@ export default function Roster() {
       const isExcluded = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
       const isIncluded = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
 
-      // Also always include characters that are assigned to a real user in the backend
-      const isAssignedUser = (member as any).userId !== null && (member as any).userId !== undefined;
+      // Admin: Show if visible rank OR explicitly included OR search matches
+      if (isAdmin) return (isVisibleRank || isIncluded || matchesFilter);
 
-      // Admin: Show if visible rank OR explicitly included OR assigned OR search matches
-      if (isAdmin) return (isVisibleRank || isIncluded || isAssignedUser || matchesFilter);
-
-      // Normal: (Visible Rank AND NOT Excluded) OR Explicitly Included OR Assigned User
-      return (isVisibleRank && !isExcluded) || isIncluded || isAssignedUser;
+      // Normal: (Visible Rank AND NOT Excluded) OR Explicitly Included
+      return (isVisibleRank && !isExcluded) || isIncluded;
     }
 
     const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
@@ -118,20 +115,18 @@ export default function Roster() {
     const isExcluded = selectedRoster.excludedCharacterIds?.includes(member.id);
     const isIncluded = selectedRoster.includedCharacterIds?.includes(member.id);
     const hasRank = rank !== null && selectedRoster.allowedRanks?.includes(rank);
-    const isAssignedUser = (member as any).userId !== null && (member as any).userId !== undefined;
 
-    // Admin view: Show if they have the rank OR are explicitly included OR assigned OR search matches
-    if (isAdmin) return hasRank || isIncluded || isAssignedUser || matchesFilter;
+    // Admin view: Show if they have the rank OR are explicitly included OR search matches
+    if (isAdmin) return hasRank || isIncluded || matchesFilter;
 
-    // Normal view: (Has rank AND not excluded) OR explicitly included OR assigned
-    return (hasRank && !isExcluded) || isIncluded || isAssignedUser;
+    // Normal view: (Has rank AND not excluded) OR explicitly included
+    return (hasRank && !isExcluded) || isIncluded;
   }).sort((a, b) => {
     const selectedRoster = availableRosters.find(r => String(r.id) === String(selectedRosterView));
     if ((selectedRoster || selectedRosterView === 'main') && selectedRosterView !== 'all') {
       const getEligibility = (m: Member) => {
         const rawRank = (m as any).rank;
         const r = rawRank === null || rawRank === undefined ? null : Number(rawRank);
-        const isAssignedUser = (m as any).userId !== null && (m as any).userId !== undefined;
 
         let isEx = false;
         let isIn = false;
@@ -146,7 +141,7 @@ export default function Roster() {
           isIn = selectedRoster.includedCharacterIds?.includes(m.id);
           hasR = r !== null && selectedRoster.allowedRanks?.includes(r);
         }
-        return (hasR && !isEx) || isIn || isAssignedUser;
+        return (hasR && !isEx) || isIn;
       };
       const eligA = getEligibility(a);
       const eligB = getEligibility(b);
@@ -515,19 +510,18 @@ export default function Roster() {
                     if (selectedRosterView === 'all') return 1;
 
                     const r = Number((member as any).rank);
-                    const isAssignedUser = (member as any).userId !== null && (member as any).userId !== undefined;
 
                     let isInRost = false;
                     if (isMain) {
                       const isEx = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
                       const isIn = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
                       const hasR = metadata?.visibleRanks?.includes(r);
-                      isInRost = (hasR && !isEx) || isIn || isAssignedUser;
+                      isInRost = (hasR && !isEx) || isIn;
                     } else if (selectedRoster) {
                       const isEx = selectedRoster.excludedCharacterIds?.includes(member.id);
                       const isIn = selectedRoster.includedCharacterIds?.includes(member.id);
                       const hasR = selectedRoster.allowedRanks?.includes(r);
-                      isInRost = (hasR && !isEx) || isIn || isAssignedUser;
+                      isInRost = (hasR && !isEx) || isIn;
                     } else {
                       return 1;
                     }
@@ -614,19 +608,18 @@ export default function Roster() {
                       if (!selectedRoster && !isMain) return null;
 
                       const r = Number((member as any).rank);
-                      const isAssignedUser = (member as any).userId !== null && (member as any).userId !== undefined;
 
                       let isInRost = false;
                       if (isMain) {
                         const isEx = metadata?.mainRosterExcludedCharacterIds?.includes(member.id);
                         const isIn = metadata?.mainRosterIncludedCharacterIds?.includes(member.id);
                         const hasR = metadata?.visibleRanks?.includes(r);
-                        isInRost = (hasR && !isEx) || isIn || isAssignedUser;
+                        isInRost = (hasR && !isEx) || isIn;
                       } else if (selectedRoster) {
                         const isEx = selectedRoster.excludedCharacterIds?.includes(member.id);
                         const isIn = selectedRoster.includedCharacterIds?.includes(member.id);
                         const hasR = selectedRoster.allowedRanks?.includes(r);
-                        isInRost = (hasR && !isEx) || isIn || isAssignedUser;
+                        isInRost = (hasR && !isEx) || isIn;
                       }
 
                       return (
