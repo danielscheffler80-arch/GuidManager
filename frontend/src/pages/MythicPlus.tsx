@@ -229,31 +229,39 @@ export default function MythicPlus() {
         <div style={{ flex: 1 }}></div>
 
         {/* Key + Join */}
-        <div style={{ width: '220px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
-          {key ? (
-            <div className="flex items-center bg-[#111] rounded-lg border border-[#333] overflow-hidden group-hover:border-[#555] transition-colors shadow-inner">
-              <div className="px-3 py-1 flex items-center gap-2">
-                <span className="text-[11px] text-gray-400 uppercase font-bold tracking-wide whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]">{key.dungeon}</span>
-                <span className="text-[15px] font-black text-white leading-none">+{key.level}</span>
+        <div style={{ width: '220px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+          <div style={{ textAlign: 'center' as const }}>
+            <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Key</div>
+            {key ? (
+              <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#FF8000' }}>
+                {key.dungeon} +{key.level}
               </div>
-              <button
-                onClick={() => handleSignup(key)}
-                className="bg-[#2a2a2a] hover:bg-accent text-gray-300 hover:text-white px-3 py-1.5 flex items-center justify-center font-bold text-[9px] uppercase tracking-wider transition-all border-l border-[#333] group-hover:border-[#555]"
-              >
-                Join
-              </button>
-            </div>
-          ) : (
-            <span style={{
-              background: 'rgba(255,255,255,0.03)',
-              color: '#555',
-              padding: '4px 12px',
-              borderRadius: '20px',
-              fontSize: '0.7em',
-              fontWeight: 'bold',
-              border: '1px solid #333',
-              textTransform: 'uppercase' as const
-            }}>Kein Key</span>
+            ) : (
+              <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#555' }}>-</div>
+            )}
+          </div>
+          {key && (
+            <button
+              onClick={() => handleSignup(key)}
+              style={{
+                background: 'rgba(163,48,201,0.15)',
+                border: '1px solid rgba(163,48,201,0.3)',
+                color: 'var(--accent)',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontSize: '9px',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                whiteSpace: 'nowrap' as const,
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#fff'; }}
+              onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.15)'; e.currentTarget.style.color = 'var(--accent)'; }}
+            >
+              Join
+            </button>
           )}
         </div>
       </div>
