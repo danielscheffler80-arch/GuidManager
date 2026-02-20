@@ -28,8 +28,13 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
         try {
             const data = await CharacterService.getMyCharacters();
             const chars = data.user?.characters || [];
-            setMyCharacters(chars);
-            if (chars.length > 0) setSelectedCharId(chars[0].id);
+            // Only show main + favorites
+            const filtered = chars.filter((c: any) => c.isMain || c.isFavorite);
+            setMyCharacters(filtered);
+            // Auto-select main if available
+            const main = filtered.find((c: any) => c.isMain);
+            if (main) setSelectedCharId(main.id);
+            else if (filtered.length > 0) setSelectedCharId(filtered[0].id);
         } catch (error) {
             console.error('Failed to load my characters');
         } finally {
@@ -72,23 +77,24 @@ export const SignupModal: React.FC<SignupModalProps> = ({ selectedKey, onClose, 
                             {loading ? (
                                 <div className="animate-pulse bg-gray-800 h-10 rounded-lg"></div>
                             ) : (
-                                <div className="grid grid-cols-1 gap-2">
+                                <div className="grid grid-cols-1 gap-1.5">
                                     {myCharacters.map(char => (
                                         <button
                                             key={char.id}
                                             onClick={() => setSelectedCharId(char.id)}
-                                            className={`p-3 rounded-xl border transition-all text-left flex justify-between items-center ${selectedCharId === char.id
+                                            className={`px-3 py-2 rounded-lg border transition-all text-left flex justify-between items-center ${selectedCharId === char.id
                                                 ? 'bg-[var(--accent)]/10 border-[var(--accent)] text-white shadow-[0_0_15px_rgba(163,48,201,0.2)]'
                                                 : 'bg-[#222] border-gray-800 text-gray-400 hover:border-gray-600'
                                                 }`}
                                         >
-                                            <div>
-                                                <p className="font-bold">{capitalizeName(char.name)}</p>
-                                                <p className="text-[10px] opacity-60">{char.class} • {char.realm}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-semibold">{capitalizeName(char.name)}</span>
+                                                <span className="text-[10px] opacity-50">{char.class}</span>
+                                                {char.isMain && <span className="text-[9px] bg-accent/20 text-accent px-1.5 py-0.5 rounded font-bold uppercase">Main</span>}
                                             </div>
                                             {selectedCharId === char.id && (
-                                                <div className="w-5 h-5 bg-[var(--accent)] rounded-full flex items-center justify-center">
-                                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="w-4 h-4 bg-[var(--accent)] rounded-full flex items-center justify-center">
+                                                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                                     </svg>
                                                 </div>
