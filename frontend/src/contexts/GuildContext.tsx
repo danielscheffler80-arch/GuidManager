@@ -174,6 +174,17 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         init();
     }, [init]);
 
+    // Neu: Lade die Roster nach, sobald die Gilde im Dropdown gewechselt wird
+    useEffect(() => {
+        if (selectedGuild?.id) {
+            refreshRosters();
+        } else {
+            setAvailableRosters([]);
+            setSelectedRosterView('all');
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedGuild?.id]);
+
     return (
         <GuildContext.Provider value={{
             guilds,
