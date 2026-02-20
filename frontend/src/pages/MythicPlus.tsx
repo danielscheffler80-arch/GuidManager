@@ -238,146 +238,188 @@ export default function MythicPlus() {
         </div>
       )}
 
-      {/* --- Roster Keys List --- */}
+      {/* --- Roster-Style Keys List --- */}
       <div className="space-y-4">
         <h2 className="text-xl font-black uppercase tracking-widest text-white mt-12 mb-6 border-b border-gray-800 pb-4">Verfügbare Gilden-Keys</h2>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-          {mains.map(main => (
-            <div key={main.id} className="bg-[#1D1E1F] rounded-2xl overflow-hidden border border-[#333] hover:border-accent transition-all group flex flex-col w-full">
+        {(() => {
+          // Flatten mains+alts into individual rows
+          const allRows: any[] = [];
+          mains.forEach(main => {
+            allRows.push({ ...main, _isMain: true });
+            if (main.alts) {
+              main.alts.forEach((alt: any) => allRows.push({ ...alt, _isMain: false }));
+            }
+          });
 
-              {/* Main Character Header */}
-              <div className="p-4 flex flex-col sm:flex-row items-center justify-between relative overflow-hidden">
-                <div className="flex items-center gap-4 w-full sm:w-auto relative z-10 flex-1">
+          const classIconKeys: Record<number, string> = {
+            1: 'warrior', 2: 'paladin', 3: 'hunter', 4: 'rogue',
+            5: 'priest', 6: 'deathknight', 7: 'shaman', 8: 'mage',
+            9: 'warlock', 10: 'monk', 11: 'druid', 12: 'demonhunter', 13: 'evoker'
+          };
+
+          const getRIOColor = (score: number | null) => {
+            if (!score) return '#666';
+            if (score >= 3500) return '#FF8000';
+            if (score >= 3000) return '#A335EE';
+            if (score >= 2000) return '#0070DD';
+            return '#1EFF00';
+          };
+
+          const getDifficultyColor = (progress: string) => {
+            if (!progress || progress === '-') return '#D1D9E0';
+            if (progress.includes('M')) return '#FF8000';
+            if (progress.includes('H')) return '#A335EE';
+            if (progress.includes('N')) return '#0070DD';
+            if (progress.includes('L')) return '#1EFF00';
+            return '#ABD473';
+          };
+
+          const getIlvlColor = (ilvl: number | null) => {
+            if (!ilvl) return '#666';
+            if (ilvl >= 160) return '#1EFF00';
+            if (ilvl >= 130) return '#FFFF00';
+            if (ilvl >= 90) return '#FF8000';
+            return '#FF0000';
+          };
+
+          const getRealmSlug = (realm: string) => realm.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '');
+
+          if (allRows.length === 0 && !loading) {
+            return (
+              <div className="col-span-full flex flex-col items-center justify-center py-24 bg-[#1a1a1a] rounded-2xl border border-dashed border-gray-800">
+                <svg className="w-16 h-16 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                <p className="text-gray-400 font-bold text-lg">Keine Mythic+ Keys gefunden</p>
+                <p className="text-gray-500 text-sm mt-1">Gildenmitglieder müssen die Desktop-App nutzen, um ihre Keys zu synchronisieren.</p>
+              </div>
+            );
+          }
+
+          return (
+            <div className="flex flex-col gap-[2px]">
+              {allRows.map((char) => {
+                const classKey = char.classId ? classIconKeys[char.classId] : (char.class || '').toLowerCase().replace(' ', '').replace('-', '');
+                const charUrlName = char.name.toLowerCase();
+                const realmSlug = getRealmSlug(char.realm || '');
+                const key = char.keys && char.keys.length > 0 ? char.keys[0] : null;
+
+                return (
                   <div
-                    className="w-[42px] h-[42px] rounded-lg flex items-center justify-center font-black text-xl shadow-inner border border-[#444]"
-                    style={{ backgroundColor: `${getClassColor(main.classId || main.class)}15`, color: getClassColor(main.classId || main.class) }}
+                    key={char.id}
+                    style={{
+                      background: '#1D1E1F',
+                      padding: '8px 16px',
+                      borderRadius: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      border: char._isMain ? '1px solid var(--accent)' : '1px solid #333',
+                      transition: 'border-color 0.2s',
+                      width: '100%',
+                      boxSizing: 'border-box' as const,
+                    }}
+                    className="group"
                   >
-                    {main.name[0].toUpperCase()}
-                  </div>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="font-bold text-[15px] leading-tight truncate" style={{ color: getClassColor(main.classId || main.class) }}>
-                        {capitalizeName(main.name)}
-                      </h3>
-                      <span className="px-1.5 py-[2px] rounded text-[8px] font-black tracking-widest uppercase bg-[#111] text-accent border border-[#333]">Main</span>
+                    {/* Name */}
+                    <div style={{ width: '220px', flexShrink: 0 }}>
+                      <div
+                        onClick={() => (window as any).electronAPI?.openExternal(`https://worldofwarcraft.com/de-de/character/eu/${realmSlug}/${charUrlName}`)}
+                        style={{
+                          fontWeight: 'bold',
+                          fontSize: '1.1em',
+                          color: getClassColor(char.classId || char.class),
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        title="Blizzard Arsenal öffnen"
+                      >
+                        {capitalizeName(char.name)}
+                        {char._isMain && (
+                          <span style={{
+                            fontSize: '8px',
+                            background: 'rgba(163,48,201,0.2)',
+                            color: 'var(--accent)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontWeight: 900,
+                            letterSpacing: '1px',
+                            textTransform: 'uppercase' as const,
+                            border: '1px solid #333'
+                          }}>Main</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.8em', color: '#666' }}>{char.realm}</div>
                     </div>
-                    <div className="flex items-center gap-x-2 text-[10px] mt-1 font-medium flex-wrap">
-                      <span className="text-gray-400 capitalize">{main.class}</span>
-                      <span className="w-1 h-1 bg-gray-700 rounded-full"></span>
-                      <span className="text-gray-400">ILVL <span className="text-white font-bold">{main.averageItemLevel || '-'}</span></span>
-                      <span className="w-1 h-1 bg-gray-700 rounded-full"></span>
-                      <span className="text-gray-400">RIO <span className="text-[#FF8000] font-black">{Math.round(main.mythicRating || 0) || '-'}</span></span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-3 mt-4 sm:mt-0 w-full sm:w-auto z-10 flex-shrink-0">
-                  {main.keys && main.keys.length > 0 ? (
-                    <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
-                      {main.keys.map((key: any) => (
-                        <div key={key.id} className="flex min-w-fit items-stretch bg-[#111] rounded-lg border border-[#333] overflow-hidden group-hover:border-[#555] transition-colors shadow-inner">
-                          <div className="px-3 py-1 flex flex-col justify-center items-center min-w-[65px] h-[40px]">
-                            <p className="text-[8px] text-gray-500 uppercase font-black tracking-widest whitespace-nowrap overflow-hidden text-ellipsis max-w-[70px] leading-none mb-1">{key.dungeon}</p>
+                    {/* ILVL */}
+                    <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' as const }}>
+                      <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>ILVL</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>
+                        {char.averageItemLevel || '-'}
+                      </div>
+                    </div>
+
+                    {/* RIO */}
+                    <div
+                      onClick={() => (window as any).electronAPI?.openExternal(`https://raider.io/characters/eu/${realmSlug}/${charUrlName}`)}
+                      style={{ width: '100px', flexShrink: 0, textAlign: 'center' as const, cursor: 'pointer' }}
+                      title="Raider.IO öffnen"
+                    >
+                      <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>RIO</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>
+                        {char.mythicRating?.toFixed(0) || '-'}
+                      </div>
+                    </div>
+
+                    {/* Raid Progress */}
+                    <div
+                      onClick={() => (window as any).electronAPI?.openExternal(`https://www.warcraftlogs.com/character/eu/${realmSlug}/${charUrlName}`)}
+                      style={{ width: '180px', flexShrink: 0, textAlign: 'center' as const, cursor: 'pointer' }}
+                      title="Warcraft Logs öffnen"
+                    >
+                      <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(char.raidProgress || '') }}>
+                        {char.raidProgress || '-'}
+                      </div>
+                    </div>
+
+                    <div style={{ flex: 1 }}></div>
+
+                    {/* Key + Join (replaces Rank) */}
+                    <div style={{ width: '200px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                      {key ? (
+                        <div className="flex items-stretch bg-[#111] rounded-lg border border-[#333] overflow-hidden group-hover:border-[#555] transition-colors shadow-inner">
+                          <div className="px-3 py-1 flex flex-col justify-center items-center min-w-[80px]">
+                            <p className="text-[8px] text-gray-500 uppercase font-black tracking-widest whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px] leading-none mb-1">{key.dungeon}</p>
                             <p className="text-lg font-black text-white leading-none">+{key.level}</p>
                           </div>
                           <button
                             onClick={() => handleSignup(key)}
-                            className="bg-[#2a2a2a] hover:bg-accent text-gray-300 hover:text-white px-3 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider transition-all border-l border-[#333] group-hover:border-[#555]"
+                            className="bg-[#2a2a2a] hover:bg-accent text-gray-300 hover:text-white px-4 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider transition-all border-l border-[#333] group-hover:border-[#555]"
                           >
                             Join
                           </button>
                         </div>
-                      ))}
+                      ) : (
+                        <span style={{
+                          background: 'rgba(255,255,255,0.03)',
+                          color: '#555',
+                          padding: '6px 15px',
+                          borderRadius: '20px',
+                          fontSize: '0.75em',
+                          fontWeight: 'bold',
+                          border: '1px solid #333',
+                          textTransform: 'uppercase' as const
+                        }}>Kein Key</span>
+                      )}
                     </div>
-                  ) : (
-                    <span className="text-gray-600 text-[10px] uppercase tracking-widest font-black px-4 bg-[#111] h-[40px] flex items-center rounded-lg border border-[#333]">Kein Key</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Twink Toggle */}
-              {main.alts && main.alts.length > 0 && (
-                <div className="bg-[#1D1E1F]">
-                  <div className="flex justify-center -mt-[1px]">
-                    <button
-                      onClick={() => toggleExpand(main.id)}
-                      className="w-full h-[30px] flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#818181] hover:text-white bg-[#1D1E1F] hover:bg-[#2a2a2a] transition-colors border-t border-[#333] rounded-b-lg"
-                    >
-                      <span>{main.alts.length} {main.alts.length === 1 ? 'Twink' : 'Twinks'}</span>
-                      <svg className={`w-3.5 h-3.5 transition-transform ${expandedMains.includes(main.id) ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </button>
                   </div>
-
-                  {/* Expanded Twinks */}
-                  {expandedMains.includes(main.id) && (
-                    <div className="p-3 bg-[#111] shadow-inner flex flex-col gap-2 animate-in slide-in-from-top-2 duration-200 pl-8 border-t border-[#222]">
-                      {main.alts.map((alt: any) => (
-                        <div key={alt.id} className="bg-[#1D1E1F] p-2.5 rounded-lg border border-[#333] hover:border-accent/50 transition-colors flex items-center justify-between group/twink relative">
-                          {/* Indentation Visual Connectors */}
-                          <div className="absolute -left-6 top-1/2 w-6 h-[1px] bg-[#333]"></div>
-                          <div className="absolute -left-6 top-[-15px] w-[1px] h-[calc(50%+15px)] bg-[#333]"></div>
-
-                          <div className="flex items-center gap-3">
-                            <div
-                              className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-inner border border-[#444] flex-shrink-0"
-                              style={{ backgroundColor: `${getClassColor(alt.classId || alt.class)}15`, color: getClassColor(alt.classId || alt.class) }}
-                            >
-                              {alt.name[0].toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <div className="flex items-baseline gap-2 truncate">
-                                <p className="font-bold text-[13px] truncate" style={{ color: getClassColor(alt.classId || alt.class) }}>
-                                  {capitalizeName(alt.name)}
-                                </p>
-                                <span className="text-[9px] text-gray-500 font-medium capitalize">{alt.class}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-[9px] mt-0.5">
-                                <span className="text-gray-400">ILVL <span className="text-white font-bold">{alt.averageItemLevel || '-'}</span></span>
-                                <span className="text-gray-400">RIO <span className="text-[#FF8000] font-bold">{Math.round(alt.mythicRating || 0) || '-'}</span></span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex justify-end">
-                            {alt.keys && alt.keys.length > 0 ? (
-                              <div className="flex items-center gap-2 w-full">
-                                <div className="flex min-w-fit items-stretch bg-[#111] rounded-lg border border-[#333] overflow-hidden group-hover/twink:border-[#555] transition-colors shadow-inner w-full">
-                                  <div className="px-2 py-1 flex flex-col justify-center items-center flex-1 h-[32px]">
-                                    <div className="flex items-center gap-2 w-full justify-center">
-                                      <p className="text-[8px] text-gray-400 uppercase font-black tracking-widest whitespace-nowrap overflow-hidden text-ellipsis max-w-[80px] leading-none">{alt.keys[0].dungeon}</p>
-                                      <p className="text-sm font-black text-white leading-none">+{alt.keys[0].level}</p>
-                                    </div>
-                                  </div>
-                                  <button
-                                    onClick={() => handleSignup(alt.keys[0])}
-                                    className="bg-[#2a2a2a] hover:bg-accent text-gray-300 hover:text-white px-3 flex items-center justify-center font-bold text-[10px] uppercase tracking-wider transition-all border-l border-[#333] group-hover/twink:border-[#555]"
-                                    title="Anmelden"
-                                  >
-                                    Join
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-[9px] text-gray-600 uppercase font-black tracking-widest px-3 bg-[#111] h-[32px] flex items-center justify-center rounded-lg border border-[#333] w-full">Kein Key registriert</span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })}
             </div>
-          ))}
-
-          {mains.length === 0 && !loading && (
-            <div className="col-span-full flex flex-col items-center justify-center py-24 bg-[#1a1a1a] rounded-2xl border border-dashed border-gray-800">
-              <svg className="w-16 h-16 text-gray-700 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
-              <p className="text-gray-400 font-bold text-lg">Keine Mythic+ Keys gefunden</p>
-              <p className="text-gray-500 text-sm mt-1">Gildenmitglieder müssen die Desktop-App nutzen, um ihre Keys zu synchronisieren.</p>
-            </div>
-          )}
-        </div>
+          );
+        })()}
       </div>
 
       {/* --- Modals --- */}
