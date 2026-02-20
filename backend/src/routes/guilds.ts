@@ -72,15 +72,42 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
     },
   });
 
+  // Get all unique user IDs from guild members to fetch their characters
+  const guildMemberUserIds = await prisma.userGuild.findMany({
+    where: { guildId: id },
+    select: { userId: true }
+  }).then(members => members.map(m => m.userId));
+
+  // Find all characters that belong to users who are members of this guild
+  const assignedCharacters = await prisma.character.findMany({
+    where: {
+      userId: { in: guildMemberUserIds }
+    }
+  });
+
   // Find all unique included IDs from ALL rosters belonging to this guild
   const allManualIds = Array.from(new Set(guild.rosters.flatMap(r => r.includedCharacterIds || [])));
+
+  // Also include main roster manual inclusions
+  const mainRosterManualIds = guild.mainRosterIncludedCharacterIds || [];
+  const combinedManualIds = Array.from(new Set([...allManualIds, ...mainRosterManualIds]));
+
   const existingIds = new Set(guild.characters.map(c => c.id));
-  const extraIds = allManualIds.filter(id => !existingIds.has(id));
+  const assignedCharacterIds = new Set(assignedCharacters.map(c => c.id));
+
+  const extraManualIds = combinedManualIds.filter(id => !existingIds.has(id) && !assignedCharacterIds.has(id));
 
   let pool = [...guild.characters];
-  if (extraIds.length > 0) {
+
+  // Add assigned characters that aren't already in the pool
+  const newAssignedChars = assignedCharacters.filter(c => !existingIds.has(c.id));
+  if (newAssignedChars.length > 0) {
+    pool = [...pool, ...newAssignedChars];
+  }
+
+  if (extraManualIds.length > 0) {
     const extraChars = await prisma.character.findMany({
-      where: { id: { in: extraIds } }
+      where: { id: { in: extraManualIds } }
     });
     pool = [...pool, ...extraChars];
     console.log(`[RosterAPI] Added ${extraChars.length} external characters to pool for guild ${guild.name}`);
@@ -92,8 +119,9 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
   const totalInPool = pool.length;
 
   const filteredRoster = pool.filter((char: any) => {
-    // Show if manual inclusion OR has a visible rank
-    return allManualIds.includes(char.id) || (char.rank !== null && visibleRanks.includes(char.rank));
+    // Show if manual inclusion OR is assigned to a guild user OR has a visible rank
+    const isAssignedToUser = char.userId !== null && guildMemberUserIds.includes(char.userId);
+    return combinedManualIds.includes(char.id) || isAssignedToUser || (char.rank !== null && visibleRanks.includes(char.rank));
   });
 
   res.json({
@@ -515,6 +543,29 @@ router.post('/guilds/:guildId/mythic/:keyId/signup', authMiddleware, async (req:
     res.status(201).json({ signup });
   } catch (error) {
     res.status(500).json({ error: 'Failed to signup for key' });
+  }
+});
+
+// PATCH /api/guilds/:guildId/mythic/signups/:signupId - Status einer Anmeldung ändern
+router.patch('/guilds/:guildId/mythic/signups/:signupId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { signupId } = req.params;
+  const { status } = req.body;
+  try {
+    const signup = await MythicPlusService.updateSignupStatus(Number(signupId), status);
+    res.json({ signup });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update signup status' });
+  }
+});
+
+// DELETE /api/guilds/:guildId/mythic/signups/:signupId - Anmeldung zurückziehen/löschen
+router.delete('/guilds/:guildId/mythic/signups/:signupId', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
+  const { signupId } = req.params;
+  try {
+    await MythicPlusService.removeSignup(Number(signupId));
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove signup' });
   }
 });
 
