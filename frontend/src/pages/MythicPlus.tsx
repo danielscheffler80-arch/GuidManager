@@ -75,8 +75,8 @@ export default function MythicPlus() {
     if (!selectedGuild) return;
     setSyncing(true);
     try {
-      await MythicPlusService.syncKeys(selectedGuild.id);
-      loadKeys(selectedGuild.id);
+      // Reload keys from Supabase database
+      await loadKeys(selectedGuild.id);
     } catch (error) {
       console.error('Sync failed');
     } finally {
