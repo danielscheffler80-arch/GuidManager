@@ -174,7 +174,7 @@ const Header: React.FC = () => {
               </>
             ) : pathname === '/mythic' ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#222', padding: '2px 10px', borderRadius: '6px', border: '1px solid #333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#222', padding: '0 10px', borderRadius: '6px', border: '1px solid #333', height: '32px', boxSizing: 'border-box' }}>
                   <span style={{ fontSize: '0.65rem', color: '#666', fontWeight: 800 }}>SUCHE</span>
                   <input
                     type="text"
@@ -188,7 +188,7 @@ const Header: React.FC = () => {
                       background: 'transparent',
                       border: 'none',
                       color: '#fff',
-                      padding: '4px 0',
+                      padding: '0',
                       fontSize: '0.8rem',
                       fontWeight: 600,
                       outline: 'none',
@@ -197,7 +197,7 @@ const Header: React.FC = () => {
                   />
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#222', padding: '2px 10px', borderRadius: '6px', border: '1px solid #333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#222', padding: '0 10px', borderRadius: '6px', border: '1px solid #333', height: '32px', boxSizing: 'border-box' }}>
                   <span style={{ fontSize: '0.65rem', color: '#666', fontWeight: 800 }}>LVL</span>
                   <input
                     type="number"
@@ -382,7 +382,8 @@ const Header: React.FC = () => {
               background: 'rgba(163,48,201,0.1)',
               border: '1px solid rgba(163,48,201,0.3)',
               color: 'white',
-              padding: '4px 14px',
+              padding: '0 14px',
+              height: '32px',
               borderRadius: '6px',
               fontSize: '0.65rem',
               fontWeight: 700,
@@ -393,6 +394,7 @@ const Header: React.FC = () => {
               gap: '5px',
               letterSpacing: '0.5px',
               textTransform: 'uppercase' as any,
+              boxSizing: 'border-box'
             }}
             onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
             onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
