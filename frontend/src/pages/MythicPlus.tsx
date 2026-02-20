@@ -250,27 +250,51 @@ export default function MythicPlus() {
               <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#ccc', whiteSpace: 'nowrap' as const }}>
                 {key.dungeon} +{key.level}
               </div>
-              <button
-                onClick={() => handleSignup(key)}
-                style={{
-                  background: '#A330C9',
-                  border: '1px solid #A330C9',
-                  color: '#fff',
-                  padding: '4px 10px',
-                  borderRadius: '6px',
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  whiteSpace: 'nowrap' as const,
-                }}
-                onMouseOver={(e) => { e.currentTarget.style.background = '#b84ddb'; e.currentTarget.style.borderColor = '#b84ddb'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = '#A330C9'; e.currentTarget.style.borderColor = '#A330C9'; }}
-              >
-                Join
-              </button>
+              {myCharacterIds.includes(char.id) ? (
+                <button
+                  onClick={() => handleSignup(key)}
+                  style={{
+                    background: 'rgba(163,48,201,0.1)',
+                    border: '1px solid rgba(163,48,201,0.3)',
+                    color: '#fff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap' as const,
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
+                >
+                  Anmeldungen
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleSignup(key)}
+                  style={{
+                    background: '#A330C9',
+                    border: '1px solid #A330C9',
+                    color: '#fff',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '9px',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    letterSpacing: '1px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap' as const,
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.background = '#b84ddb'; e.currentTarget.style.borderColor = '#b84ddb'; }}
+                  onMouseOut={(e) => { e.currentTarget.style.background = '#A330C9'; e.currentTarget.style.borderColor = '#A330C9'; }}
+                >
+                  Join
+                </button>
+              )}
             </>
           ) : (
             <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#555' }}>-</div>
