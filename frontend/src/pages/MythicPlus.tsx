@@ -18,6 +18,7 @@ export default function MythicPlus() {
   const [syncing, setSyncing] = useState(false);
   const [selectedKey, setSelectedKey] = useState<any>(null);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [keyFilter, setKeyFilter] = useState('');
 
   useEffect(() => {
     loadMyCharacters();
@@ -87,6 +88,13 @@ export default function MythicPlus() {
     window.addEventListener('mythic-sync-keys', handler);
     return () => window.removeEventListener('mythic-sync-keys', handler);
   }, [selectedGuild]);
+
+  // Listen for key filter from header search
+  useEffect(() => {
+    const filterHandler = (e: any) => setKeyFilter((e as CustomEvent).detail || '');
+    window.addEventListener('mythic-key-filter', filterHandler);
+    return () => window.removeEventListener('mythic-key-filter', filterHandler);
+  }, []);
 
   const handleUpdateSignup = async (signupId: number, status: string) => {
     if (!selectedGuild) return;
@@ -369,7 +377,17 @@ export default function MythicPlus() {
 
       {/* --- Roster-Style Keys List (grouped by main with twink expand) --- */}
       <div className="flex flex-col gap-[2px]">
-        {mains.map(main => {
+        {mains.filter(main => {
+          if (!keyFilter.trim()) return true;
+          const q = keyFilter.toLowerCase();
+          // Check main's keys
+          const mainMatch = main.keys?.some((k: any) => k.dungeon?.toLowerCase().includes(q));
+          // Check alts' keys
+          const altMatch = main.alts?.some((a: any) => a.keys?.some((k: any) => k.dungeon?.toLowerCase().includes(q)));
+          // Check character name
+          const nameMatch = main.name?.toLowerCase().includes(q);
+          return mainMatch || altMatch || nameMatch;
+        }).map(main => {
           const mainKey = main.keys && main.keys.length > 0 ? main.keys[0] : null;
           const hasAlts = main.alts && main.alts.length > 0;
           const isExpanded = expandedMains.includes(main.id);

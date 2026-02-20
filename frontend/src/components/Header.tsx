@@ -158,34 +158,27 @@ const Header: React.FC = () => {
                 >Geschützt</button>
               </>
             ) : pathname === '/mythic' ? (
-              <button
-                id="header-sync-keys-btn"
+              <input
+                type="text"
+                placeholder="Key suchen..."
+                onChange={(e) => {
+                  window.dispatchEvent(new CustomEvent('mythic-key-filter', { detail: e.target.value }));
+                }}
                 style={{
-                  background: 'rgba(163,48,201,0.1)',
-                  border: '1px solid rgba(163,48,201,0.3)',
-                  color: 'white',
-                  padding: '4px 18px',
+                  background: '#2A2A2A',
+                  border: '1px solid #444',
+                  color: '#fff',
+                  padding: '5px 12px',
                   borderRadius: '6px',
-                  fontSize: '0.7rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  letterSpacing: '0.5px',
-                  textTransform: 'uppercase' as any,
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  outline: 'none',
+                  width: '180px',
+                  transition: 'border-color 0.2s',
                 }}
-                onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-                onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
-                onClick={() => {
-                  // Dispatch custom event for MythicPlus page to handle
-                  window.dispatchEvent(new CustomEvent('mythic-sync-keys'));
-                }}
-              >
-                <svg style={{ width: '12px', height: '12px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-                Sync Keys
-              </button>
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = '#444')}
+              />
             ) : (
               // Roster page left controls
               <>
@@ -320,6 +313,32 @@ const Header: React.FC = () => {
               className={`head-filter ${settingsSortField === 'progress' ? 'active' : ''}`}
             >Progress</button>
           </div>
+        )}
+        {pathname === '/mythic' && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('mythic-sync-keys'))}
+            style={{
+              background: 'rgba(163,48,201,0.1)',
+              border: '1px solid rgba(163,48,201,0.3)',
+              color: 'white',
+              padding: '4px 14px',
+              borderRadius: '6px',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '5px',
+              letterSpacing: '0.5px',
+              textTransform: 'uppercase' as any,
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.1)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.3)'; }}
+          >
+            <svg style={{ width: '11px', height: '11px' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+            Sync
+          </button>
         )}
         <div style={{
           display: 'flex',
