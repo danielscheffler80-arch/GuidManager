@@ -1,6 +1,6 @@
 {
   "name": "guild-sys-backend",
-  "version": "0.8.0",
+  "version": "0.8.2",
   "private": true,
   "scripts": {
     "start": "node dist/index.js",
