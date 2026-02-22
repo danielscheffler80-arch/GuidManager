@@ -295,9 +295,10 @@ function startProcesses() {
 
   // Backend nur starten wenn wir NICHT im Client Modus sind
   if (config.mode !== 'client') {
-    console.log('Starte Backend...');
+    const backendDir = 'c:\\GuildManagerServer\\backend';
+    console.log(`Starte Backend aus ${backendDir}...`);
     backendProc = spawn('npm.cmd', ['run', 'dev'], {
-      cwd: path.join(projectRoot, 'backend'),
+      cwd: backendDir,
       shell: true,
       stdio: 'inherit'
     });
