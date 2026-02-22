@@ -1,0 +1,14 @@
+version: 0.9.1
+files:
+  - url: guild-manager-standalone-0.9.1-x64.nsis.7z
+    sha512: s8KteZ9mLiAatrU75sc0lVD0iELC/8oysYh+xA5bq4EkSgCYoLmD7IK0SXWBpr5+REOvGcXJ7GxtQBAuOjJMAA==
+    size: 79606650
+path: guild-manager-standalone-0.9.1-x64.nsis.7z
+sha512: s8KteZ9mLiAatrU75sc0lVD0iELC/8oysYh+xA5bq4EkSgCYoLmD7IK0SXWBpr5+REOvGcXJ7GxtQBAuOjJMAA==
+packages:
+  x64:
+    size: 79606650
+    sha512: s8KteZ9mLiAatrU75sc0lVD0iELC/8oysYh+xA5bq4EkSgCYoLmD7IK0SXWBpr5+REOvGcXJ7GxtQBAuOjJMAA==
+    path: guild-manager-standalone-0.9.1-x64.nsis.7z
+    file: guild-manager-standalone-0.9.1-x64.nsis.7z
+releaseDate: '2026-02-22T23:55:00.000Z'
