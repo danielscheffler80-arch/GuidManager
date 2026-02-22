@@ -7,8 +7,8 @@ path: Guild Manager Standalone Web Setup 0.9.1.exe
 sha512: wWNRJuWCAhA1ZkQHzrhpc1DKvsxDlF488zefkjbVGzEyyrcCmNOcAGNhSmhrdYGSKT0+zIIJdL+Lc7aXz8hl9A==
 packages:
   x64:
-    size: 79606650
-    sha512: s8KteZ9mLiAatrU75sc0lVD0iELC/8oysYh+xA5bq4EkSgCYoLmD7IK0SXWBpr5+REOvGcXJ7GxtQBAuOjJMAA==
+    size: 79609927
+    sha512: nPBprZnTC2vob8GR7TjaNRLSFAK3h1808sDCb5Go+LbMemJpYadl5sZbe+FOr8s6C22em4flFI8mZjqTnrhIug==
     path: guild-manager-standalone-0.9.1-x64.nsis.7z
     file: guild-manager-standalone-0.9.1-x64.nsis.7z
-releaseDate: '2026-02-22T23:58:00.000Z'
+releaseDate: '2026-02-23T00:15:00.000Z'
