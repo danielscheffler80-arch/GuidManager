@@ -1,0 +1,87 @@
+
+Windows-IP-Konfiguration
+
+   Hostname  . . . . . . . . . . . . : Home_Backup
+   PrimÑres DNS-Suffix . . . . . . . : 
+   Knotentyp . . . . . . . . . . . . : Hybrid
+   IP-Routing aktiviert  . . . . . . : Nein
+   WINS-Proxy aktiviert  . . . . . . : Nein
+   DNS-Suffixsuchliste . . . . . . . : fritz.box
+
+Ethernet-Adapter Ethernet:
+
+   Verbindungsspezifisches DNS-Suffix: fritz.box
+   Beschreibung. . . . . . . . . . . : Realtek Gaming 2.5GbE Family Controller
+   Physische Adresse . . . . . . . . : E8-9C-25-DB-7C-6E
+   DHCP aktiviert. . . . . . . . . . : Ja
+   Autokonfiguration aktiviert . . . : Ja
+   IPv6-Adresse. . . . . . . . . . . : 2003:f8:ff3d:8600:63c0:63bc:eafc:1b6e(Bevorzugt) 
+   IPv6-Adresse. . . . . . . . . . . : fd75:e7ab:4a1f:0:30a0:13d4:ba31:8bd0(Bevorzugt) 
+   TemporÑre IPv6-Adresse. . . . . . : 2003:f8:ff3d:8600:a90b:caee:f8c5:fa7e(Bevorzugt) 
+   TemporÑre IPv6-Adresse. . . . . . : fd75:e7ab:4a1f:0:a90b:caee:f8c5:fa7e(Bevorzugt) 
+   Verbindungslokale IPv6-Adresse  . : fe80::fc2c:c2:27bc:b7c4%17(Bevorzugt) 
+   IPv4-Adresse  . . . . . . . . . . : 192.168.178.50(Bevorzugt) 
+   Subnetzmaske  . . . . . . . . . . : 255.255.255.0
+   Lease erhalten. . . . . . . . . . : Samstag, 21. Februar 2026 20:44:08
+   Lease lÑuft ab. . . . . . . . . . : Dienstag, 3. MÑrz 2026 20:44:08
+   Standardgateway . . . . . . . . . : fe80::7642:7fff:fe80:3a90%17
+                                       192.168.178.1
+   DHCP-Server . . . . . . . . . . . : 192.168.178.1
+   DHCPv6-IAID . . . . . . . . . . . : 99130405
+   DHCPv6-Client-DUID. . . . . . . . : 00-01-00-01-2F-AB-3C-FC-E8-9C-25-DB-7C-6E
+   DNS-Server  . . . . . . . . . . . : 2003:f8:ff3d:8600:7642:7fff:fe80:3a90
+                                       192.168.178.1
+                                       fd75:e7ab:4a1f:0:7642:7fff:fe80:3a90
+                                       2003:f8:ff3d:8600:7642:7fff:fe80:3a90
+   NetBIOS Åber TCP/IP . . . . . . . : Aktiviert
+
+Drahtlos-LAN-Adapter WLAN:
+
+   Medienstatus. . . . . . . . . . . : Medium getrennt
+   Verbindungsspezifisches DNS-Suffix: fritz.box
+   Beschreibung. . . . . . . . . . . : Intel(R) Wi-Fi 6 AX201 160MHz
+   Physische Adresse . . . . . . . . : F4-3B-D8-7D-DC-78
+   DHCP aktiviert. . . . . . . . . . : Ja
+   Autokonfiguration aktiviert . . . : Ja
+
+Drahtlos-LAN-Adapter LAN-Verbindung* 9:
+
+   Medienstatus. . . . . . . . . . . : Medium getrennt
+   Verbindungsspezifisches DNS-Suffix: 
+   Beschreibung. . . . . . . . . . . : Microsoft Wi-Fi Direct Virtual Adapter
+   Physische Adresse . . . . . . . . : F4-3B-D8-7D-DC-79
+   DHCP aktiviert. . . . . . . . . . : Ja
+   Autokonfiguration aktiviert . . . : Ja
+
+Drahtlos-LAN-Adapter LAN-Verbindung* 10:
+
+   Medienstatus. . . . . . . . . . . : Medium getrennt
+   Verbindungsspezifisches DNS-Suffix: 
+   Beschreibung. . . . . . . . . . . : Microsoft Wi-Fi Direct Virtual Adapter #2
+   Physische Adresse . . . . . . . . : F6-3B-D8-7D-DC-78
+   DHCP aktiviert. . . . . . . . . . : Ja
+   Autokonfiguration aktiviert . . . : Ja
+
+Ethernet-Adapter Bluetooth-Netzwerkverbindung:
+
+   Medienstatus. . . . . . . . . . . : Medium getrennt
+   Verbindungsspezifisches DNS-Suffix: 
+   Beschreibung. . . . . . . . . . . : Bluetooth Device (Personal Area Network)
+   Physische Adresse . . . . . . . . : F4-3B-D8-7D-DC-7C
+   DHCP aktiviert. . . . . . . . . . : Ja
+   Autokonfiguration aktiviert . . . : Ja
+
+Ethernet-Adapter vEthernet (WSL (Hyper-V firewall)):
+
+   Verbindungsspezifisches DNS-Suffix: 
+   Beschreibung. . . . . . . . . . . : Hyper-V Virtual Ethernet Adapter
+   Physische Adresse . . . . . . . . : 00-15-5D-8B-91-EB
+   DHCP aktiviert. . . . . . . . . . : Nein
+   Autokonfiguration aktiviert . . . : Ja
+   Verbindungslokale IPv6-Adresse  . : fe80::1a14:295b:8440:5f52%34(Bevorzugt) 
+   IPv4-Adresse  . . . . . . . . . . : 172.26.160.1(Bevorzugt) 
+   Subnetzmaske  . . . . . . . . . . : 255.255.240.0
+   Standardgateway . . . . . . . . . : 
+   DHCPv6-IAID . . . . . . . . . . . : 570430813
+   DHCPv6-Client-DUID. . . . . . . . : 00-01-00-01-2F-AB-3C-FC-E8-9C-25-DB-7C-6E
+   NetBIOS Åber TCP/IP . . . . . . . : Aktiviert

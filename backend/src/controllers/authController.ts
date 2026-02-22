@@ -128,24 +128,58 @@ export class AuthController {
       // Sende freundliche HTML Antwort statt nur JSON
       res.send(`
         <html>
-          <body style="background: #252525; color: #D1D9E0; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; text-align: center; margin: 0;">
-            <div style="background: #2D2D2D; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 1px solid #333; max-width: 400px;">
-              <h1 style="color: #A330C9; margin-top: 0;">Login erfolgreich!</h1>
-              <p style="font-size: 1.1em; line-height: 1.5;">Du kannst dieses Browser-Fenster jetzt schließen.</p>
-              <p style="color: #888;">Deine Desktop-App hat dich bereits eingeloggt.</p>
-              <p id="timer" style="color: #666; font-size: 0.9em; margin-top: 20px;">Fenster wird automatisch geschlossen in <span id="seconds">3</span> Sekunden...</p>
-              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #444; color: #666; font-size: 0.8em; letter-spacing: 1px;">XAVA GUILD MANAGER</div>
+          <head>
+            <title>Login erfolgreich!</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+          </head>
+          <body style="background: #1a1a1a; color: #D1D9E0; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; margin: 0;">
+            <div style="background: #252525; padding: 40px; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); border: 1px solid #333; max-width: 450px; width: 90%;">
+              <div style="font-size: 60px; margin-bottom: 20px;">🛡️</div>
+              <h1 style="color: #A330C9; margin-top: 0; font-size: 24px;">Login erfolgreich!</h1>
+              <p style="font-size: 1.1em; line-height: 1.5; color: #ccc;">Du kannst dieses Fenster jetzt schließen.</p>
+              <p style="color: #888; font-size: 0.95em;">Deine Desktop-App hat dich bereits angemeldet und ist bereit.</p>
+              
+              <div style="margin: 30px 0;">
+                <button onclick="window.close()" style="background: #A330C9; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px; transition: all 0.2s;">
+                  Fenster schließen
+                </button>
+              </div>
+
+              <p id="timer" style="color: #666; font-size: 0.85em; margin-top: 20px;">
+                Fenster schließt automatisch in <span id="seconds" style="font-weight: bold; color: #A330C9;">3</span> Sekunden...
+              </p>
+              
+              <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #333; color: #444; font-size: 0.75em; letter-spacing: 2px; font-weight: bold;">
+                XAVA GUILD MANAGER
+              </div>
             </div>
+            
             <script>
               let seconds = 3;
-              const interval = setInterval(() => {
+              const secondsSpan = document.getElementById('seconds');
+              
+              const updateTimer = () => {
                 seconds--;
-                document.getElementById('seconds').textContent = seconds;
+                if (secondsSpan) secondsSpan.textContent = seconds;
+                
                 if (seconds <= 0) {
-                  clearInterval(interval);
+                  // Versuch das Fenster zu schließen
                   window.close();
+                  
+                  // Fallback falls window.close() blockiert wurde (häufig in mobilen Browsern oder wenn nicht per Script geöffnet)
+                  document.getElementById('timer').innerHTML = "Du kannst dieses Fenster nun manuell schließen.";
+                  document.getElementById('timer').style.color = "#888";
+                  return;
                 }
-              }, 1000);
+                setTimeout(updateTimer, 1000);
+              };
+              
+              setTimeout(updateTimer, 1000);
+
+              // Ein kleiner Trick, der manchmal hilft window.close() zu erlauben
+              window.onload = function() {
+                window.focus();
+              };
             </script>
           </body>
         </html>

@@ -25,11 +25,17 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
     console.log(`[LOGIN] Electron detected: ${electronDetected}`);
     setIsElectron(electronDetected);
 
-    // Initialize input with current URL
-    const currentUrl = (window as any).electronAPI?.getBackendUrl?.() ||
-      localStorage.getItem('backendUrl') ||
-      'http://localhost:3334';
-    setBackendInput(currentUrl);
+    const initConnection = async () => {
+      // Initialize input with current URL
+      const currentUrl = window.electronAPI?.getBackendUrl?.() ||
+        localStorage.getItem('backendUrl') ||
+        'https://guild-manager-backend.onrender.com';
+      setBackendInput(currentUrl);
+    };
+
+    if (electronDetected) {
+      initConnection();
+    }
   }, []);
 
   const remoteLog = async (message: string, data?: any) => {
@@ -336,6 +342,13 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
             <p className="error-alert-text" style={{ color: '#ff4444' }}>{connectionError}</p>
             <button
               onClick={() => setShowSettings(true)}
+              style={{ background: 'transparent', border: '1px solid #A330C9', color: '#A330C9', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', cursor: 'pointer' }}
+            >
+              ⚙️ Verbindung anpassen
+            </button>
+
+            <button
+              onClick={() => setShowSettings(true)}
               style={{
                 marginTop: '8px',
                 background: 'rgba(255, 68, 68, 0.2)',
@@ -347,7 +360,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
                 cursor: 'pointer'
               }}
             >
-              Einstellungen öffnen
+              ⚙️ Einstellungen öffnen
             </button>
           </div>
         )}

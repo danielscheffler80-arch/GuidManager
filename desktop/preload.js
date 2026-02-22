@@ -28,78 +28,33 @@ async function verifyBackendUrl(url, retries = 1) {
   return false;
 }
 
-// Initialisierung
 ipcRenderer.invoke('get-config').then(async (config) => {
   console.log('[PRELOAD] Config geladen:', config);
 
-  // Support backendUrls array (try in order: localhost first, cloud fallback)
-  const urlsToTry = config.backendUrls && config.backendUrls.length > 0
-    ? config.backendUrls
-    : config.backendUrl
-      ? [config.backendUrl]
-      : ['http://localhost:3334', 'https://guild-manager-backend.onrender.com'];
+  // Use config URL or default to Render
+  workingBackendUrl = config.backendUrl || 'https://guild-manager-backend.onrender.com';
 
-  let finalUrl = urlsToTry[urlsToTry.length - 1]; // use last as default
-  let found = false;
-
-  console.log('[PRELOAD] Starting backend discovery...', urlsToTry);
-  for (const url of urlsToTry) {
-    console.log(`[PRELOAD] Checking: ${url}`);
-    if (await verifyBackendUrl(url)) {
-      finalUrl = url;
-      found = true;
-      console.log(`[PRELOAD] Backend FOUND: ${finalUrl}`);
-      break;
-    } else {
-      console.log(`[PRELOAD] Backend unreachable: ${url}, trying next...`);
-    }
-  }
-
-  // Set the working URL
-  workingBackendUrl = finalUrl;
-  backendVerified = found;
+  // Verify the URL
+  backendVerified = await verifyBackendUrl(workingBackendUrl);
   backendCheckComplete = true;
-  console.log(`[PRELOAD] Discovery Complete. Final URL: ${workingBackendUrl} (Verified: ${found})`);
+
+  console.log(`[PRELOAD] Initialized with URL: ${workingBackendUrl} (Verified: ${backendVerified})`);
 });
 
+// APIs für den Renderer-Prozess freigeben
 contextBridge.exposeInMainWorld('electronAPI', {
-  openExternal: (url) => {
-    ipcRenderer.send('open-external', url);
-  },
-  getBackendUrl: () => {
-    return workingBackendUrl;
-  },
-  getSources: (types) => {
-    return ipcRenderer.invoke('get-sources', types);
-  },
-  getGPUInfo: () => {
-    return ipcRenderer.invoke('get-gpu-info');
-  },
-  isBackendReady: () => {
-    return backendCheckComplete && backendVerified;
-  },
-  isCheckFinished: () => {
-    return backendCheckComplete;
-  },
-  checkForUpdates: () => {
-    return ipcRenderer.invoke('check-for-updates');
-  },
-  onUpdateMessage: (callback) => {
-    ipcRenderer.on('update-message', (event, message) => callback(message));
-  },
-  restartAndInstall: () => {
-    return ipcRenderer.invoke('restart-and-install');
-  },
-  getVersion: () => {
-    return ipcRenderer.invoke('get-version');
-  },
-  onGuildChat: (callback) => {
-    ipcRenderer.on('guild-chat', (event, data) => callback(data));
-  },
-  toggleWindowFullscreen: () => {
-    return ipcRenderer.invoke('toggle-window-fullscreen');
-  },
-  setWindowFullscreen: (flag) => {
-    return ipcRenderer.invoke('set-window-fullscreen', flag);
-  }
+  getBackendUrl: () => workingBackendUrl,
+  isBackendVerified: () => backendVerified,
+  isBackendCheckComplete: () => backendCheckComplete,
+  openExternal: (url) => ipcRenderer.send('open-external', url),
+  getVersion: () => ipcRenderer.invoke('get-version'),
+  checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
+  onUpdateMessage: (callback) => ipcRenderer.on('update-message', (event, msg) => callback(msg)),
+  restartAndInstall: () => ipcRenderer.invoke('restart-and-install'),
+  navigate: (callback) => ipcRenderer.on('navigate', (event, path) => callback(path)),
+  getSources: (types) => ipcRenderer.invoke('get-sources', types),
+  getGpuInfo: () => ipcRenderer.invoke('get-gpu-info'),
+  saveWowPath: (path) => ipcRenderer.invoke('save-wow-path', path),
+  toggleFullscreen: () => ipcRenderer.invoke('toggle-window-fullscreen'),
+  onGuildChat: (callback) => ipcRenderer.on('guild-chat', (event, data) => callback(data)),
 });

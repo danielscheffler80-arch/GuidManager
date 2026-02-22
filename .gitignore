@@ -1,9 +1,11 @@
 # Dependencies
 node_modules/
+**/node_modules/
 package-lock.json
 
 # Build outputs
 dist/
+**/dist/
 dist-standalone/
 build/
 *.log
@@ -40,7 +42,7 @@ yarn-error.log*
 webrtc_debug.log
 
 # Updates folder (installer)
-# backend/updates/
+backend/updates/
 
 # Test files
 A1.*.txt

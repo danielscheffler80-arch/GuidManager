@@ -72,10 +72,6 @@ app.use('/users', userRouter);
 app.use('/guild', guildRouter);
 app.use('/api/debug', debugRouter);
 
-// Updates für Standalone App
-app.use('/updates', express.static(path.join(__dirname, '../updates')));
-
-
 // Initialize Socket Service
 const io = new Server(server, {
   cors: {
@@ -88,10 +84,9 @@ initSocketService(io);
 
 // Fallback
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3334;
-server.listen(port, () => {
-  console.log(`Backend listening on http://localhost:${port} (PID: ${process.pid})`);
-  console.log(`BNET_REDIRECT_URI at runtime: ${process.env.BNET_REDIRECT_URI}`);
-  console.log(`DATABASE_URL starts with: ${process.env.DATABASE_URL?.substring(0, 20)}...`);
+server.listen(port, '0.0.0.0', () => {
+  console.log(`Backend listening on http://0.0.0.0:${port} (PID: ${process.pid})`);
 });
+
 
 export default app;
