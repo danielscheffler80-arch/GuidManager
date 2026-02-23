@@ -12,6 +12,7 @@ import authRouter from './routes/auth';
 import userRouter from './routes/user';
 import guildRouter from './routes/guild';
 import debugRouter from './routes/debug';
+import messagesRouter from './routes/messages';
 import { initSocketService } from './services/socketService';
 import prisma from './prisma';
 
@@ -71,6 +72,7 @@ app.use('/auth', authRouter);
 app.use('/users', userRouter);
 app.use('/guild', guildRouter);
 app.use('/api/debug', debugRouter);
+app.use('/api/messages', messagesRouter);
 
 // Initialize Socket Service
 const io = new Server(server, {

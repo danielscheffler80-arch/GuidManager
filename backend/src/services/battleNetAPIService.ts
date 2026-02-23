@@ -543,7 +543,7 @@ export class BattleNetAPIService {
       await prisma.character.update({
         where: { id: characterId },
         data: {
-          // Hier könnten wir ein Feld für Mythic+ Rating hinzufügen
+          mythicRating: mythicData.current_mythic_rating?.rating || 0,
           lastSync: new Date(),
         },
       });

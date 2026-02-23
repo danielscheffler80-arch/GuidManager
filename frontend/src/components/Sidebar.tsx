@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import MessageInbox from './MessageInbox';
+import MessagePopup from './MessagePopup';
 
 const items = [
   { to: '/dashboard', label: 'Dashboard', icon: '📊' },
@@ -16,6 +18,9 @@ export default function Sidebar() {
   const { user, logout, isSyncing, syncCharacters, isAdmin } = useAuth();
   const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [showInbox, setShowInbox] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<{ id: number, name: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
 
@@ -44,6 +49,32 @@ export default function Sidebar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Fetch unread messages count
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      const char = user.characters?.find((c: any) => c.isMain) || user.characters?.[0];
+      if (!char) return;
+
+      try {
+        const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/messages/${char.id}/unread`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          setUnreadCount(data.count);
+        }
+      } catch (err) {
+        console.error('Failed to fetch unread count', err);
+      }
+    };
+
+    fetchUnreadCount();
+    const interval = setInterval(fetchUnreadCount, 30000); // Polling every 30s
+    return () => clearInterval(interval);
+  }, [user]);
+
   if (!user) return null;
 
   const battletag = user.battletag || 'User';
@@ -65,14 +96,31 @@ export default function Sidebar() {
             <span className="header-username">{displayName}</span>
             <div className="status-refresh-row">
               <span className="header-status">Online</span>
-              <button
-                className={`refresh-btn ${isSyncing ? 'spinning' : ''}`}
-                onClick={handleRefresh}
-                title="Charaktere jetzt synchronisieren"
-                disabled={isSyncing}
-              >
-                🔄
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className={`refresh-btn ${isSyncing ? 'spinning' : ''}`}
+                  onClick={handleRefresh}
+                  title="Charaktere jetzt synchronisieren"
+                  disabled={isSyncing}
+                >
+                  🔄
+                </button>
+                {unreadCount > 0 && (
+                  <div
+                    className="relative flex items-center cursor-pointer hover:scale-110 transition-transform"
+                    title={`${unreadCount} ungelesene Nachrichten`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowInbox(true);
+                    }}
+                  >
+                    <span className="text-[14px]">📩</span>
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black w-3.5 h-3.5 flex items-center justify-center rounded-full border border-[#1D1E1F]">
+                      {unreadCount}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <span className={`dropdown-arrow ${isDropdownOpen ? 'open' : ''}`}>▼</span>
@@ -159,6 +207,45 @@ export default function Sidebar() {
             </Link>
           </div>
         </div>
+      )}
+
+      {/* Messaging Modals */}
+      {showInbox && (
+        <MessageInbox
+          onClose={() => {
+            setShowInbox(false);
+            // Re-fetch unread count after closing inbox to update the badge
+            const fetchUnreadCount = async () => {
+              const char = user.characters?.find((c: any) => c.isMain) || user.characters?.[0];
+              if (!char) return;
+              try {
+                const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/messages/${char.id}/unread`, {
+                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                });
+                if (resp.ok) {
+                  const data = await resp.json();
+                  setUnreadCount(data.count);
+                }
+              } catch (e) { }
+            };
+            fetchUnreadCount();
+          }}
+          onReply={(id, name) => {
+            setShowInbox(false);
+            setReplyTarget({ id, name });
+          }}
+        />
+      )}
+
+      {replyTarget && (
+        <MessagePopup
+          receiverId={replyTarget.id}
+          receiverName={replyTarget.name}
+          onClose={() => setReplyTarget(null)}
+          onSuccess={() => {
+            // Optional: Show success toast
+          }}
+        />
       )}
     </nav>
   );
