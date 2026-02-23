@@ -1,3 +1,4 @@
+# Force redeploy for v0.9.6 crash fix
 version: 0.9.6
 files:
   - url: Guild Manager Standalone Setup 0.9.6.exe
