@@ -17,6 +17,7 @@ declare global {
             toggleWindowFullscreen: () => Promise<boolean>;
             setWindowFullscreen: (flag: boolean) => Promise<void>;
             refreshDiscovery: () => Promise<boolean>;
+            setToken: (token: string) => void;
         };
     }
 }

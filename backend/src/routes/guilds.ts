@@ -459,15 +459,17 @@ router.post('/guilds/:guildId/members/:characterId/kick', authMiddleware, checkP
 });
 
 // POST /api/mythic/sync-addon - Empfange Keystone-Daten vom Desktop-App/Addon
-router.post('/mythic/sync-addon', async (req: Request, res: Response) => {
+// Jetzt geschützt, um Chars automatisch mit dem User zu verknüpfen
+router.post('/mythic/sync-addon', authMiddleware, async (req: AuthenticatedRequest, res: Response) => {
   const { keys } = req.body;
+  const userId = req.user?.userId;
 
   if (!keys || !Array.isArray(keys)) {
     return res.status(400).json({ error: 'Invalid keys data' });
   }
 
   try {
-    const result = await MythicPlusService.processAddonSync(keys);
+    const result = await MythicPlusService.processAddonSync(keys, userId);
     res.json(result);
   } catch (error: any) {
     console.error('[AddonSync] GLOBAL ERROR:', error.message);

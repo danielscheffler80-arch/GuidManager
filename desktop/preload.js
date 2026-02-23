@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getBackendUrl: () => workingBackendUrl,
   isBackendReady: () => backendVerified,
   isCheckFinished: () => backendCheckComplete,
+  setToken: (token) => ipcRenderer.send('set-token', token),
   openExternal: (url) => ipcRenderer.send('open-external', url),
   getVersion: () => ipcRenderer.invoke('get-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),

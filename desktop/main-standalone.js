@@ -66,6 +66,13 @@ ipcMain.on('open-external', (event, url) => {
   shell.openExternal(url);
 });
 
+ipcMain.on('set-token', (event, token) => {
+  console.log('[MAIN] Token empfangen');
+  if (keystoneSync) {
+    keystoneSync.setAuthToken(token);
+  }
+});
+
 ipcMain.handle('get-config', () => {
   return config;
 });
