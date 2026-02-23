@@ -9,13 +9,30 @@ export class MythicPlusService {
      */
     static async getGuildKeysGrouped(guildId: number) {
         try {
-            console.log(`[MythicPlusService] Fetching keys for guild ${guildId}...`);
+            console.log(`[MythicPlusService] Fetching keys for guild ${guildId} with global alts...`);
 
-            // 1. Hole ALLE Charaktere dieser Gilde ODER die mit der Gilde assoziiert sind
-            const characters = await prisma.character.findMany({
+            // 1. Get all user IDs that have at least one character in this guild
+            const guildMemberUserIds = await prisma.character.findMany({
+                where: { guildId: guildId, isActive: true, userId: { not: null } },
+                select: { userId: true },
+                distinct: ['userId']
+            });
+
+            const userIds = guildMemberUserIds.map(u => u.userId as number);
+
+            if (userIds.length === 0) return [];
+
+            // 2. Fetch ALL relevant characters for these users:
+            // - Characters in THIS guild
+            // - OR Characters marked as isFavorite: true (from ANY guild)
+            const allCharacters = await prisma.character.findMany({
                 where: {
-                    guildId: guildId,
-                    isActive: true
+                    userId: { in: userIds },
+                    isActive: true,
+                    OR: [
+                        { guildId: guildId },
+                        { isFavorite: true }
+                    ]
                 },
                 include: {
                     mythicKeys: {
@@ -41,36 +58,20 @@ export class MythicPlusService {
                 }
             });
 
-            console.log(`[MythicPlusService] Found ${characters.length} characters related to guild ${guildId}.`);
-
-            // 3. Gruppierung nach Usern (da wir Alts unter Mains zeigen wollen)
+            // 3. Group by User
             const result = [];
-            const processedUserIds = new Set<number>();
 
-            for (const char of characters) {
-                // Bedingung: "als Main können nur die angezeigt werden, die in unserer app angemeldet sind und ihren main ausgewählt haben"
-                if (!char.userId) {
-                    continue; // Überspringen, da nicht angemeldeter Charakter
-                }
-
-                if (processedUserIds.has(char.userId)) continue;
-
-                // Alle Chars dieses Users finden, die in DIESER Gilde sind
-                const userChars = characters.filter(c => c.userId === char.userId);
-
-                // Haupt-Charakter für diesen User finden (zwingend isMain)
+            for (const userId of userIds) {
+                const userChars = allCharacters.filter(c => c.userId === userId);
                 const mainChar = userChars.find(c => c.isMain);
 
-                // STRICT FILTERING: If the user hasn't explicitly set a main, they don't appear in M+ dashboard.
-                if (!mainChar) {
-                    continue;
-                }
+                // No main selected = no appearance in dashboard
+                if (!mainChar) continue;
 
-                processedUserIds.add(char.userId);
+                // Alts are all favorite chars (regardless of guild) + non-main chars in this guild
+                const alts = userChars.filter(c => c.id !== mainChar.id);
 
-                const alts = userChars.filter(c => c.id !== mainChar.id && c.isFavorite);
-
-                // Sammle alle eingehenden Bewerbungen auf die Keys dieses Users (Main + Alts)
+                // Collect all incoming applications on the keys of this user
                 const allKeysOfUser = [...mainChar.mythicKeys, ...alts.flatMap(a => a.mythicKeys)];
                 const allSignups = allKeysOfUser.flatMap(k =>
                     k.signups.map(s => ({
@@ -94,7 +95,6 @@ export class MythicPlusService {
                 });
             }
 
-            console.log(`[MythicPlusService] Successfully grouped ${result.length} entries.`);
             return result;
         } catch (error) {
             console.error('[MythicPlusService] Error in getGuildKeysGrouped:', error);
