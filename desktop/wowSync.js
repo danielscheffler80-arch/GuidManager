@@ -114,7 +114,16 @@ class WoWKeystoneSync {
         }
 
         if (allKeys.length > 0) {
-            this.logToFile(`${allKeys.length} Keys gesamt gefunden. Sende an Cloud...`);
+            // Speichere die zusammengeführten Daten lokal (wie vom User gewünscht)
+            try {
+                const mergedFilePath = path.join(__dirname, 'merged-keys.json');
+                fs.writeFileSync(mergedFilePath, JSON.stringify(allKeys, null, 2));
+                this.logToFile(`Zusammengeführte Daten in ${mergedFilePath} gespeichert.`);
+            } catch (err) {
+                this.logToFile(`FEHLER beim Speichern der Merged-Datei: ${err.message}`);
+            }
+
+            this.logToFile(`${allKeys.length} Keys gesamt gefunden. Sende an Backend...`);
             await this.sendToBackend(allKeys);
         } else {
             this.logToFile('Keine Keys in irgendeiner Datenquelle gefunden.');

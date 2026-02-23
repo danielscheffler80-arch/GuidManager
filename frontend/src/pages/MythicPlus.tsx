@@ -19,12 +19,24 @@ export default function MythicPlus() {
   const [syncing, setSyncing] = useState(false);
   const [selectedKey, setSelectedKey] = useState<any>(null);
   const [showSignupModal, setShowSignupModal] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<{ keyId: number, slotIdx: number } | null>(null);
   const [keyFilter, setKeyFilter] = useState({ search: '', min: 0, max: 99 });
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, charId: number, charName: string } | null>(null);
   const [messageReceiver, setMessageReceiver] = useState<{ id: number, name: string } | null>(null);
 
   useEffect(() => {
     loadMyCharacters();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.choice-dropdown') && !target.closest('.dropdown-toggle')) {
+        setOpenDropdown(null);
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const loadMyCharacters = async () => {
@@ -59,10 +71,6 @@ export default function MythicPlus() {
         mainsData = mainsData.map((m: any) => {
           const userChars = user.characters || [];
           const userMatch = userChars.find((uc: any) => uc.id === m.id);
-          const updatedAlts = (m.alts || []).map((alt: any) => {
-            const altMatch = userChars.find((uc: any) => uc.id === alt.id);
-            return altMatch ? { ...alt, mythicRating: altMatch.mythicRating } : alt;
-          });
 
           // Merge for signups!
           const updatedSignups = (m.signups || []).map((sig: any) => {
@@ -77,9 +85,49 @@ export default function MythicPlus() {
             return sig;
           });
 
+          // Sync signups inside EACH key as well
+          const updatedKeys = (m.keys || []).map((k: any) => ({
+            ...k,
+            signups: (k.signups || []).map((sig: any) => {
+              if (!sig.character) return sig;
+              const charMatch = userChars.find((uc: any) => uc.id === sig.characterId);
+              if (charMatch && charMatch.mythicRating !== undefined && charMatch.mythicRating !== null) {
+                return {
+                  ...sig,
+                  character: { ...sig.character, mythicRating: charMatch.mythicRating }
+                };
+              }
+              return sig;
+            })
+          }));
+
+          const updatedAlts = (m.alts || []).map((alt: any) => {
+            const altMatch = userChars.find((uc: any) => uc.id === alt.id);
+            const altWithRating = altMatch ? { ...alt, mythicRating: altMatch.mythicRating } : alt;
+
+            // Also sync keys inside alts
+            const altKeys = (alt.keys || []).map((k: any) => ({
+              ...k,
+              signups: (k.signups || []).map((sig: any) => {
+                if (!sig.character) return sig;
+                const charMatch = userChars.find((uc: any) => uc.id === sig.characterId);
+                if (charMatch && charMatch.mythicRating !== undefined && charMatch.mythicRating !== null) {
+                  return {
+                    ...sig,
+                    character: { ...sig.character, mythicRating: charMatch.mythicRating }
+                  };
+                }
+                return sig;
+              })
+            }));
+
+            return { ...altWithRating, keys: altKeys };
+          });
+
           return {
             ...m,
             mythicRating: (userMatch && userMatch.mythicRating !== undefined && userMatch.mythicRating !== null) ? userMatch.mythicRating : m.mythicRating,
+            keys: updatedKeys,
             alts: updatedAlts,
             signups: updatedSignups
           };
@@ -140,7 +188,7 @@ export default function MythicPlus() {
       if (player.characterId === senderChar.id) continue; // Don't send to self
 
       try {
-        const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/messages/send`, {
+        const resp = await fetch(`${((import.meta as any).env.VITE_API_URL) || 'http://localhost:3334'}/api/messages/send`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -238,7 +286,32 @@ export default function MythicPlus() {
   // --- Compute Dashboard Data ---
   const myMains = mains.filter(m => m.userId === user?.id);
   const signupsForMyKeys = myMains.flatMap(m => m.signups || []);
-  const myOutgoingSignups = mains.flatMap(m => m.signups || []).filter(s => myCharacterIds.includes(s.characterId));
+
+  // Flatten all characters to check signups on both mains and alts
+  const allCharacters = mains.flatMap(m => [m, ...(m.alts || [])]);
+
+  // 1. My Own Keys that have applicants (Priorty for status 'owner')
+  const ownKeysWithApplicants = allCharacters
+    .filter(c => myCharacterIds.includes(c.id))
+    .flatMap(c => (c.keys || []).map((k: any) => ({ ...k, character: c })))
+    .filter(k => (k.signups || []).length > 0)
+    .map(k => ({
+      id: `own-${k.id}`,
+      keyId: k.id,
+      key: k,
+      character: k.character, // This is ME for own keys
+      status: 'owner', // Special status for own keys
+      isOwnKey: true
+    }));
+
+  const ownKeyIds = new Set(ownKeysWithApplicants.map(o => o.keyId));
+
+  // 2. My Outgoing Signups (Exclude keys I already own and am leading)
+  const outgoing = allCharacters.flatMap(c =>
+    (c.signups || []).map((s: any) => ({ ...s, character: c }))
+  ).filter((s: any) => myCharacterIds.includes(s.characterId) && !ownKeyIds.has(s.keyId));
+
+  const myOutgoingSignups = [...ownKeysWithApplicants, ...outgoing];
 
   // --- Helper functions ---
   const getRIOColor = (score: number | null) => {
@@ -277,7 +350,7 @@ export default function MythicPlus() {
     return `https://render.worldofwarcraft.com/us/icons/56/classicon_${key}.jpg`;
   };
 
-  const getPossibleRoles = (classId: any) => {
+  const getPossibleRoles = (classId: any): ("Tank" | "Healer" | "DPS")[] => {
     const id = Number(classId);
     if ([2, 10, 11].includes(id)) return ['Tank', 'Healer', 'DPS'];
     if ([1, 6, 12].includes(id)) return ['Tank', 'DPS'];
@@ -295,18 +368,36 @@ export default function MythicPlus() {
         />
       );
     }
-    const color = isSlot ? (role === 'Tank' ? '#3B82F6' : (role === 'Healer' || role === 'Heal' ? '#10B981' : '#EF4444')) : (role === 'Tank' ? '#3B82F6' : (role === 'Healer' || role === 'Heal' ? '#10B981' : '#EF4444'));
-    if (role === 'Tank') return <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M12 2L4 5V11C4 16.17 7.41 20.94 12 22C16.59 20.94 20 16.17 20 11V5L12 2Z" /></svg>;
-    if (role === 'Healer' || role === 'Heal') return <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M19 11H13V5C13 4.45 12.55 4 12 4C11.45 4 11 4.45 11 5V11H5C4.45 11 4 11.45 4 12C4 12.55 4.45 13 5 13H11V19C11 19.55 11.45 20 12 20C12.55 20 13 19.55 13 19V13H19C19.55 13 20 12.55 20 12C20 11.45 19.55 11 19 11Z" /></svg>;
-    return <svg width={size} height={size} viewBox="0 0 24 24" fill={color}><path d="M11 2L9 7L3 9L9 11L11 17L13 11L19 9L13 7L11 2Z" /></svg>;
+
+    // Official Role Icons via Raider.io CDN (more stable/consistent)
+    const getOfficialRoleIcon = (roleName: string) => {
+      const r = roleName.toLowerCase();
+      if (r === 'tank') return 'https://cdn.raiderio.net/assets/img/role_tank-6cee7610058306ba277e.png';
+      if (r === 'healer' || r === 'heal') return 'https://cdn.raiderio.net/assets/img/role_healer-984e5e9867d6508a714a.png';
+      return 'https://cdn.raiderio.net/assets/img/role_dps-eb25989187d4d3ac866d.png';
+    };
+
+    return (
+      <img
+        src={getOfficialRoleIcon(role)}
+        style={{ width: size, height: size, objectFit: 'contain' }}
+        alt={role}
+      />
+    );
   };
 
   const MythicGroupSlots = ({ fullKey, isMyKey = false }: { fullKey: any, isMyKey?: boolean }) => {
     if (!fullKey) return null;
     const keyholder = fullKey.character;
-    const allSignups = fullKey.signups || [];
+    const allSignups = (fullKey.signups || []).filter((sig: any) => sig.keyId === fullKey.id);
     const confirmedSignups = allSignups.filter((sig: any) => sig.status === 'accepted');
-    const pendingSignups = allSignups.filter((sig: any) => sig.status === 'pending');
+    const pendingSignups = allSignups.filter((sig: any) => {
+      // 1. Must be pending
+      if (sig.status !== 'pending') return false;
+      // 2. Account Isolation: Don't show characters from the same account as the keyholder
+      if (sig.character?.userId && keyholder?.userId && sig.character.userId === keyholder.userId) return false;
+      return true;
+    });
 
     const slots = [
       { role: 'Tank', char: null as any, signup: null as any },
@@ -318,7 +409,7 @@ export default function MythicPlus() {
 
     // Place Confirmed - Priority to signups
     confirmedSignups.forEach((sig: any) => {
-      const role = (sig.primaryRole === 'Heal' || sig.primaryRole === 'Healer') ? 'Healer' : (sig.primaryRole === 'Tank' ? 'Tank' : 'DPS');
+      const role: "Tank" | "Healer" | "DPS" = (sig.primaryRole === 'Heal' || sig.primaryRole === 'Healer') ? 'Healer' : (sig.primaryRole === 'Tank' ? 'Tank' : 'DPS');
       if (role === 'Tank' && !slots[0].char) { slots[0].char = sig.character; slots[0].signup = sig; }
       else if (role === 'Healer' && !slots[1].char) { slots[1].char = sig.character; slots[1].signup = sig; }
       else {
@@ -331,15 +422,19 @@ export default function MythicPlus() {
     const isKHInSlot = slots.some(s => s.char?.id === keyholder?.id);
 
     return (
-      <div className="flex flex-row w-full overflow-x-auto pb-2 custom-scrollbar" style={{ gap: '2px', justifyContent: 'space-between' }}>
+      <div className="flex flex-row w-full pb-2 custom-scrollbar" style={{ gap: '2px', justifyContent: 'space-between', overflow: 'visible' }}>
         {slots.map((slot, idx) => {
-          const rolePending = pendingSignups.filter((sig: any) => {
-            const sigRole = (sig.primaryRole === 'Heal' || sig.primaryRole === 'Healer') ? 'Healer' : (sig.primaryRole === 'Tank' ? 'Tank' : 'DPS');
-            return sigRole === slot.role;
-          });
-
           // Also include keyholder in dropdown if they can fill this role and aren't in a slot yet
-          const khCanFill = !isKHInSlot && getPossibleRoles(keyholder.classId || keyholder.class).includes(slot.role);
+          const availableRoles = getPossibleRoles(keyholder.classId || keyholder.class);
+          const khCanFill = !isKHInSlot && (availableRoles as string[]).includes(slot.role);
+
+          // Find signups for this role (Primary or Secondary)
+          const rolePending = pendingSignups.filter((sig: any) => {
+            const roles: string[] = [sig.primaryRole, sig.secondaryRole].filter(Boolean).map(r =>
+              (r === 'Heal' || r === 'Healer') ? 'Healer' : (r === 'Tank' ? 'Tank' : 'DPS')
+            );
+            return roles.includes(slot.role);
+          });
 
           return (
             <div
@@ -348,82 +443,74 @@ export default function MythicPlus() {
                 background: 'rgba(255, 255, 255, 0.03)',
                 border: '1px solid rgba(255, 255, 255, 0.05)',
                 borderRadius: '12px',
-                padding: '6px 14px',
+                padding: '0 14px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
-                height: '44px',
+                height: '31px',
                 flex: 1,
                 minWidth: '155px'
               }}
               className="hover:border-white/10"
             >
-              <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <RoleIcon role={slot.role} size={22} char={null} isSlot={true} />
-                {slot.char && (
+              {slot.char ? (
+                <div className="flex items-center w-full min-w-0" style={{ gap: '3px' }}>
+                  <RoleIcon role={slot.role} size={18} char={null} isSlot={true} />
                   <img
                     src={getClassIcon(slot.char.classId || slot.char.class)}
-                    style={{ width: '22px', height: '22px', borderRadius: '4px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
+                    style={{ width: '16px', height: '16px', borderRadius: '4px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.1)' }}
                     alt={slot.char.class}
                   />
-                )}
-              </div>
 
-              {slot.char ? (
-                <div className="flex items-center gap-2 min-w-0 flex-1">
-                  <div className="flex flex-col min-w-0 flex-1">
+                  <div className="flex items-center min-w-0 flex-1" style={{ gap: '6px' }}>
                     <span
                       onContextMenu={(e) => handleCharContextMenu(e, slot.char.id, slot.char.name)}
                       style={{
                         color: getClassColor(slot.char.classId || slot.char.class),
-                        fontSize: '0.85em',
+                        fontSize: '1.0em',
                         fontWeight: '800',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        lineHeight: '1.1',
-                        cursor: 'context-menu'
+                        lineHeight: '1',
+                        cursor: 'context-menu',
                       }}
                     >
                       {capitalizeName(slot.char.name)}
                     </span>
-                    <span style={{ fontSize: '0.65em', color: '#666', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      {slot.char.id === keyholder?.id ? 'Leader' : (slot.char.realm || 'Blackrock')}
+
+                    <span style={{
+                      fontSize: '1.0em',
+                      fontWeight: '800',
+                      color: getRIOColor(slot.char.mythicRating),
+                      lineHeight: '1'
+                    }}>
+                      {slot.char.mythicRating !== undefined && slot.char.mythicRating !== null ?
+                        slot.char.mythicRating.toFixed(0) : '-'}
                     </span>
                   </div>
 
-                  <span style={{
-                    fontSize: '0.75em',
-                    fontWeight: '800',
-                    color: getRIOColor(slot.char.mythicRating),
-                    marginLeft: 'auto',
-                    marginRight: '8px'
-                  }}>
-                    {slot.char.mythicRating !== undefined && slot.char.mythicRating !== null ?
-                      slot.char.mythicRating.toFixed(0) : '-'}
-                  </span>
-
-                  {isMyKey && slot.char.id !== keyholder?.id && (
+                  {isMyKey && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         if (slot.signup) {
                           handleUpdateSignup(slot.signup.id, 'pending');
-                        } else {
-                          // If it was the leader themselves or manually added without signup (future case)
                         }
                       }}
                       style={{
                         background: 'rgba(239, 68, 68, 0.1)',
                         border: '1px solid rgba(239, 68, 68, 0.2)',
                         borderRadius: '4px',
-                        padding: '4px',
+                        padding: '2px',
                         color: '#ef4444',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.2s',
+                        marginLeft: '8px',
+                        flexShrink: 0
                       }}
                       className="hover:bg-red-500 hover:text-white"
                       title="Remove from group"
@@ -433,46 +520,124 @@ export default function MythicPlus() {
                   )}
                 </div>
               ) : (
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 flex justify-center relative" style={{ overflow: 'visible' }}>
                   {isMyKey && (rolePending.length > 0 || khCanFill) ? (
-                    <select
-                      onChange={(e) => {
-                        if (!e.target.value) return;
-                        if (e.target.value === 'KEYHOLDER') {
-                          handleKeyholderSelfAssign(fullKey.id, keyholder.id, slot.role);
-                        } else {
-                          handleUpdateSignup(Number(e.target.value), 'accepted');
-                        }
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: 'none',
-                        color: 'var(--accent)',
-                        fontSize: '0.75em',
-                        fontWeight: '900',
-                        width: '100%',
-                        cursor: 'pointer',
-                        outline: 'none',
-                        appearance: 'none',
-                        padding: 0,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px'
-                      }}
-                    >
-                      <option value="" style={{ background: '#1D1E1F' }}>{slot.role} Slot ({rolePending.length + (khCanFill ? 1 : 0)})</option>
-                      {khCanFill && (
-                        <option value="KEYHOLDER" style={{ background: '#1D1E1F', color: getClassColor(keyholder.classId || keyholder.class) }}>
-                          [ICH] {capitalizeName(keyholder.name)} ({keyholder.mythicRating !== undefined && keyholder.mythicRating !== null ? keyholder.mythicRating.toFixed(0) : '-'})
-                        </option>
+                    <>
+                      <button
+                        className="dropdown-toggle"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenDropdown(
+                            openDropdown?.keyId === fullKey.id && openDropdown?.slotIdx === idx
+                              ? null
+                              : { keyId: fullKey.id, slotIdx: idx }
+                          );
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#fff',
+                          textShadow: '0 0 10px rgba(255,255,255,0.2)',
+                          fontSize: '0.75em',
+                          fontWeight: '900',
+                          width: '100%',
+                          cursor: 'pointer',
+                          outline: 'none',
+                          padding: 0,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          textAlign: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        {slot.role} Slot <span style={{ color: '#aaa', marginLeft: '4px' }}>({rolePending.length + (khCanFill ? 1 : 0)})</span>
+                        <svg style={{ width: '8px', height: '8px', transition: 'transform 0.2s', transform: (openDropdown?.keyId === fullKey.id && openDropdown?.slotIdx === idx) ? 'rotate(180deg)' : 'rotate(0deg)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
+                      </button>
+
+                      {openDropdown?.keyId === fullKey.id && openDropdown?.slotIdx === idx && (
+                        <div
+                          className="choice-dropdown"
+                          style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: '50%',
+                            transform: 'translateX(-50%)',
+                            marginTop: '8px',
+                            background: '#1a1a1a',
+                            border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '8px',
+                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                            zIndex: 100,
+                            minWidth: '180px',
+                            padding: '4px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px'
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {khCanFill && (
+                            <div
+                              onClick={() => {
+                                handleKeyholderSelfAssign(fullKey.id, keyholder.id, slot.role);
+                                setOpenDropdown(null);
+                              }}
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'background 0.2s'
+                              }}
+                              className="hover:bg-white/5"
+                            >
+                              <img src={getClassIcon(keyholder.classId || keyholder.class)} style={{ width: '14px', height: '14px', borderRadius: '3px' }} alt="" />
+                              <span style={{ color: getClassColor(keyholder.classId || keyholder.class), fontSize: '0.85em', fontWeight: '800', flex: 1 }}>
+                                [ICH] {capitalizeName(keyholder.name)}
+                              </span>
+                              <span style={{ color: getRIOColor(keyholder.mythicRating), fontSize: '0.85em', fontWeight: '800' }}>
+                                {keyholder.mythicRating !== undefined && keyholder.mythicRating !== null ? keyholder.mythicRating.toFixed(0) : '-'}
+                              </span>
+                            </div>
+                          )}
+
+                          {rolePending.map((sig: any) => (
+                            <div
+                              key={sig.id}
+                              onClick={() => {
+                                handleUpdateSignup(sig.id, 'accepted');
+                                setOpenDropdown(null);
+                              }}
+                              style={{
+                                padding: '8px 10px',
+                                borderRadius: '6px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                transition: 'background 0.2s'
+                              }}
+                              className="hover:bg-white/5"
+                            >
+                              <img src={getClassIcon(sig.character?.classId || sig.character?.class)} style={{ width: '14px', height: '14px', borderRadius: '3px' }} alt="" />
+                              <span style={{ color: getClassColor(sig.character?.classId || sig.character?.class), fontSize: '0.85em', fontWeight: '800', flex: 1 }}>
+                                {capitalizeName(sig.character?.name)}
+                              </span>
+                              <span style={{ color: getRIOColor(sig.character?.mythicRating), fontSize: '0.85em', fontWeight: '800' }}>
+                                {sig.character?.mythicRating !== undefined && sig.character?.mythicRating !== null ? sig.character.mythicRating.toFixed(0) : '-'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                      {rolePending.map((sig: any) => (
-                        <option key={sig.id} value={sig.id} style={{ background: '#1D1E1F', color: '#fff' }}>
-                          {capitalizeName(sig.character?.name)} ({sig.character?.mythicRating !== undefined && sig.character?.mythicRating !== null ? sig.character.mythicRating.toFixed(0) : '-'})
-                        </option>
-                      ))}
-                    </select>
+                    </>
                   ) : (
-                    <span style={{ fontSize: '0.75em', color: '#444', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    <span style={{ fontSize: '0.75em', color: '#444', fontWeight: '900', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'center' }}>
                       {slot.role} Slot
                     </span>
                   )}
@@ -583,13 +748,13 @@ export default function MythicPlus() {
                 <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: '#ccc', whiteSpace: 'nowrap' as const }}>
                   {key.dungeon} +{key.level}
                 </div>
-                {myCharacterIds.includes(char.id) ? (
-                  /* Own character's key - Show START button */
+                {/* Other account's key - Show JOIN button */}
+                {!myCharacterIds.some(id => id === char.id) && (
                   <button
-                    onClick={() => handleStartKey(key)}
+                    onClick={() => handleSignup(key)}
                     style={{
-                      background: '#10B981',
-                      border: '1px solid #10B981',
+                      background: '#A330C9',
+                      border: '1px solid #A330C9',
                       color: '#fff',
                       padding: '4px 10px',
                       borderRadius: '6px',
@@ -601,36 +766,11 @@ export default function MythicPlus() {
                       transition: 'all 0.2s',
                       whiteSpace: 'nowrap' as const,
                     }}
-                    onMouseOver={(e) => { e.currentTarget.style.background = '#059669'; }}
-                    onMouseOut={(e) => { e.currentTarget.style.background = '#10B981'; }}
+                    onMouseOver={(e) => { e.currentTarget.style.background = '#b84ddb'; e.currentTarget.style.borderColor = '#b84ddb'; }}
+                    onMouseOut={(e) => { e.currentTarget.style.background = '#A330C9'; e.currentTarget.style.borderColor = '#A330C9'; }}
                   >
-                    Start
+                    Join
                   </button>
-                ) : (
-                  /* Other account's key - Show JOIN button */
-                  !myCharacterIds.some(id => id === char.id) && (
-                    <button
-                      onClick={() => handleSignup(key)}
-                      style={{
-                        background: '#A330C9',
-                        border: '1px solid #A330C9',
-                        color: '#fff',
-                        padding: '4px 10px',
-                        borderRadius: '6px',
-                        fontSize: '9px',
-                        fontWeight: 800,
-                        textTransform: 'uppercase',
-                        letterSpacing: '1px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        whiteSpace: 'nowrap' as const,
-                      }}
-                      onMouseOver={(e) => { e.currentTarget.style.background = '#b84ddb'; e.currentTarget.style.borderColor = '#b84ddb'; }}
-                      onMouseOut={(e) => { e.currentTarget.style.background = '#A330C9'; e.currentTarget.style.borderColor = '#A330C9'; }}
-                    >
-                      Join
-                    </button>
-                  )
                 )}
               </>
             ) : (
@@ -638,13 +778,6 @@ export default function MythicPlus() {
             )}
           </div>
         </div>
-
-        {/* New 5-Slot Card for Guild Keys */}
-        {key && (
-          <div style={{ marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
-            <MythicGroupSlots fullKey={{ ...key, character: char }} isMyKey={myCharacterIds.includes(char.id)} />
-          </div>
-        )}
       </div>
     );
   };
@@ -692,103 +825,106 @@ export default function MythicPlus() {
           {myOutgoingSignups.length > 0 && (
             <div className="flex flex-col gap-3 mt-4">
               <h2 className="text-[13px] font-black uppercase tracking-[0.4em] text-gray-500 mb-2 ml-1 px-1 border-l-2 border-accent pl-4">
-                Meine Anmeldungen
+                Meine Gruppen & Anmeldungen
               </h2>
-              <div className="flex flex-col gap-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="flex flex-col gap-4 pr-2" style={{ overflow: 'visible' }}>
                 {myOutgoingSignups.map((s: any) => {
                   const char = s.character;
                   if (!char) return null;
                   const charUrlName = char.name?.toLowerCase();
                   const realmSlug = getRealmSlug(char.realm || '');
 
-                  // Build the 5 slots STRICTLY: Tank, Heal, DPS, DPS, DPS
-                  let fullKey = filteredMains.find(m => m.id === s.key?.character?.mainId)?.keys?.[0] ||
-                    filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId)?.keys?.[0];
+                  // Robust lookup: Find the character who owns this specific key ID
+                  const charWithKey = mains.find(m => (m.keys || []).some((k: any) => k.id === s.keyId)) ||
+                    mains.flatMap(m => m.alts || []).find(a => (a.keys || []).some((k: any) => k.id === s.keyId));
 
-                  if (fullKey) {
-                    const khChar = filteredMains.find(m => m.id === s.key?.characterId) ||
-                      filteredMains.flatMap(m => m.alts || []).find(a => a.id === s.key?.characterId);
-                    if (khChar) fullKey = { ...fullKey, character: khChar };
+                  let fullKey = charWithKey?.keys?.find((k: any) => k.id === s.keyId);
+                  if (fullKey && charWithKey) {
+                    // Inject the character owner for the component
+                    fullKey = { ...fullKey, character: charWithKey };
                   }
-                  const confirmedSignups = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
-                  const keyholder = s.key?.character;
+                  const kOwnerId = charWithKey?.id;
 
 
                   return (
-                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] flex flex-col gap-4" style={{ padding: '16px' }}>
-                      {/* Row 1: Unified Char Row Design */}
+                    <div key={s.id} className="bg-[#1D1E1F] border border-[#333] rounded-[12px] flex flex-col gap-4" style={{ padding: '16px', overflow: 'visible', position: 'relative', zIndex: (openDropdown?.keyId === s.keyId) ? 100 : 1 }}>
+                      {/* Header Row: Key Info and Status Badge */}
                       <div className="flex items-center justify-between w-full">
-                        {/* Name Column */}
-                        <div style={{ width: '220px', flexShrink: 0 }}>
-                          <div
-                            style={{
-                              fontWeight: 'bold',
-                              fontSize: '1.1em',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            <span style={{ color: getClassColor(char.classId || char.class) }}>
-                              {capitalizeName(char.name)}
-                            </span>
-                            <span style={{
-                              fontSize: '8px',
-                              background: s.status === 'accepted' ? 'rgba(16,185,129,0.1)' : s.status === 'declined' ? 'rgba(239,68,68,0.1)' : 'rgba(163,48,201,0.2)',
-                              color: s.status === 'accepted' ? '#10B981' : s.status === 'declined' ? '#EF4444' : 'var(--accent)',
-                              padding: '2px 6px',
-                              borderRadius: '4px',
-                              fontWeight: 900,
-                              letterSpacing: '1px',
-                              textTransform: 'uppercase',
-                              border: '1px solid #333'
-                            }}>
-                              {s.status === 'accepted' ? 'Accepted' : s.status === 'declined' ? 'Declined' : 'Pending'}
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '0.8em', color: '#666' }}>{char.realm || 'Blackrock'}</div>
-                        </div>
-
-                        {/* ILVL Column */}
-                        <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>ILVL</div>
-                          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>
-                            {char.averageItemLevel || '-'}
-                          </div>
-                        </div>
-
-                        {/* RIO Column */}
-                        <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>RIO</div>
-                          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>
-                            {char.mythicRating !== undefined && char.mythicRating !== null ?
-                              char.mythicRating.toFixed(0) : '-'}
-                          </div>
-                        </div>
-
-                        {/* Raid Progress Column */}
-                        <div style={{ width: '180px', flexShrink: 0, textAlign: 'center' }}>
-                          <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
-                          <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(char.raidProgress || '') }}>
-                            {char.raidProgress || '-'}
-                          </div>
-                        </div>
-
-                        <div className="flex-1"></div>
-
-                        {/* Key Info + Actions */}
-                        <div className="flex items-center " style={{ gap: '15px' }}>
+                        <div className="flex items-center" style={{ gap: '20px' }}>
                           <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#fff', whiteSpace: 'nowrap' }}>
                             {s.key?.dungeon} +{s.key?.level}
+                          </div>
+
+                          {/* Color-coded Status Badge */}
+                          {(() => {
+                            const isAccepted = s.status === 'accepted';
+                            const isDeclined = s.status === 'declined';
+                            const isOwner = s.status === 'owner';
+                            const myRole = (s.primaryRole === 'Heal' || s.primaryRole === 'Healer') ? 'Healer' : (s.primaryRole === 'Tank' ? 'Tank' : 'DPS');
+
+                            // Check if role is still free
+                            const confirmedForThisKey = fullKey?.signups?.filter((sig: any) => sig.status === 'accepted') || [];
+                            const isTankFull = confirmedForThisKey.some((sig: any) => sig.primaryRole === 'Tank');
+                            const isHealFull = confirmedForThisKey.some((sig: any) => sig.primaryRole === 'Healer' || sig.primaryRole === 'Heal');
+                            const dpsConfirmedCount = confirmedForThisKey.filter((sig: any) => sig.primaryRole === 'DPS' || (!['Tank', 'Healer', 'Heal'].includes(sig.primaryRole))).length;
+
+                            let roleAvailable = false;
+                            if (myRole === 'Tank') roleAvailable = !isTankFull;
+                            else if (myRole === 'Healer') roleAvailable = !isHealFull;
+                            else roleAvailable = dpsConfirmedCount < 3;
+
+                            let badgeColor = '#EF4444';
+                            let badgeBg = 'rgba(239,68,68,0.1)';
+                            let badgeText = 'Declined';
+
+                            if (isOwner) {
+                              badgeColor = '#10B981';
+                              badgeBg = 'rgba(16,185,129,0.1)';
+                              badgeText = 'Owner';
+                            } else if (isAccepted) {
+                              badgeColor = '#10B981';
+                              badgeBg = 'rgba(16,185,129,0.1)';
+                              badgeText = 'Accepted';
+                            } else if (isDeclined || !roleAvailable) {
+                              badgeColor = '#EF4444';
+                              badgeBg = 'rgba(239,68,68,0.1)';
+                              badgeText = isDeclined ? 'Declined' : 'Slot Full';
+                            } else {
+                              badgeColor = '#F59E0B';
+                              badgeBg = 'rgba(245,158,11,0.1)';
+                              badgeText = 'Pending';
+                            }
+
+                            return (
+                              <span style={{
+                                fontSize: '9px',
+                                background: badgeBg,
+                                color: badgeColor,
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                fontWeight: 900,
+                                letterSpacing: '1px',
+                                textTransform: 'uppercase',
+                                border: `1px solid ${badgeColor}33`
+                              }}>
+                                {badgeText}
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="flex items-center" style={{ gap: '5px' }}>
+                          <div style={{ fontSize: '0.8em', color: '#666', fontWeight: 'bold' }}>
+                            {s.status === 'owner' ? 'Leading with' : 'signup with'} <span style={{ color: getClassColor(char.classId || char.class) }}>{capitalizeName(char.name)}</span>
                           </div>
 
                           <button
                             onClick={() => handleRemoveSignup(s.id)}
                             style={{
-                              background: 'rgba(163,48,201,0.05)',
-                              border: '1px solid rgba(163,48,201,0.2)',
+                              background: 'rgba(239, 68, 68, 0.05)',
+                              border: '1px solid rgba(239, 68, 68, 0.2)',
                               color: '#666',
-                              padding: '8px 16px',
+                              padding: '6px 14px',
                               borderRadius: '8px',
                               fontSize: '10px',
                               fontWeight: 900,
@@ -796,19 +932,18 @@ export default function MythicPlus() {
                               letterSpacing: '1px',
                               cursor: 'pointer',
                               transition: 'all 0.2s',
-                              whiteSpace: 'nowrap' as const,
+                              whiteSpace: 'nowrap'
                             }}
-                            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#fff'; }}
-                            onMouseOut={(e) => { e.currentTarget.style.background = 'rgba(163,48,201,0.05)'; e.currentTarget.style.borderColor = 'rgba(163,48,201,0.2)'; e.currentTarget.style.color = '#666'; }}
+                            className="hover:bg-red-500 hover:text-white hover:border-red-500"
                           >
                             Quit
                           </button>
                         </div>
                       </div>
 
-                      {/* Row 2: 5 Member Slots moved to MythicGroupSlots */}
-                      <div className="border-t border-white/5 pt-4">
-                        <MythicGroupSlots fullKey={fullKey} isMyKey={false} />
+                      {/* Row 2: Divider and Slots */}
+                      <div style={{ borderTop: '1px solid rgba(163,48,201,0.3)', paddingTop: '16px' }}>
+                        <MythicGroupSlots fullKey={fullKey} isMyKey={myCharacterIds.includes(kOwnerId)} />
                       </div>
                     </div>
                   );
