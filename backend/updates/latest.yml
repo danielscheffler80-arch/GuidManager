@@ -1,8 +1,8 @@
-version: 0.9.1
+version: 0.9.2
 files:
-  - url: Guild Manager Standalone Setup 0.9.1.exe
-    sha512: hh8sgyeP0qxoTt4DfmJVJq7vp2DuHxlFYV1fcTpfg4f+n6Va3ryh2eT0mtF7HC+UmSk7eYRU65X9BXlYvEUvHQ==
-    size: 79957751
-path: Guild Manager Standalone Setup 0.9.1.exe
-sha512: hh8sgyeP0qxoTt4DfmJVJq7vp2DuHxlFYV1fcTpfg4f+n6Va3ryh2eT0mtF7HC+UmSk7eYRU65X9BXlYvEUvHQ==
-releaseDate: '2026-02-22T23:41:36.492Z'
+  - url: Guild Manager Standalone Setup 0.9.2.exe
+    sha512: Q+OuUasQKlJns2xEX0lo5z1SDv/5zebsO2F/QZ4Y7F+j7zYQ8X4XTckJv1YL/D2j8eslU8+oAlByA9mxPt3uHA==
+    size: 79960459
+path: Guild Manager Standalone Setup 0.9.2.exe
+sha512: Q+OuUasQKlJns2xEX0lo5z1SDv/5zebsO2F/QZ4Y7F+j7zYQ8X4XTckJv1YL/D2j8eslU8+oAlByA9mxPt3uHA==
+releaseDate: '2026-02-23T03:07:50.313Z'
