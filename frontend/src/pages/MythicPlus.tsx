@@ -56,6 +56,14 @@ export default function MythicPlus() {
         setLoading(false);
       }
       loadKeys(selectedGuild.id);
+
+      // Auto-Refresh alle 60 Sekunden
+      const refreshInterval = setInterval(() => {
+        console.log('[MythicPlus] Auto-refreshing keys...');
+        loadKeys(selectedGuild.id);
+      }, 60000);
+
+      return () => clearInterval(refreshInterval);
     } else if (!guildLoading) {
       setLoading(false);
     }

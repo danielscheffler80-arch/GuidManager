@@ -1,9 +1,8 @@
-# Force redeploy for v0.9.6 crash fix
-version: 0.9.6
+version: 0.9.7
 files:
-  - url: Guild Manager Standalone Setup 0.9.6.exe
-    sha512: 0K8yQBV5ij0wQgthzyjeIz9vZ3bv+9w6/ePW/7PFSIDPoiOu+A+FTBWLJ3qSj6n1TKxxeYZ1819i/wb4hbvU2g==
-    size: 79960830
-path: Guild Manager Standalone Setup 0.9.6.exe
-sha512: 0K8yQBV5ij0wQgthzyjeIz9vZ3bv+9w6/ePW/7PFSIDPoiOu+A+FTBWLJ3qSj6n1TKxxeYZ1819i/wb4hbvU2g==
-releaseDate: '2026-02-23T20:50:52.623Z'
+  - url: Guild Manager Standalone Setup 0.9.7.exe
+    sha512: d6b+umZUq1RMecgongmaf4e1aMvtKQ+n1dUPg3RzG6Fo/ziTKnAt+NJRVELzcFbGDz2URqupOaBDYI5WIBe9Ng==
+    size: 79961098
+path: Guild Manager Standalone Setup 0.9.7.exe
+sha512: d6b+umZUq1RMecgongmaf4e1aMvtKQ+n1dUPg3RzG6Fo/ziTKnAt+NJRVELzcFbGDz2URqupOaBDYI5WIBe9Ng==
+releaseDate: '2026-02-23T21:15:45.758Z'
