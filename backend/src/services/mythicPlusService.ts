@@ -29,7 +29,8 @@ export class MythicPlusService {
                                             name: true,
                                             realm: true,
                                             class: true,
-                                            classId: true
+                                            classId: true,
+                                            mythicRating: true
                                         }
                                     }
                                 }
@@ -104,14 +105,28 @@ export class MythicPlusService {
      * Signup for a specific key
      */
     static async signupForKey(keyId: number, characterId: number, primaryRole: string, secondaryRole?: string, message?: string) {
-        return await (prisma as any).mythicKeySignup.create({
-            data: {
+        return await (prisma as any).mythicKeySignup.upsert({
+            where: {
+                keyId_characterId: {
+                    keyId,
+                    characterId
+                }
+            },
+            create: {
                 keyId,
                 characterId,
                 primaryRole,
                 secondaryRole,
                 message,
                 status: 'pending'
+            },
+            update: {
+                primaryRole,
+                secondaryRole,
+                message,
+                // Do not overwrite status if it's already accepted? 
+                // Actually, if they are re-signing up, it might be to change role.
+                // If it's self-assign, the controller will update status to accepted anyway.
             }
         });
     }
