@@ -48,5 +48,19 @@ export const CharacterService = {
             body: JSON.stringify({ characterId, allowedGuildIds })
         });
         return response.json();
+    },
+
+    // Bulk update character visibility
+    bulkUpdateVisibility: async (guildId: number, visible: boolean) => {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            ...(getAuthHeader() as Record<string, string>)
+        };
+        const response = await fetch(`${getBackendUrl()}/auth/visibility/bulk`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ guildId, visible })
+        });
+        return response.json();
     }
 };

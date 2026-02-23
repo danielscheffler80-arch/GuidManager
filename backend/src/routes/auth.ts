@@ -22,6 +22,7 @@ router.get('/characters', authenticateToken, AuthController.getCharacters);
 router.post('/main-character', authenticateToken, AuthController.setMainCharacter);
 router.post('/favorite-character', authenticateToken, AuthController.toggleFavoriteCharacter);
 router.post('/visibility', authenticateToken, AuthController.updateVisibility);
+router.post('/visibility/bulk', authenticateToken, AuthController.bulkUpdateVisibility);
 
 // Debug Route
 router.post('/debug/log', AuthController.debug);
