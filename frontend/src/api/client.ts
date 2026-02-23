@@ -2,6 +2,11 @@ function resolveBase(): string {
   if ((window as any).electronAPI?.getBackendUrl) {
     return (window as any).electronAPI.getBackendUrl();
   }
+
+  // Support Vite environment variables for web deployments
+  const viteApiUrl = (import.meta as any).env?.VITE_API_URL;
+  if (viteApiUrl) return viteApiUrl;
+
   const ls = typeof window !== 'undefined' ? window.localStorage.getItem('apiBaseUrl') : null;
   if (ls) return ls;
   return 'http://localhost:3334';
