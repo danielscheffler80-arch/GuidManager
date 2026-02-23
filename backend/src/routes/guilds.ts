@@ -592,10 +592,12 @@ router.post('/guilds/:guildId/mythic/:keyId/signup', authMiddleware, async (req:
   }
 
   try {
+    console.log(`[GuildsRoute] Signup attempt: key=${keyId}, char=${characterId}`);
     const signup = await MythicPlusService.signupForKey(Number(keyId), Number(characterId), primaryRole, secondaryRole, message);
     res.status(201).json({ signup });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to signup for key' });
+  } catch (error: any) {
+    console.error(`[GuildsRoute] Signup error:`, error);
+    res.status(500).json({ error: 'Failed to signup for key', details: error.message });
   }
 });
 
