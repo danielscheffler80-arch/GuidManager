@@ -105,30 +105,48 @@ export class MythicPlusService {
      * Signup for a specific key
      */
     static async signupForKey(keyId: number, characterId: number, primaryRole: string, secondaryRole?: string, message?: string) {
-        return await (prisma as any).mythicKeySignup.upsert({
-            where: {
-                keyId_characterId: {
-                    keyId,
-                    characterId
-                }
-            },
-            create: {
-                keyId,
-                characterId,
-                primaryRole,
-                secondaryRole,
-                message,
-                status: 'pending'
-            },
-            update: {
-                primaryRole,
-                secondaryRole,
-                message,
-                // Do not overwrite status if it's already accepted? 
-                // Actually, if they are re-signing up, it might be to change role.
-                // If it's self-assign, the controller will update status to accepted anyway.
+        try {
+            console.log(`[MythicPlusService] Signing up: key=${keyId}, char=${characterId}, role=${primaryRole}`);
+
+            // Check if key exists
+            const key = await prisma.mythicKey.findUnique({ where: { id: keyId } });
+            if (!key) {
+                console.error(`[MythicPlusService] Key ${keyId} not found`);
+                throw new Error(`Key ${keyId} not found`);
             }
-        });
+
+            // Check if character exists
+            const char = await prisma.character.findUnique({ where: { id: characterId } });
+            if (!char) {
+                console.error(`[MythicPlusService] Character ${characterId} not found`);
+                throw new Error(`Character ${characterId} not found`);
+            }
+
+            return await (prisma as any).mythicKeySignup.upsert({
+                where: {
+                    keyId_characterId: {
+                        keyId,
+                        characterId
+                    }
+                },
+                create: {
+                    keyId,
+                    characterId,
+                    primaryRole,
+                    secondaryRole,
+                    message,
+                    status: 'pending'
+                },
+                update: {
+                    primaryRole,
+                    secondaryRole,
+                    message,
+                }
+            });
+        } catch (error: any) {
+            console.error(`[MythicPlusService] Signup error:`, error);
+            throw error;
+        }
     }
 
     /**
