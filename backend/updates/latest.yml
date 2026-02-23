@@ -1,9 +1,8 @@
-# EMERGENCY FORCE REDEPLOY v0.9.8 - Visibility Features Fix
-version: 0.9.8
+version: 0.9.9
 files:
-  - url: Guild Manager Standalone Setup 0.9.8.exe
-    sha512: mVqIS1Ngw7mXQwblzmX5IpXTCYeCFt50g08s1mYPX7LegitrxSEZBKZz2kIseZvNYZF/+YzjHeQFeCfTD7k0LA==
-    size: 79961505
-path: Guild Manager Standalone Setup 0.9.8.exe
-sha512: mVqIS1Ngw7mXQwblzmX5IpXTCYeCFt50g08s1mYPX7LegitrxSEZBKZz2kIseZvNYZF/+YzjHeQFeCfTD7k0LA==
-releaseDate: '2026-02-23T21:40:11.913Z'
+  - url: Guild Manager Standalone Setup 0.9.9.exe
+    sha512: AvKvro93OQr/7Im8pHm1QytaCbXAPoGqKtXLcoy2/TM2i+JB48pvRt2IJxPXZKs5AAOgaMXfpXfS73uz0PIzVA==
+    size: 79961830
+path: Guild Manager Standalone Setup 0.9.9.exe
+sha512: AvKvro93OQr/7Im8pHm1QytaCbXAPoGqKtXLcoy2/TM2i+JB48pvRt2IJxPXZKs5AAOgaMXfpXfS73uz0PIzVA==
+releaseDate: '2026-02-23T22:19:11.836Z'

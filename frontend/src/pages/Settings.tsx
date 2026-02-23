@@ -169,6 +169,29 @@ export default function Settings() {
     }
   };
 
+  const toggleAllGuildVisibility = async (guildId: number, visible: boolean) => {
+    setIsLoading(true);
+    try {
+      const data = await CharacterService.bulkUpdateVisibility(guildId, visible);
+      if (data.success) {
+        // Update all characters locally
+        setCharacters(prev => prev.map(c => {
+          let allowed = c.allowedGuildIds || [];
+          if (visible && !allowed.includes(guildId)) {
+            allowed = [...allowed, guildId];
+          } else if (!visible && allowed.includes(guildId)) {
+            allowed = allowed.filter(id => id !== guildId);
+          }
+          return { ...c, allowedGuildIds: allowed };
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to update bulk guild visibility:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const toggleGuildVisibility = async (charId: number, guildId: number, currentAllowed: number[]) => {
     setUpdatingChars(prev => [...prev, charId]);
     try {
@@ -311,7 +334,66 @@ export default function Settings() {
         {isLoading ? (
           <p>Lade Charaktere...</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
+            {/* Globale Gilden-Sichtbarkeit Cards */}
+            {user?.guildMemberships && user.guildMemberships.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '1em', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '15px' }}>Globale Gilden-Sichtbarkeit</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+                  {user.guildMemberships.map(ms => {
+                    const isVisibleForAll = characters.length > 0 && characters.every(c => (c.allowedGuildIds || []).includes(ms.guildId));
+                    const isVisibleForSome = characters.some(c => (c.allowedGuildIds || []).includes(ms.guildId));
+
+                    return (
+                      <div
+                        key={ms.guildId}
+                        onClick={() => toggleAllGuildVisibility(ms.guildId, !isVisibleForAll)}
+                        style={{
+                          background: isVisibleForAll ? 'rgba(163, 48, 201, 0.2)' : '#1D1E1F',
+                          border: `1px solid ${isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333')}`,
+                          padding: '15px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          textAlign: 'center',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                        onMouseLeave={(e) => {
+                          if (!isVisibleForAll) e.currentTarget.style.borderColor = isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333';
+                        }}
+                      >
+                        <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
+                        <div style={{ fontSize: '0.8em', color: '#666' }}>{ms.guild.realm}</div>
+                        <div style={{
+                          marginTop: '5px',
+                          fontSize: '0.75em',
+                          color: isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.8)' : '#444'),
+                          fontWeight: 'bold'
+                        }}>
+                          {isVisibleForAll ? 'ALLE CHARS SICHTBAR' : (isVisibleForSome ? 'TEILWEISE SICHTBAR' : 'NICHT SICHTBAR')}
+                        </div>
+                        {/* Progress Bar (Subtle) */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          height: '3px',
+                          background: 'var(--accent)',
+                          width: `${(characters.filter(c => (c.allowedGuildIds || []).includes(ms.guildId)).length / characters.length) * 100}%`,
+                          transition: 'width 0.3s'
+                        }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {sortedCharacters.map(char => (
               <div
                 key={char.id}

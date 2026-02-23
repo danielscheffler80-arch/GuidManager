@@ -542,4 +542,44 @@ export class AuthController {
       res.status(500).json({ success: false, error: 'Failed to update visibility' });
     }
   }
+
+  static async bulkUpdateVisibility(req: Request, res: Response) {
+    const userId = (req as any).user?.userId;
+    const { guildId, visible } = req.body;
+
+    if (guildId === undefined || visible === undefined) {
+      return res.status(400).json({ success: false, error: 'Missing guildId or visible state' });
+    }
+
+    try {
+      const characters = await prisma.character.findMany({
+        where: { userId }
+      });
+
+      const updates = characters.map(async (char: any) => {
+        let allowed = char.allowedGuildIds || [];
+        const hasGuild = allowed.includes(guildId);
+
+        if (visible && !hasGuild) {
+          allowed = [...allowed, guildId];
+        } else if (!visible && hasGuild) {
+          allowed = allowed.filter((id: number) => id !== guildId);
+        } else {
+          return char; // No change needed
+        }
+
+        return prisma.character.update({
+          where: { id: char.id },
+          data: { allowedGuildIds: allowed }
+        });
+      });
+
+      await Promise.all(updates);
+
+      res.json({ success: true, message: `Updated visibility for ${characters.length} characters` });
+    } catch (error: any) {
+      console.error('Bulk update visibility error:', error);
+      res.status(500).json({ success: false, error: 'Failed to update bulk visibility' });
+    }
+  }
 }
