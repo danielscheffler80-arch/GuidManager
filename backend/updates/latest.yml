@@ -1,3 +1,4 @@
+# Trigger redeploy for v0.9.5
 version: 0.9.5
 files:
   - url: Guild Manager Standalone Setup 0.9.5.exe
