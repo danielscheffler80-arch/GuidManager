@@ -2,10 +2,11 @@
     "$schema": "https://railway.app/railway.schema.json",
     "build": {
         "builder": "DOCKERFILE",
-        "dockerfilePath": "Dockerfile"
+        "dockerfilePath": "backend/Dockerfile",
+        "context": "."
     },
     "deploy": {
-        "startCommand": "npx prisma migrate deploy && node dist/index.js",
+        "startCommand": "cd backend && npx prisma migrate deploy && node dist/index.js",
         "restartPolicyType": "ON_FAILURE",
         "healthcheckPath": "/health",
         "healthcheckTimeout": 100,
