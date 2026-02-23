@@ -6,12 +6,13 @@ WORKDIR /app
 # Install dependencies needed for prisma and build
 RUN apt-get update && apt-get install -y openssl
 
-COPY package*.json ./
-COPY prisma ./prisma/
+# In a monorepo, we copy relative to the build context (root)
+COPY backend/package*.json ./
+COPY backend/prisma ./prisma/
 
 RUN npm install
 
-COPY . .
+COPY backend/ .
 
 # Generate Prisma Client and build the app
 RUN npx prisma generate
