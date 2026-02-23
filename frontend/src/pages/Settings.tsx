@@ -20,6 +20,7 @@ interface Character {
   mythicRating?: number;
   raidProgress?: string;
   role?: string;
+  allowedGuildIds?: number[];
 }
 
 type SortField = 'ilvl' | 'rio' | 'progress';
@@ -165,6 +166,25 @@ export default function Settings() {
       }
     } catch (err) {
       console.error('Failed to toggle favorite:', err);
+    }
+  };
+
+  const toggleGuildVisibility = async (charId: number, guildId: number, currentAllowed: number[]) => {
+    setUpdatingChars(prev => [...prev, charId]);
+    try {
+      const isAllowed = currentAllowed.includes(guildId);
+      const newAllowed = isAllowed
+        ? currentAllowed.filter(id => id !== guildId)
+        : [...currentAllowed, guildId];
+
+      const data = await CharacterService.updateVisibility(charId, newAllowed);
+      if (data.success) {
+        setCharacters(prev => prev.map(c => c.id === charId ? { ...c, allowedGuildIds: data.allowedGuildIds } : c));
+      }
+    } catch (err) {
+      console.error('Failed to update guild visibility:', err);
+    } finally {
+      setUpdatingChars(prev => prev.filter(id => id !== charId));
     }
   };
 
@@ -406,6 +426,36 @@ export default function Settings() {
                 </div>
 
                 {/* Spacing adjustments for columns if needed */}
+
+                {/* 7. Spalte: Sichtbarkeit in Gilden */}
+                <div style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sichtbar in:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {user?.guildMemberships?.map(ms => (
+                      <div
+                        key={ms.guildId}
+                        onClick={() => toggleGuildVisibility(char.id, ms.guildId, char.allowedGuildIds || [])}
+                        style={{
+                          background: (char.allowedGuildIds || []).includes(ms.guildId) ? 'rgba(163, 48, 201, 0.4)' : '#121214',
+                          border: `1px solid ${(char.allowedGuildIds || []).includes(ms.guildId) ? 'var(--accent)' : '#333'}`,
+                          borderRadius: '4px',
+                          padding: '2px 6px',
+                          fontSize: '0.75em',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.2s',
+                          opacity: updatingChars.includes(char.id) ? 0.5 : 1
+                        }}
+                        title={`Sichtbarkeit in ${ms.guild.name} umschalten`}
+                      >
+                        {ms.guild.name.split(' ')[0]}
+                      </div>
+                    ))}
+                    {(!user?.guildMemberships || user.guildMemberships.length === 0) && (
+                      <span style={{ fontSize: '0.75em', color: '#444' }}>Keine Gilden</span>
+                    )}
+                  </div>
+                </div>
 
                 {/* 6. Spalte: Main Character Status / Button */}
                 <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>

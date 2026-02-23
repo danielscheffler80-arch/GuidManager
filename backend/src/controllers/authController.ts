@@ -508,4 +508,38 @@ export class AuthController {
       res.status(500).json({ success: false, error: 'Failed to toggle favorite' });
     }
   }
+
+  // Aktualisiert die Sichtbarkeit für Gilden
+  static async updateVisibility(req: Request, res: Response) {
+    const userId = (req as any).user?.userId;
+    const { characterId, allowedGuildIds } = req.body;
+
+    try {
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'User not authenticated' });
+      }
+
+      if (!characterId || !Array.isArray(allowedGuildIds)) {
+        return res.status(400).json({ success: false, error: 'Character ID and allowedGuildIds array required' });
+      }
+
+      const character = await prisma.character.findFirst({
+        where: { id: characterId, userId }
+      });
+
+      if (!character) {
+        return res.status(404).json({ success: false, error: 'Character not found' });
+      }
+
+      const updated = await prisma.character.update({
+        where: { id: characterId },
+        data: { allowedGuildIds }
+      });
+
+      res.json({ success: true, allowedGuildIds: updated.allowedGuildIds });
+    } catch (error) {
+      console.error('Update visibility error:', error);
+      res.status(500).json({ success: false, error: 'Failed to update visibility' });
+    }
+  }
 }

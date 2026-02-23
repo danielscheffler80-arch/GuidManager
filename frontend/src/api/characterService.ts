@@ -34,5 +34,19 @@ export const CharacterService = {
             headers
         });
         return response.json();
+    },
+
+    // Update character visibility
+    updateVisibility: async (characterId: number, allowedGuildIds: number[]) => {
+        const headers: HeadersInit = {
+            'Content-Type': 'application/json',
+            ...(getAuthHeader() as Record<string, string>)
+        };
+        const response = await fetch(`${getBackendUrl()}/users/characters/visibility`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ characterId, allowedGuildIds })
+        });
+        return response.json();
     }
 };
