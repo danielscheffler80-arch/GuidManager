@@ -65,6 +65,8 @@ model Character {
   mythicKeys      MythicKey[]
   mythicSignups   MythicKeySignup[]
   attendances     Attendance[]
+  sentMessages    PrivateMessage[] @relation("SentMessages")
+  receivedMessages PrivateMessage[] @relation("ReceivedMessages")
   
   // Unique Constraint für Name + Realm
   @@unique([name, realm])
@@ -258,4 +260,22 @@ model Stream {
   user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@map("streams")
+}
+// Private Message Model
+model PrivateMessage {
+  id              Int         @id @default(autoincrement())
+  senderId        Int
+  receiverId      Int
+  content         String
+  read            Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  // Relations
+  sender          Character   @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver        Character   @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@map("private_messages")
 }
