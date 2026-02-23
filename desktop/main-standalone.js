@@ -5,6 +5,8 @@ const { spawn, exec } = require('child_process');
 const fs = require('fs');
 const WoWKeystoneSync = require('./wowSync');
 
+let keystoneSync = null;
+
 // Hardware-Beschleunigung deaktivieren (hilft gegen lila Streifen/Grafikfehler/White-Screen)
 app.disableHardwareAcceleration();
 
@@ -365,8 +367,8 @@ app.on('ready', () => {
   }
 
   // Start WoW Keystone Sync
-  const wowSync = new WoWKeystoneSync(config);
-  wowSync.start();
+  keystoneSync = new WoWKeystoneSync(config);
+  keystoneSync.start();
 });
 
 app.on('window-all-closed', () => {
