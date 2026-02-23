@@ -43,6 +43,12 @@ export const MythicPlusService = {
             },
             body: JSON.stringify({ characterId, primaryRole, secondaryRole, message })
         });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.details || 'Signup failed');
+        }
+
         return response.json();
     },
 
