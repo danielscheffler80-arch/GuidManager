@@ -30,6 +30,7 @@ Thumbs.db
 # Electron
 desktop/dist/
 desktop/dist-standalone/
+desktop/.eb-cache/
 
 # Prisma
 prisma/migrations/*.sql
