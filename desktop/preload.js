@@ -1,14 +1,14 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Backend URL Management
-let workingBackendUrl = 'http://localhost:3334';
+let workingBackendUrl = 'https://guild-manager-backend.onrender.com';
 let backendCheckComplete = false;
 let backendVerified = false;
 
 async function verifyBackendUrl(url, retries = 1) {
   const isLocal = url.includes('localhost') || url.includes('127.0.0.1');
-  const timeout = isLocal ? 2000 : 8000; // 2s for local, 8s for cloud
-  const maxRetries = isLocal ? 1 : 2;    // fewer retries for local
+  const timeout = isLocal ? 2000 : 8000;
+  const maxRetries = isLocal ? 1 : 2;
 
   for (let i = 0; i <= maxRetries; i++) {
     try {
@@ -31,21 +31,32 @@ async function verifyBackendUrl(url, retries = 1) {
 ipcRenderer.invoke('get-config').then(async (config) => {
   console.log('[PRELOAD] Config geladen:', config);
 
-  // Use config URL or default to Render
-  workingBackendUrl = config.backendUrl || 'https://guild-manager-backend.onrender.com';
+  // 1. Priorität: Config URL (meist cloud oder lokaler host)
+  // 2. Fallback: Render Cloud
+  const urlsToTry = [
+    config.backendUrl,
+    'https://guild-manager-backend.onrender.com'
+  ].filter(Boolean);
 
-  // Verify the URL
-  backendVerified = await verifyBackendUrl(workingBackendUrl);
+  for (const url of urlsToTry) {
+    console.log(`[PRELOAD] Verifying: ${url}`);
+    const found = await verifyBackendUrl(url);
+    if (found) {
+      workingBackendUrl = url;
+      backendVerified = true;
+      break;
+    }
+  }
+
   backendCheckComplete = true;
-
-  console.log(`[PRELOAD] Initialized with URL: ${workingBackendUrl} (Verified: ${backendVerified})`);
+  console.log(`[PRELOAD] Discovery Complete. Final URL: ${workingBackendUrl} (Verified: ${backendVerified})`);
 });
 
 // APIs für den Renderer-Prozess freigeben
 contextBridge.exposeInMainWorld('electronAPI', {
   getBackendUrl: () => workingBackendUrl,
-  isBackendVerified: () => backendVerified,
-  isBackendCheckComplete: () => backendCheckComplete,
+  isBackendReady: () => backendVerified,
+  isCheckFinished: () => backendCheckComplete,
   openExternal: (url) => ipcRenderer.send('open-external', url),
   getVersion: () => ipcRenderer.invoke('get-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
