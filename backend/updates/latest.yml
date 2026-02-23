@@ -1,9 +1,8 @@
-# Force redeploy for v0.9.7 dashboard features
 version: 0.9.7
 files:
   - url: Guild Manager Standalone Setup 0.9.7.exe
-    sha512: d6b+umZUq1RMecgongmaf4e1aMvtKQ+n1dUPg3RzG6Fo/ziTKnAt+NJRVELzcFbGDz2URqupOaBDYI5WIBe9Ng==
-    size: 79961098
+    sha512: nzZlQfk7z+A3UhIz3g9sSqtg0xewg0AFdGMBIzaltW8gCLXuWXfNkX9oMiUbhmqInUja9dq2vggvy07xMLv/Kg==
+    size: 79961393
 path: Guild Manager Standalone Setup 0.9.7.exe
-sha512: d6b+umZUq1RMecgongmaf4e1aMvtKQ+n1dUPg3RzG6Fo/ziTKnAt+NJRVELzcFbGDz2URqupOaBDYI5WIBe9Ng==
-releaseDate: '2026-02-23T21:15:45.758Z'
+sha512: nzZlQfk7z+A3UhIz3g9sSqtg0xewg0AFdGMBIzaltW8gCLXuWXfNkX9oMiUbhmqInUja9dq2vggvy07xMLv/Kg==
+releaseDate: '2026-02-23T21:38:17.038Z'

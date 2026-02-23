@@ -24,14 +24,19 @@ export class MythicPlusService {
 
             // 2. Fetch ALL relevant characters for these users:
             // - Characters in THIS guild
-            // - OR Characters marked as isFavorite: true (from ANY guild)
+            // - OR Characters where THIS guild is in their allowedGuildIds
             const allCharacters = await prisma.character.findMany({
                 where: {
                     userId: { in: userIds },
                     isActive: true,
                     OR: [
                         { guildId: guildId },
-                        { isFavorite: true }
+                        { allowedGuildIds: { has: guildId } },
+                        // Default behavior: if isFavorite and allowedGuildIds is empty, show everywhere
+                        {
+                            isFavorite: true,
+                            allowedGuildIds: { equals: [] }
+                        }
                     ]
                 },
                 include: {
