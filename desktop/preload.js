@@ -31,12 +31,15 @@ async function verifyBackendUrl(url, retries = 1) {
 ipcRenderer.invoke('get-config').then(async (config) => {
   console.log('[PRELOAD] Config geladen:', config);
 
-  // 1. Priorität: Config URL (meist cloud oder lokaler host)
-  // 2. Fallback: Render Cloud
-  const urlsToTry = [
+  // URLs to try in order of priority:
+  // 1. Config URL (if set)
+  // 2. Default standard port 3334 on localhost (Dev/Host mode)
+  // 3. Current Render URL (as temporary fallback during migration)
+  const urlsToTry = Array.from(new Set([
     config.backendUrl,
+    'http://localhost:3334',
     'https://guild-manager-backend.onrender.com'
-  ].filter(Boolean);
+  ])).filter(Boolean);
 
   for (const url of urlsToTry) {
     console.log(`[PRELOAD] Verifying: ${url}`);

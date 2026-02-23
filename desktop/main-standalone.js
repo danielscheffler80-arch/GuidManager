@@ -35,17 +35,20 @@ try {
 }
 
 // Update Endpoint Discovery
-const UPDATER_URLS = [
-  'http://localhost:3334/updates',
-  'http://192.168.178.65:3334/updates',
-  'http://93.207.23.221:3334/updates',
-  'https://guild-manager-backend.onrender.com/updates'
-];
+const getUpdateEndpoints = () => {
+  const dynamic = config.backendUrl ? [`${config.backendUrl}/updates`] : [];
+  return Array.from(new Set([
+    ...dynamic,
+    'http://localhost:3334/updates',
+    'https://guild-manager-backend.onrender.com/updates'
+  ])).filter(Boolean);
+};
 
 async function findUpdateEndpoint() {
   console.log('[UPDATE] Searching for reachable update server...');
+  const endpoints = getUpdateEndpoints();
 
-  for (const url of UPDATER_URLS) {
+  for (const url of endpoints) {
     try {
       console.log(`[UPDATE] Checking: ${url}`);
       const res = await fetch(`${url}/latest.yml`, {
