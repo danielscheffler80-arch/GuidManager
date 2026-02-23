@@ -26,6 +26,7 @@ export class MythicPlusService {
                                     character: {
                                         select: {
                                             id: true,
+                                            userId: true,
                                             name: true,
                                             realm: true,
                                             class: true,
@@ -166,6 +167,113 @@ export class MythicPlusService {
         return await (prisma as any).mythicKeySignup.delete({
             where: { id: signupId }
         });
+    }
+
+    /**
+     * Process keys from Addon/Desktop sync
+     */
+    static async processAddonSync(keys: any[]) {
+        console.log(`[MythicPlusService] Processing ${keys.length} keys from sync...`);
+        const results = { matched: [] as string[], skipped: [] as string[] };
+
+        // Dungeon Map for resolving MapIDs
+        const DUNGEON_MAP: Record<number, string> = {
+            // TWW Dungeons
+            501: 'The Stonevault', 502: 'City of Threads', 503: 'Ara-Kara, City of Echoes',
+            504: 'Darkflame Cleft', 505: 'The Dawnbreaker', 506: 'Cinderbrew Meadery',
+            507: 'Grim Batol', 499: 'Priory of the Sacred Flame', 500: 'The Rookery',
+            525: 'Operation: Floodgate', 542: 'Eco-Dome Al\'dani',
+            // Shadowlands
+            375: 'Mists of Tirna Scithe', 376: 'The Necrotic Wake', 378: 'Halls of Atonement',
+            382: 'Theater of Pain',
+            // BfA
+            353: 'Siege of Boralus', 247: 'The MOTHERLODE!!',
+            370: 'Mechagon Workshop',
+            // Shadowlands M+ returning
+            391: 'Tazavesh: Streets of Wonder', 392: 'Tazavesh: So\'leah\'s Gambit',
+            // Legion 
+            197: 'Eye of Azshara', 198: 'Darkheart Thicket', 199: 'Black Rook Hold',
+            200: 'Halls of Valor', 206: 'Neltharion\'s Lair', 207: 'Vault of the Wardens',
+            208: 'Maw of Souls', 209: 'The Arcway', 210: 'Court of Stars',
+            227: 'Return to Karazhan: Lower', 233: 'Cathedral of Eternal Night',
+            234: 'Return to Karazhan: Upper', 239: 'Seat of the Triumvirate',
+        };
+
+        for (const key of keys) {
+            const lowerName = key.name.toLowerCase();
+            const lowerRealm = key.realm.toLowerCase();
+
+            // Resolve Dungeon Name
+            let dungeonName = key.dungeon;
+            if (dungeonName && dungeonName.startsWith('MapID:')) {
+                const mapId = parseInt(dungeonName.replace('MapID:', ''));
+                dungeonName = DUNGEON_MAP[mapId] || `Dungeon (${mapId})`;
+            }
+
+            const character = await prisma.character.findUnique({
+                where: { name_realm: { name: lowerName, realm: lowerRealm } }
+            });
+
+            if (character) {
+                results.matched.push(`${character.name}-${character.realm}`);
+
+                try {
+                    // Check if this character already has a bag key
+                    const existingKey = await prisma.mythicKey.findFirst({
+                        where: { characterId: character.id, isFromBag: true }
+                    });
+
+                    // Timestamp logic: 
+                    // If we have an existing key, we only update if:
+                    // 1. The new key has a timestamp AND it's newer than the current updatedAt/createdAt
+                    // 2. The new key is different (dungeon or level) and we want to overwrite
+
+                    const newTimestamp = key.timestamp ? new Date(key.timestamp * 1000) : new Date();
+
+                    if (existingKey) {
+                        const existingTimestamp = existingKey.updatedAt;
+
+                        // If new data is older than what we have, skip it
+                        if (key.timestamp && newTimestamp < existingTimestamp) {
+                            console.log(`[MythicPlusService] Skipping older data for ${character.name} (Source: ${key.source})`);
+                            continue;
+                        }
+
+                        // If key is identical, just update timestamp to show it's still current
+                        if (existingKey.dungeon === dungeonName && existingKey.level === key.level) {
+                            await prisma.mythicKey.update({
+                                where: { id: existingKey.id },
+                                data: { updatedAt: new Date() }
+                            });
+                            continue;
+                        }
+
+                        // Key changed: Delete old one to ensure uniqueness and clean up signups
+                        await prisma.mythicKey.delete({ where: { id: existingKey.id } });
+                    }
+
+                    // Create new key
+                    const newKey = await prisma.mythicKey.create({
+                        data: {
+                            characterId: character.id,
+                            dungeon: dungeonName,
+                            level: key.level,
+                            affixes: '[]',
+                            isFromBag: true,
+                            completed: false,
+                            createdAt: newTimestamp
+                        }
+                    });
+                    console.log(`[MythicPlusService] SUCCESS: Created key ID ${newKey.id} for ${character.name} (Lvl ${key.level} ${dungeonName}, Source: ${key.source})`);
+                } catch (dbErr: any) {
+                    console.error(`[MythicPlusService] DB Error for ${character.name}:`, dbErr.message);
+                }
+            } else {
+                results.skipped.push(`${lowerName}-${lowerRealm}`);
+            }
+        }
+
+        return { success: true, matchedCount: results.matched.length, results };
     }
 
     /**
