@@ -9,6 +9,12 @@ class WoWKeystoneSync {
         this.wowPath = null;
         this.accountPath = null;
         this.syncInterval = null;
+        this.authToken = null;
+    }
+
+    setAuthToken(token) {
+        this.authToken = token;
+        console.log('[WoWSync] Auth-Token für Sync gesetzt.');
     }
 
     slugify(text) {
@@ -360,13 +366,15 @@ class WoWKeystoneSync {
     async sendToBackend(keys) {
         try {
             this.logToFile(`Sende ${keys.length} Keys an Backend: ${this.config.backendUrl}/api/mythic/sync-addon`);
+
+            const headers = { 'Content-Type': 'application/json' };
+            if (this.authToken) {
+                headers['Authorization'] = `Bearer ${this.authToken}`;
+            }
+
             const response = await axios.post(`${this.config.backendUrl}/api/mythic/sync-addon`, {
                 keys
-            }, {
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            }, { headers });
             this.logToFile(`Cloud-Antwort: ${JSON.stringify(response.data)}`);
         } catch (err) {
             this.logToFile(`Upload fehlgeschlagen: ${err.message}${err.response ? ' - ' + JSON.stringify(err.response.data) : ''}`);

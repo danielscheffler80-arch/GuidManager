@@ -125,6 +125,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
               setUser(result.user);
               // Update localStorage with fresh data
               storage.set('user', result.user);
+
+              // Pass token to Electron for Desktop Sync
+              if (window.electronAPI?.setToken) {
+                window.electronAPI.setToken(token);
+              }
+
               // Trigger LIGHT initial sync in background
               setTimeout(() => syncCharacters(false), 2000);
             } else {
@@ -212,6 +218,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (userData: User) => {
     setUser(userData);
     storage.set('user', userData);
+
+    const token = localStorage.getItem('accessToken');
+    if (token && window.electronAPI?.setToken) {
+      window.electronAPI.setToken(token);
+    }
     // Start background sync after login
     syncCharacters(false);
   };
