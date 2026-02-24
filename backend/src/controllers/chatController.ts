@@ -28,19 +28,32 @@ export const getGuildChatHistory = async (req: Request, res: Response) => {
             }
         }) as any[];
 
-        const nameMap = new Map<string, string>();
+        // Capitalize first letter helper
+        const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+        const nameMap = new Map<string, { name: string, classId?: number }>();
         users.forEach(u => {
             if (u.characters && u.characters.length > 0) {
-                nameMap.set(u.name, u.characters[0].name);
+                const char = u.characters[0];
+                nameMap.set(u.name, {
+                    name: capitalize(char.name),
+                    classId: char.classId
+                });
             } else {
-                nameMap.set(u.name, u.name.split('#')[0]);
+                nameMap.set(u.name, {
+                    name: capitalize(u.name.split('#')[0])
+                });
             }
         });
 
-        const resolvedMessages = messages.map((m: any) => ({
-            ...m,
-            sender: nameMap.get(m.sender) || m.sender.split('#')[0]
-        }));
+        const resolvedMessages = messages.map((m: any) => {
+            const resolved = nameMap.get(m.sender) || { name: capitalize(m.sender.split('#')[0]) };
+            return {
+                ...m,
+                sender: resolved.name,
+                classId: resolved.classId
+            };
+        });
 
         res.json(resolvedMessages.reverse());
     } catch (error) {

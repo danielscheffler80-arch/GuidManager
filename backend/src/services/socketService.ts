@@ -116,8 +116,10 @@ export function initSocketService(io: Server) {
             // Capitalize first letter helper
             const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-            // Resolve character name for live broadcast
+            // Resolve character name & class for live broadcast
             let displaySender = data.sender;
+            let classId: number | undefined = undefined;
+
             try {
                 const userWithMain = await prisma.user.findFirst({
                     where: { name: data.sender },
@@ -130,7 +132,9 @@ export function initSocketService(io: Server) {
                 });
 
                 if (userWithMain && userWithMain.characters && userWithMain.characters.length > 0) {
-                    displaySender = capitalize(userWithMain.characters[0].name);
+                    const char = userWithMain.characters[0];
+                    displaySender = capitalize(char.name);
+                    classId = char.classId || undefined;
                 } else {
                     // Fallback to name part of BattleTag
                     displaySender = capitalize(data.sender.split('#')[0]);
@@ -140,8 +144,12 @@ export function initSocketService(io: Server) {
                 displaySender = capitalize(data.sender.split('#')[0]);
             }
 
-            // Emit safely ONLY with resolved name
-            io.to(`guild_${data.guildId}`).emit('guild-chat-resolved', { ...data, sender: displaySender });
+            // Emit safely ONLY with resolved name and class info
+            io.to(`guild_${data.guildId}`).emit('guild-chat-resolved', {
+                ...data,
+                sender: displaySender,
+                classId: classId
+            });
         });
 
         // Debug Logging via Socket
