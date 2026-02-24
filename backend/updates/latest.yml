@@ -1,9 +1,14 @@
-# ULTRA FORCE REDEPLOY v0.9.9 - Global Visibility Cards Final
-version: 0.9.9
+version: 0.9.1
 files:
-  - url: Guild Manager Standalone Setup 0.9.9.exe
-    sha512: AvKvro93OQr/7Im8pHm1QytaCbXAPoGqKtXLcoy2/TM2i+JB48pvRt2IJxPXZKs5AAOgaMXfpXfS73uz0PIzVA==
-    size: 79961830
-path: Guild Manager Standalone Setup 0.9.9.exe
-sha512: AvKvro93OQr/7Im8pHm1QytaCbXAPoGqKtXLcoy2/TM2i+JB48pvRt2IJxPXZKs5AAOgaMXfpXfS73uz0PIzVA==
-releaseDate: '2026-02-23T22:19:11.836Z'
+  - url: Guild Manager Standalone Web Setup 0.9.1.exe
+    sha512: XA+jhGAWeomAc8Q1oyKwjikAySMaRM/CnaSL011lndZUESoHGIbKGp7+Y6IdVaiCmGD6DWoPox56DxLpgdKRIQ==
+path: Guild Manager Standalone Web Setup 0.9.1.exe
+sha512: XA+jhGAWeomAc8Q1oyKwjikAySMaRM/CnaSL011lndZUESoHGIbKGp7+Y6IdVaiCmGD6DWoPox56DxLpgdKRIQ==
+packages:
+  x64:
+    size: 78795157
+    sha512: PPio+lzlmxF1cBJuv0750/96uuhpvM+kt/IcIfmMcB9gX8/VAar+UXYHH3jMWmqSeOghEOrv7wTCzX7Ib/KH2A==
+    blockMapSize: 83709
+    path: guild-manager-standalone-0.9.1-x64.nsis.7z
+    file: guild-manager-standalone-0.9.1-x64.nsis.7z
+releaseDate: '2026-02-24T00:29:53.584Z'

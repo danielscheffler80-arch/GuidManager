@@ -1,11 +1,10 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.9.9",
+  "version": "0.9.1",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
   "dependencies": {
-    "axios": "^1.13.5",
     "electron-updater": "^6.1.7"
   },
   "scripts": {
@@ -25,7 +24,6 @@
     "files": [
       "main-standalone.js",
       "preload.js",
-      "wowSync.js",
       "package.json",
       "assets/**/*"
     ],
@@ -49,9 +47,8 @@
     "icon": "assets/app-icon.png",
     "win": {
       "icon": "assets/app-icon.ico",
-      "target": "nsis",
-      "requestedExecutionLevel": "asInvoker",
-      "signingHashAlgorithms": []
+      "target": "nsis-web",
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": true,
