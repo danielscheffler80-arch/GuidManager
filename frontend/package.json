@@ -1,6 +1,6 @@
 {
   "name": "guild-sys-frontend",
-  "version": "0.9.20.1",
+  "version": "0.9.21",
   "private": true,
   "type": "module",
   "scripts": {
