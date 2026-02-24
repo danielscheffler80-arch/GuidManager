@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { GuildService } from '../api/guildService';
 import { io, Socket } from 'socket.io-client';
 import { useGuild } from '../contexts/GuildContext';
+import { getClassColor } from '../utils/formatUtils';
 
 interface ChatMessage {
   sender: string;
@@ -10,6 +11,7 @@ interface ChatMessage {
   timestamp: string;
   type?: 'guild' | 'system';
   guildId?: number;
+  classId?: number;
 }
 
 interface Guild {
@@ -66,19 +68,15 @@ export default function Chat() {
       // Type-safe check (Number) for guildId mismatch
       if (!msg.guildId || Number(msg.guildId) === Number(selectedGuild.id)) {
         setMessages(prev => {
-          // Resolve name fallback (Strip #1234) if not already resolved by backend
-          const cleanSender = msg.sender.includes('#') ? msg.sender.split('#')[0] : msg.sender;
-          const cleanMsg = { ...msg, sender: cleanSender };
-
-          // Better duplicate check: sender (clean) + content + timestamp
+          // Better duplicate check: sender + content + timestamp
           const isDuplicate = prev.some(m =>
             m.timestamp === msg.timestamp &&
             m.content === msg.content &&
-            (m.sender === cleanSender || m.sender === msg.sender)
+            m.sender === msg.sender
           );
 
           if (isDuplicate) return prev;
-          return [...prev.slice(-99), cleanMsg];
+          return [...prev.slice(-99), msg];
         });
       }
     };
@@ -147,7 +145,11 @@ export default function Chat() {
         {messages.map((msg, i) => (
           <div key={i} style={{ display: 'flex', gap: '10px', fontSize: '0.95rem' }}>
             <span style={{ color: '#666', minWidth: '125px' }}>{getTimestamp(msg.timestamp)}</span>
-            <span style={{ color: 'var(--accent)', fontWeight: 'bold' }}>{msg.sender}:</span>
+            <span style={{
+              color: getClassColor(msg.classId),
+              fontWeight: 'bold',
+              textShadow: '0 0 10px rgba(0,0,0,0.5)'
+            }}>{msg.sender}:</span>
             <span style={{ color: '#D1D9E0', wordBreak: 'break-word' }}>{msg.content}</span>
           </div>
         ))}
