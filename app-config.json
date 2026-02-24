@@ -1,1 +1,7 @@
-{ "backendUrls": ["http://localhost:3334", "https://guild-manager-backend.onrender.com"], "backendUrl": "https://guild-manager-backend.onrender.com", "mode": "auto" } 
+{
+    "backendUrls": [
+        "https://guidmanager-production.up.railway.app"
+    ],
+    "backendUrl": "https://guidmanager-production.up.railway.app",
+    "mode": "cloud"
+}
