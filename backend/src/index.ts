@@ -6,6 +6,8 @@ import express from 'express';
 import cors from 'cors';
 import http from 'http';
 import path from 'path';
+import fs from 'fs';
+import yaml from 'js-yaml';
 import { Server } from 'socket.io';
 
 import guildsRouter from './routes/guilds';
@@ -80,6 +82,22 @@ app.use('/api/sync', syncRouter);
 // Download redirect for Universal Setup
 app.get('/api/download/latest', (req, res) => {
   res.redirect('/updates/GuildManagerSetup.exe');
+});
+
+// Version Info for Bootstrapper
+app.get('/api/update/info', (req, res) => {
+  try {
+    const latestPath = path.join(__dirname, '../updates/latest.yml');
+    if (fs.existsSync(latestPath)) {
+      const fileContents = fs.readFileSync(latestPath, 'utf8');
+      const data = yaml.load(fileContents) as any;
+      res.json({ version: data.version });
+    } else {
+      res.status(404).json({ error: 'latest.yml not found' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read version info' });
+  }
 });
 
 // Initialize Socket Service

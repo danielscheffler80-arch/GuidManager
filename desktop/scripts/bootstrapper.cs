@@ -3,11 +3,13 @@ using System.Net;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
+using System.Windows.Forms;
 
 namespace GuildManagerBootstrapper
 {
     class Program
     {
+        [STAThread]
         static void Main(string[] args)
         {
             Console.Title = "Xava Guild Manager - Universal Setup";
@@ -18,17 +20,47 @@ namespace GuildManagerBootstrapper
             Console.ResetColor();
             Console.WriteLine();
 
-            string downloadUrl = "https://guidmanager-production.up.railway.app/api/download/latest";
+            string baseUrl = "https://guidmanager-production.up.railway.app";
+            string infoUrl = baseUrl + "/api/update/info";
+            string downloadUrl = baseUrl + "/api/download/latest";
             string tempPath = Path.Combine(Path.GetTempPath(), "GuildManagerSetup_Latest.exe");
 
             try
             {
+                // Force latest TLS
+                ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+
+                string version = "Unknown";
                 using (WebClient client = new WebClient())
                 {
                     Console.WriteLine("--> Checking for latest version...");
-                    // Force latest TLS
-                    ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072; // TLS 1.2
+                    try {
+                        string json = client.DownloadString(infoUrl);
+                        // Simple JSON parsing (since we don't want external dependencies)
+                        if (json.Contains("\"version\":\"")) {
+                            version = json.Split(new string[] { "\"version\":\"" }, StringSplitOptions.None)[1].Split('\"')[0];
+                        }
+                    } catch {
+                        Console.WriteLine("[WARNING] Could not retrieve version info, proceeding with generic download.");
+                    }
+                }
 
+                DialogResult result = MessageBox.Show(
+                    string.Format("Möchten Sie Guild Manager Version {0} herunterladen und installieren?", version),
+                    "Xava Guild Manager Update",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question
+                );
+
+                if (result != DialogResult.Yes)
+                {
+                    Console.WriteLine("--> Download cancelled by user.");
+                    Thread.Sleep(1000);
+                    return;
+                }
+
+                using (WebClient client = new WebClient())
+                {
                     Console.WriteLine("--> Downloading latest installer (this may take a moment)...");
                     
                     // Simple progress reporting
