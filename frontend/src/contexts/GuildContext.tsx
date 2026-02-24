@@ -72,33 +72,7 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         try {
             // 1. Fetch Guilds
             const gData = await GuildService.getGuilds();
-            const allGuildsFromApi = gData.guilds || [];
-
-            // FILTER: Only show guilds where user has a membership
-            let filteredGuilds = allGuildsFromApi;
-            if (user?.guildMemberships && user.guildMemberships.length > 0) {
-                const myGuildIds = user.guildMemberships.map((m: any) => m.guildId);
-                // Ensure IDs are compared as strings or numbers consistently
-                filteredGuilds = allGuildsFromApi.filter((g: any) => myGuildIds.includes(g.id) || myGuildIds.includes(String(g.id)));
-
-                // Fallback: If filtered list is empty but API returned guilds, and we have memberships, 
-                // something might be wrong with ID types. Trust API if it returns "my" guilds.
-                // Actually, getGuilds() in service might be returning ALL guilds, not just mine?
-                // GuildService.getGuilds() usually calls /api/user/guilds which returns user's guilds.
-                // So we shouldn't filter again if the API already does.
-                // Let's check what API returns.
-                if (filteredGuilds.length === 0 && allGuildsFromApi.length > 0) {
-                    console.warn('Filtered guilds empty but API returned guilds. IDs might imply mismatch.', {
-                        myGuildIds,
-                        apiGuildIds: allGuildsFromApi.map((g: any) => g.id)
-                    });
-                    // If we trust the API to return only my guilds:
-                    filteredGuilds = allGuildsFromApi;
-                }
-            } else {
-                console.log('User has no guild memberships in context');
-                filteredGuilds = [];
-            }
+            const filteredGuilds = gData.guilds || [];
 
             setGuilds(filteredGuilds);
 
