@@ -142,10 +142,18 @@ export class UserController {
         data: { isMain: false }
       });
 
-      // Setze gewählten Charakter als Main
+      // Setze gewählten Charakter als Main und sorge für Sichtbarkeit in seiner Gilde
+      let allowedGuildIds = character.allowedGuildIds || [];
+      if (character.guildId && !allowedGuildIds.includes(character.guildId)) {
+        allowedGuildIds = [...allowedGuildIds, character.guildId];
+      }
+
       const updatedCharacter = await prisma.character.update({
         where: { id: characterId },
-        data: { isMain: true }
+        data: {
+          isMain: true,
+          allowedGuildIds: allowedGuildIds
+        }
       });
 
       res.json({

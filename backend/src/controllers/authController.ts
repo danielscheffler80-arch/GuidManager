@@ -454,6 +454,12 @@ export class AuthController {
       }
 
       // Transaktion: Alle anderen isMain = false, dieser = true
+      // Sowie automatische Freigabe für die aktuelle Gilde des Chars
+      let allowedGuildIds = character.allowedGuildIds || [];
+      if (character.guildId && !allowedGuildIds.includes(character.guildId)) {
+        allowedGuildIds = [...allowedGuildIds, character.guildId];
+      }
+
       await prisma.$transaction([
         prisma.character.updateMany({
           where: { userId },
@@ -461,7 +467,10 @@ export class AuthController {
         }),
         prisma.character.update({
           where: { id: characterId },
-          data: { isMain: true }
+          data: {
+            isMain: true,
+            allowedGuildIds: allowedGuildIds
+          }
         })
       ]);
 
@@ -545,11 +554,13 @@ export class AuthController {
 
   static async bulkUpdateVisibility(req: Request, res: Response) {
     const userId = (req as any).user?.userId;
-    const { guildId, visible } = req.body;
+    const { guildId: rawGuildId, visible } = req.body;
 
-    if (guildId === undefined || visible === undefined) {
+    if (rawGuildId === undefined || visible === undefined) {
       return res.status(400).json({ success: false, error: 'Missing guildId or visible state' });
     }
+
+    const guildId = Number(rawGuildId);
 
     try {
       const characters = await prisma.character.findMany({
