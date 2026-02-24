@@ -461,44 +461,60 @@ export class BattleNetAPIService {
   }
 
   // Statische Methode zum Synchronisieren von Gildenmitgliedern
-  static async syncGuildMembers(guildId: number, guildName: string, realmSlug: string, accessToken: string): Promise<number> {
+  static async syncGuildMembers(guildId: number, guildName: string, realmSlug: string, accessToken: string, deepSync: boolean = false): Promise<number> {
     try {
       const service = new BattleNetAPIService(accessToken);
       const members = await service.getGuildRoster(realmSlug, guildName);
 
+      console.log(`[BNET] Syncing ${members.length} members for guild ${guildName} (DeepSync: ${deepSync})`);
+
       for (const member of members) {
-        await prisma.character.upsert({
-          where: {
-            name_realm: {
-              name: member.character.name.toLowerCase(),
-              realm: member.character.realm.slug,
+        try {
+          const charName = member.character.name.toLowerCase();
+          const charRealm = member.character.realm.slug;
+
+          const updatedChar = await prisma.character.upsert({
+            where: {
+              name_realm: {
+                name: charName,
+                realm: charRealm,
+              },
             },
-          },
-          update: {
-            level: member.character.level,
-            guildId: guildId,
-            class: member.character.playable_class.name.de_DE,
-            classId: member.character.playable_class.id,
-            race: member.character.playable_race.name.de_DE,
-            faction: member.character.faction.name.de_DE,
-            rank: member.rank,
-            lastSync: new Date(),
-          },
-          create: {
-            userId: 0, // Temporär, da wir keine User-ID haben
-            battleNetId: member.character.id.toString(),
-            name: member.character.name.toLowerCase(),
-            realm: member.character.realm.slug,
-            level: member.character.level,
-            class: member.character.playable_class.name.de_DE,
-            classId: member.character.playable_class.id,
-            race: member.character.playable_race.name.de_DE,
-            faction: member.character.faction.name.de_DE,
-            guildId: guildId,
-            rank: member.rank,
-            lastSync: new Date(),
-          },
-        });
+            update: {
+              level: member.character.level,
+              guildId: guildId,
+              class: member.character.playable_class.name.de_DE || member.character.playable_class.name.en_US || member.character.playable_class.name,
+              classId: member.character.playable_class.id,
+              race: member.character.playable_race.name.de_DE || member.character.playable_race.name.en_US || member.character.playable_race.name,
+              faction: member.character.faction.name.de_DE || member.character.faction.name.en_US || member.character.faction.name,
+              rank: member.rank,
+              lastSync: new Date(),
+            },
+            create: {
+              userId: 0, // Temporär, da wir keine User-ID haben (oder 0 für Gildenmitglieder)
+              battleNetId: member.character.id.toString(),
+              name: charName,
+              realm: charRealm,
+              level: member.character.level,
+              class: member.character.playable_class.name.de_DE || member.character.playable_class.name.en_US || member.character.playable_class.name,
+              classId: member.character.playable_class.id,
+              race: member.character.playable_race.name.de_DE || member.character.playable_race.name.en_US || member.character.playable_race.name,
+              faction: member.character.faction.name.de_DE || member.character.faction.name.en_US || member.character.faction.name,
+              guildId: guildId,
+              rank: member.rank,
+              lastSync: new Date(),
+            },
+          });
+
+          // Wenn DeepSync an ist, holen wir RIO und Raid Fortschritt
+          if (deepSync && member.character.level >= 70) {
+            await service.syncSingleCharacterDetails(0, charRealm, charName);
+            // Kleines Delay um Rate Limits zu schonen
+            await new Promise(r => setTimeout(r, 100));
+          }
+        } catch (charErr) {
+          console.error(`[BNET] Error syncing member ${member.character.name}:`, charErr);
+        }
       }
 
       return members.length;

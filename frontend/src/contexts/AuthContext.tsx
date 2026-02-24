@@ -13,6 +13,7 @@ interface User {
   discordTag?: string;
   characters?: any[];
   guildMemberships?: any[];
+  initialSyncCompletedAt?: string;
 }
 
 interface AuthContextType {

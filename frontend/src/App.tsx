@@ -15,6 +15,7 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import CreateRaid from './pages/CreateRaid';
 import AdminSettings from './pages/AdminSettings';
+import InitialSync from './pages/InitialSync';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -55,6 +56,16 @@ function AppContent() {
 
   if (!user) {
     return <Login />;
+  }
+
+  // Check if initial sync is needed
+  if (!user.initialSyncCompletedAt) {
+    return (
+      <Routes>
+        <Route path="/initial-sync" element={<InitialSync />} />
+        <Route path="*" element={<Navigate to="/initial-sync" />} />
+      </Routes>
+    );
   }
 
   return (
@@ -116,6 +127,7 @@ function AppContent() {
                 <AdminSettings />
               </ProtectedRoute>
             } />
+            <Route path="/initial-sync" element={<InitialSync />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </main>
