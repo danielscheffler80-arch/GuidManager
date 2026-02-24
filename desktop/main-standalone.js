@@ -138,7 +138,7 @@ autoUpdater.on('update-not-available', () => {
 });
 
 autoUpdater.on('update-downloaded', (info) => {
-  if (mainWindow) mainWindow.webContents.send('update-message', 'UPDATE_READY');
+  if (mainWindow) mainWindow.webContents.send('update-message', `UPDATE_READY:${info.version}`);
 });
 
 autoUpdater.on('error', (err) => {

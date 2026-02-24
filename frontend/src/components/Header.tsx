@@ -59,9 +59,10 @@ const Header: React.FC = () => {
 
     if (window.electronAPI?.onUpdateMessage) {
       window.electronAPI.onUpdateMessage((msg: string) => {
-        if (msg === 'UPDATE_READY') {
+        if (msg.startsWith('UPDATE_READY')) {
+          const version = msg.split(':')[1] || '';
           setUpdateStatus('Update bereit');
-          const confirm = window.confirm('Update bereit! Möchtest du die App jetzt neu starten und aktualisieren?');
+          const confirm = window.confirm(`Update auf v${version} bereit! Möchtest du die App jetzt neu starten und aktualisieren?`);
           if (confirm) {
             window.electronAPI.restartAndInstall();
           }
