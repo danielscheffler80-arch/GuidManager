@@ -113,7 +113,8 @@ export function initSocketService(io: Server) {
                 console.error('[Socket] Failed to save chat message:', err);
             }
 
-            io.to(`guild_${data.guildId}`).emit('guild-chat', data);
+            // Capitalize first letter helper
+            const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
             // Resolve character name for live broadcast
             let displaySender = data.sender;
@@ -129,17 +130,17 @@ export function initSocketService(io: Server) {
                 });
 
                 if (userWithMain && userWithMain.characters && userWithMain.characters.length > 0) {
-                    displaySender = userWithMain.characters[0].name;
+                    displaySender = capitalize(userWithMain.characters[0].name);
                 } else {
                     // Fallback to name part of BattleTag
-                    displaySender = data.sender.split('#')[0];
+                    displaySender = capitalize(data.sender.split('#')[0]);
                 }
             } catch (err) {
                 console.error('[Socket] Name resolution failed:', err);
-                displaySender = data.sender.split('#')[0];
+                displaySender = capitalize(data.sender.split('#')[0]);
             }
 
-            // Emit again with resolved name for display
+            // Emit safely ONLY with resolved name
             io.to(`guild_${data.guildId}`).emit('guild-chat-resolved', { ...data, sender: displaySender });
         });
 

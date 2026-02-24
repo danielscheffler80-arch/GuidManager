@@ -83,7 +83,6 @@ export default function Chat() {
       }
     };
 
-    newSocket.on('guild-chat', handleIncomingMessage);
     newSocket.on('guild-chat-resolved', handleIncomingMessage);
 
     // Listen for messages from Electron Log Watcher (Your own outgoing messages via Relay)
