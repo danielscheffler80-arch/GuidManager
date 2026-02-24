@@ -150,19 +150,24 @@ export default function Settings() {
   const toggleAllGuildVisibility = async (guildId: number, visible: boolean) => {
     setIsLoading(true);
     try {
-      const data = await CharacterService.bulkUpdateVisibility(guildId, visible);
-      if (data.success) {
-        // Update all characters locally
-        setCharacters(prev => prev.map(c => {
-          let allowed = c.allowedGuildIds || [];
-          if (visible && !allowed.includes(guildId)) {
-            allowed = [...allowed, guildId];
-          } else if (!visible && allowed.includes(guildId)) {
-            allowed = allowed.filter(id => id !== guildId);
-          }
-          return { ...c, allowedGuildIds: allowed };
-        }));
+      // Logic refined: We only want to bulk toggle Mains and Favorites for Mythic+
+      const relevantChars = characters.filter(c => c.isMain || c.isFavorite);
+
+      // If we want to be visible, we add the guild to all relevant chars
+      // If we want to be hidden, we remove the guild from all relevant chars
+      for (const char of relevantChars) {
+        let allowed = char.allowedGuildIds || [];
+        if (visible && !allowed.includes(guildId)) {
+          allowed = [...allowed, guildId];
+          await CharacterService.updateVisibility(char.id, allowed);
+        } else if (!visible && allowed.includes(guildId)) {
+          allowed = allowed.filter(id => id !== guildId);
+          await CharacterService.updateVisibility(char.id, allowed);
+        }
       }
+
+      // Update local state after all calls
+      fetchCharacters();
     } catch (err) {
       console.error('Failed to update bulk guild visibility:', err);
     } finally {
@@ -337,30 +342,36 @@ export default function Settings() {
           <p>Lade Charaktere...</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
-            {/* Globale Gilden-Sichtbarkeit Cards */}
+            {/* Mythic+ Gilden-Sichtbarkeit Cards */}
             {user?.guildMemberships && user.guildMemberships.length > 0 && (
-              <div style={{ marginBottom: '10px' }}>
-                <h3 style={{ fontSize: '1em', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '15px' }}>Globale Gilden-Sichtbarkeit</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+              <div style={{ marginBottom: '25px', background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '15px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
+                  <div style={{ width: '3px', height: '16px', background: 'var(--accent)', borderRadius: '2px' }} />
+                  <h3 style={{ fontSize: '1.0em', fontWeight: '900', color: '#fff', textTransform: 'uppercase', letterSpacing: '2px', margin: 0 }}>Mythic+ Gilden-Freigabe</h3>
+                  <span style={{ fontSize: '0.75em', color: '#666', marginLeft: 'auto', fontWeight: 'bold' }}>MAIN & FAVORITEN</span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '15px' }}>
                   {user.guildMemberships.map(ms => {
-                    const isVisibleForAll = characters.length > 0 && characters.every(c => (c.allowedGuildIds || []).includes(ms.guildId));
-                    const isVisibleForSome = characters.some(c => (c.allowedGuildIds || []).includes(ms.guildId));
+                    const relevantChars = characters.filter(c => c.isMain || c.isFavorite);
+                    const visibleRelevant = relevantChars.filter(c => (c.allowedGuildIds || []).includes(ms.guildId));
+                    const isVisibleForAll = relevantChars.length > 0 && relevantChars.every(c => (c.allowedGuildIds || []).includes(ms.guildId));
+                    const isVisibleForSome = visibleRelevant.length > 0;
 
                     return (
                       <div
                         key={ms.guildId}
                         onClick={() => toggleAllGuildVisibility(ms.guildId, !isVisibleForAll)}
                         style={{
-                          background: isVisibleForAll ? 'rgba(163, 48, 201, 0.2)' : '#1D1E1F',
+                          background: isVisibleForAll ? 'rgba(163, 48, 201, 0.15)' : '#1D1E1F',
                           border: `1px solid ${isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333')}`,
-                          padding: '15px',
+                          padding: '18px',
                           borderRadius: '12px',
                           cursor: 'pointer',
                           transition: 'all 0.2s',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: '8px',
-                          textAlign: 'center',
+                          gap: '6px',
                           position: 'relative',
                           overflow: 'hidden'
                         }}
@@ -369,26 +380,39 @@ export default function Settings() {
                           if (!isVisibleForAll) e.currentTarget.style.borderColor = isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333';
                         }}
                       >
-                        <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
-                        <div style={{ fontSize: '0.8em', color: '#666' }}>{ms.guild.realm}</div>
+                        <div style={{ fontSize: '1.1em', fontWeight: '900', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
+                        <div style={{ fontSize: '0.8em', color: '#666', fontWeight: '600' }}>{ms.guild.realm}</div>
+
                         <div style={{
-                          marginTop: '5px',
+                          marginTop: '8px',
                           fontSize: '0.75em',
-                          color: isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.8)' : '#444'),
-                          fontWeight: 'bold'
+                          color: isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.9)' : '#555'),
+                          fontWeight: '800',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
                         }}>
-                          {isVisibleForAll ? 'ALLE CHARS SICHTBAR' : (isVisibleForSome ? 'TEILWEISE SICHTBAR' : 'NICHT SICHTBAR')}
+                          {isVisibleForAll ? (
+                            <><span>✅</span> BEREIT FÜR DASHBOARD</>
+                          ) : (isVisibleForSome ? (
+                            <><span>⚠️</span> TEILWEISE AKTIV ({visibleRelevant.length}/{relevantChars.length})</>
+                          ) : (
+                            <><span>❌</span> NICHT SICHTBAR</>
+                          ))}
                         </div>
+
                         {/* Progress Bar (Subtle) */}
-                        <div style={{
-                          position: 'absolute',
-                          bottom: 0,
-                          left: 0,
-                          height: '3px',
-                          background: 'var(--accent)',
-                          width: `${(characters.filter(c => (c.allowedGuildIds || []).includes(ms.guildId)).length / characters.length) * 100}%`,
-                          transition: 'width 0.3s'
-                        }} />
+                        {relevantChars.length > 0 && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            left: 0,
+                            height: '3px',
+                            background: 'var(--accent)',
+                            width: `${(visibleRelevant.length / relevantChars.length) * 100}%`,
+                            transition: 'width 0.3s'
+                          }} />
+                        )}
                       </div>
                     );
                   })}
