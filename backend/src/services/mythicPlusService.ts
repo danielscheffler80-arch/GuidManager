@@ -36,7 +36,8 @@ export class MythicPlusService {
                         {
                             isFavorite: true,
                             allowedGuildIds: { equals: [] }
-                        }
+                        },
+                        { isMain: true }
                     ]
                 },
                 include: {
@@ -73,8 +74,8 @@ export class MythicPlusService {
                 // No main selected = no appearance in dashboard
                 if (!mainChar) continue;
 
-                // Alts are all favorite chars (regardless of guild) + non-main chars in this guild
-                const alts = userChars.filter(c => c.id !== mainChar.id);
+                // Alts are only characters marked as favorite
+                const alts = userChars.filter(c => c.id !== mainChar.id && c.isFavorite);
 
                 // Collect all incoming applications on the keys of this user
                 const allKeysOfUser = [...mainChar.mythicKeys, ...alts.flatMap(a => a.mythicKeys)];
