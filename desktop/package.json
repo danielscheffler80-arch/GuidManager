@@ -61,7 +61,7 @@
       "shortcutName": "Guild Manager Standalone"
     },
     "nsisWeb": {
-      "appPackageUrl": "https://guild-manager-backend.onrender.com/updates",
+      "appPackageUrl": "https://guidmanager-production.up.railway.app/updates",
       "artifactName": "GuildManagerSetup.exe",
       "oneClick": true,
       "allowElevation": true,
@@ -73,7 +73,7 @@
     "publish": [
       {
         "provider": "generic",
-        "url": "https://guild-manager-backend.onrender.com/updates"
+        "url": "https://guidmanager-production.up.railway.app/updates"
       }
     ]
   },
