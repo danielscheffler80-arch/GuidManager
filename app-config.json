@@ -1,8 +1,7 @@
 {
     "backendUrls": [
-        "https://guidmanager-production.up.railway.app",
         "https://guild-manager-backend.onrender.com"
     ],
-    "backendUrl": "https://guidmanager-production.up.railway.app",
+    "backendUrl": "https://guild-manager-backend.onrender.com",
     "mode": "cloud"
 }

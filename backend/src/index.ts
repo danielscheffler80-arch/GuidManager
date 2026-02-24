@@ -25,7 +25,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
-app.use('/updates', express.static(path.join(__dirname, '../updates')));
+app.use('/updates', express.static(path.resolve(__dirname, '../updates')));
 
 // Request Logger (erweitert)
 app.use((req, res, next) => {
