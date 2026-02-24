@@ -1,7 +1,1 @@
-{
-    "backendUrls": [
-        "https://guidmanager-production.up.railway.app"
-    ],
-    "backendUrl": "https://guidmanager-production.up.railway.app",
-    "mode": "cloud"
-}
+{ "backendUrls": ["https://guidmanager-production.up.railway.app"], "backendUrl": "https://guidmanager-production.up.railway.app", "mode": "cloud" } 

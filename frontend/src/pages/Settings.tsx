@@ -552,7 +552,6 @@ export default function Settings() {
 
                 {/* 8. Spalte: Sichtbar in: */}
                 <div style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sichtbar in:</div>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     {user?.guildMemberships?.map(ms => {
                       const isAllowed = (char.allowedGuildIds || []).includes(ms.guildId);
