@@ -15,7 +15,7 @@ const getAuthHeader = () => {
 export const GuildService = {
     // Get all guilds
     getGuilds: async () => {
-        const response = await fetch(`${getBackendUrl()}/api/guilds`, {
+        const response = await fetch(`${getBackendUrl()}/users/guilds`, {
             headers: getAuthHeader() as HeadersInit
         });
         return response.json();
