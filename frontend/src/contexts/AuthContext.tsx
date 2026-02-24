@@ -27,6 +27,7 @@ interface AuthContextType {
 
   isAdmin: boolean;
   connectionError: string | null;
+  backendUrl: string;
   setBackendUrl: (url: string) => void;
 }
 
@@ -51,6 +52,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'waiting' | 'ready'>('checking');
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [backendUrl, setBackendUrlState] = useState<string>(
+    window.electronAPI?.getBackendUrl?.() ||
+    localStorage.getItem('backendUrl') ||
+    'http://localhost:3334'
+  );
+
+  const setBackendUrl = (url: string) => {
+    // URL normalisieren (kein Trailing Slash)
+    const normalizedUrl = url.replace(/\/$/, '');
+    setBackendUrlState(normalizedUrl);
+    localStorage.setItem('backendUrl', normalizedUrl);
+
+    // Reset States & Reload
+    setConnectionError(null);
+    setIsLoading(true);
+    window.location.reload();
+  };
 
   useEffect(() => {
     if (user) {
@@ -110,9 +128,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }
 
           // Validiere Token mit Backend
-          const backendUrl = window.electronAPI?.getBackendUrl?.() ||
-            localStorage.getItem('backendUrl') ||
-            'http://localhost:3334';
 
           const response = await fetch(`${backendUrl}/auth/me`, {
             headers: {
@@ -179,11 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     setIsSyncing(true);
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() ||
-        localStorage.getItem('backendUrl') ||
-        'http://localhost:3334';
-
-      console.log(`[AUTH] Syncing characters (Detailed: ${detailed})...`);
+      console.log(`[AUTH] Syncing characters (Detailed: ${detailed})....`);
       const response = await fetch(`${backendUrl}/auth/sync?detailed=${detailed}`, {
         method: 'POST',
         headers: {
@@ -231,9 +242,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       const token = localStorage.getItem('accessToken');
-      const backendUrl = window.electronAPI?.getBackendUrl?.() ||
-        localStorage.getItem('backendUrl') ||
-        'http://localhost:3334';
 
       if (token) {
         // Logout beim Backend
@@ -258,10 +266,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!token || !user) return false;
 
     try {
-      const backendUrl = window.electronAPI?.getBackendUrl?.() ||
-        localStorage.getItem('backendUrl') ||
-        'http://localhost:3334';
-
       const response = await fetch(`${backendUrl}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -276,18 +280,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const setBackendUrl = (url: string) => {
-    // URL normalisieren (kein Trailing Slash)
-    const normalizedUrl = url.replace(/\/$/, '');
-    localStorage.setItem('backendUrl', normalizedUrl);
-
-    // Reset States
-    setConnectionError(null);
-    setIsLoading(true);
-
-    // Reload to apply changes
-    window.location.reload();
-  };
 
   if (isLoading && !user && !connectionError) {
     return (
@@ -331,6 +323,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       syncCharacters,
       isAdmin: !!isAdmin,
       connectionError,
+      backendUrl,
       setBackendUrl
     }}>
       {children}
