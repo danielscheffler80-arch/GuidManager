@@ -11,33 +11,31 @@ export class MythicPlusService {
         try {
             console.log(`[MythicPlusService] Fetching keys for guild ${guildId} with global alts...`);
 
-            // 1. Get all user IDs that have at least one character in this guild
-            const guildMemberUserIds = await prisma.character.findMany({
-                where: { guildId: guildId, isActive: true, userId: { not: null } },
+            // 1. Get all user IDs that have at least one character explicitly shared with this guild
+            const sharedUserIds = await prisma.character.findMany({
+                where: {
+                    isActive: true,
+                    userId: { not: null },
+                    allowedGuildIds: { has: guildId }
+                },
                 select: { userId: true },
                 distinct: ['userId']
             });
 
-            const userIds = guildMemberUserIds.map(u => u.userId as number);
+            const userIds = sharedUserIds.map(u => u.userId as number);
 
             if (userIds.length === 0) return [];
 
-            // 2. Fetch ALL relevant characters for these users:
-            // - Characters in THIS guild
-            // - OR Characters where THIS guild is in their allowedGuildIds
-            const allCharacters = await prisma.character.findMany({
+            // 2. Fetch ALL relevant characters for these users that are shared with THIS guild
+            // and are either Main or Favorite
+            const allSharedCharacters = await prisma.character.findMany({
                 where: {
                     userId: { in: userIds },
                     isActive: true,
+                    allowedGuildIds: { has: guildId },
                     OR: [
-                        { guildId: guildId },
-                        { allowedGuildIds: { has: guildId } },
-                        // Default behavior: if isFavorite and allowedGuildIds is empty, show everywhere
-                        {
-                            isFavorite: true,
-                            allowedGuildIds: { equals: [] }
-                        },
-                        { isMain: true }
+                        { isMain: true },
+                        { isFavorite: true }
                     ]
                 },
                 include: {
@@ -64,21 +62,27 @@ export class MythicPlusService {
                 }
             });
 
+            console.log(`[MythicPlusService] Found ${allSharedCharacters.length} shared characters for guild ${guildId}`);
+
             // 3. Group by User
             const result = [];
 
             for (const userId of userIds) {
-                const userChars = allCharacters.filter(c => c.userId === userId);
-                const mainChar = userChars.find(c => c.isMain);
+                const userChars = allSharedCharacters.filter(c => c.userId === userId);
+                if (userChars.length === 0) continue;
 
-                // No main selected = no appearance in dashboard
-                if (!mainChar) continue;
+                // We show the "Main" of the user if it's among the shared characters
+                // Fallback to the first shared character if the official Main is hidden
+                let displayMain = userChars.find(c => c.isMain);
+                if (!displayMain) {
+                    displayMain = userChars[0];
+                }
 
-                // Alts are only characters marked as favorite
-                const alts = userChars.filter(c => c.id !== mainChar.id && c.isFavorite);
+                // Alts are all other shared characters for this guild
+                const alts = userChars.filter(c => c.id !== displayMain.id);
 
-                // Collect all incoming applications on the keys of this user
-                const allKeysOfUser = [...mainChar.mythicKeys, ...alts.flatMap(a => a.mythicKeys)];
+                // Collect all incoming applications on the keys of these shared characters
+                const allKeysOfUser = [...displayMain.mythicKeys, ...alts.flatMap(a => a.mythicKeys)];
                 const allSignups = allKeysOfUser.flatMap(k =>
                     k.signups.map(s => ({
                         ...s,
@@ -91,12 +95,13 @@ export class MythicPlusService {
                 );
 
                 result.push({
-                    ...mainChar,
+                    ...displayMain,
+                    isMain: displayMain.isMain, // Preserve original status
                     alts: alts.map(alt => ({
                         ...alt,
                         keys: alt.mythicKeys
                     })),
-                    keys: mainChar.mythicKeys,
+                    keys: displayMain.mythicKeys,
                     signups: allSignups
                 });
             }

@@ -150,23 +150,11 @@ export default function Settings() {
   const toggleAllGuildVisibility = async (guildId: number, visible: boolean) => {
     setIsLoading(true);
     try {
-      // Logic refined: We only want to bulk toggle Mains and Favorites for Mythic+
-      const relevantChars = characters.filter(c => c.isMain || c.isFavorite);
+      // Logic refined: Use backend bulk update to ensure ALL characters 
+      // of the user are updated (even regular twinks) so visibility Off is clean.
+      await CharacterService.bulkUpdateVisibility(guildId, visible);
 
-      // If we want to be visible, we add the guild to all relevant chars
-      // If we want to be hidden, we remove the guild from all relevant chars
-      for (const char of relevantChars) {
-        let allowed = char.allowedGuildIds || [];
-        if (visible && !allowed.includes(guildId)) {
-          allowed = [...allowed, guildId];
-          await CharacterService.updateVisibility(char.id, allowed);
-        } else if (!visible && allowed.includes(guildId)) {
-          allowed = allowed.filter(id => id !== guildId);
-          await CharacterService.updateVisibility(char.id, allowed);
-        }
-      }
-
-      // Update local state after all calls
+      // Update local state after the call
       fetchCharacters();
     } catch (err) {
       console.error('Failed to update bulk guild visibility:', err);
@@ -351,7 +339,7 @@ export default function Settings() {
                   <span style={{ fontSize: '0.75em', color: '#666', marginLeft: 'auto', fontWeight: 'bold' }}>MAIN & FAVORITEN</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '15px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '15px' }}>
                   {user.guildMemberships.map(ms => {
                     const relevantChars = characters.filter(c => c.isMain || c.isFavorite);
                     const visibleRelevant = relevantChars.filter(c => (c.allowedGuildIds || []).includes(ms.guildId));
@@ -365,27 +353,29 @@ export default function Settings() {
                         style={{
                           background: isVisibleForAll ? 'rgba(163, 48, 201, 0.15)' : '#1D1E1F',
                           border: `1px solid ${isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333')}`,
-                          padding: '18px',
+                          padding: '10px 15px',
                           borderRadius: '12px',
                           cursor: 'pointer',
                           transition: 'all 0.2s',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: '6px',
+                          gap: '4px',
                           position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'hidden',
+                          minWidth: '200px',
+                          flex: '0 1 240px'
                         }}
                         onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
                         onMouseLeave={(e) => {
                           if (!isVisibleForAll) e.currentTarget.style.borderColor = isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333';
                         }}
                       >
-                        <div style={{ fontSize: '1.1em', fontWeight: '900', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
-                        <div style={{ fontSize: '0.8em', color: '#666', fontWeight: '600' }}>{ms.guild.realm}</div>
+                        <div style={{ fontSize: '1.0em', fontWeight: '900', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
+                        <div style={{ fontSize: '0.75em', color: '#666', fontWeight: '600' }}>{ms.guild.realm}</div>
 
                         <div style={{
-                          marginTop: '8px',
-                          fontSize: '0.75em',
+                          marginTop: '4px',
+                          fontSize: '0.7em',
                           color: isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.9)' : '#555'),
                           fontWeight: '800',
                           display: 'flex',
@@ -572,40 +562,7 @@ export default function Settings() {
                   </div>
                 </div>
 
-                {/* 8. Spalte: Gilden (Sichtbarkeit) */}
-                <div style={{ flex: '1.8', minWidth: '140px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {user?.guildMemberships?.map(ms => {
-                      const isAllowed = (char.allowedGuildIds || []).includes(ms.guildId);
-                      return (
-                        <button
-                          key={ms.guildId}
-                          onClick={() => toggleGuildVisibility(char.id, ms.guildId, char.allowedGuildIds || [])}
-                          title={isAllowed ? `In ${ms.guild.name} verstecken` : `In ${ms.guild.name} anzeigen`}
-                          style={{
-                            padding: '4px 8px',
-                            background: isAllowed ? 'rgba(163, 48, 201, 0.2)' : '#121214',
-                            border: `1px solid ${isAllowed ? 'var(--accent)' : '#333'}`,
-                            borderRadius: '15px',
-                            fontSize: '0.75em',
-                            color: isAllowed ? 'var(--accent)' : '#666',
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            transition: 'all 0.2s',
-                            opacity: updatingChars.includes(char.id) ? 0.3 : 1,
-                            pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-                          onMouseLeave={(e) => {
-                            if (!isAllowed) e.currentTarget.style.borderColor = '#333';
-                          }}
-                        >
-                          {ms.guild.name.split(' ')[0]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
+
                 <div style={{ width: '150px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                   {char.isMain ? (
                     <span style={{

@@ -1,14 +1,8 @@
-version: 0.9.12
+version: 0.9.9
 files:
-  - url: GuildManagerSetup.exe
-    sha512: rMHupHM3M3XLc4pJHTqhaAY4pRL5G0YOipCr4mAT9zGFwZDxCewvesngroYjFvkCLGirSgsdkrQ+WIPnI1l+JA==
-path: GuildManagerSetup.exe
-sha512: rMHupHM3M3XLc4pJHTqhaAY4pRL5G0YOipCr4mAT9zGFwZDxCewvesngroYjFvkCLGirSgsdkrQ+WIPnI1l+JA==
-packages:
-  x64:
-    size: 79108358
-    sha512: O6M6Ba0m28TtdoWmjywtWoUt/5Z5sDWvvqMvU26jMo1zFemPtxwWwZh6eWloZbw/+71MtZ6p8WIfIjcjNqGKkQ==
-    blockMapSize: 84082
-    path: guild-manager-standalone-0.9.12-x64.nsis.7z
-    file: guild-manager-standalone-0.9.12-x64.nsis.7z
-releaseDate: '2026-02-24T01:09:57.802Z'
+  - url: Guild Manager Standalone Setup 0.9.9.exe
+    sha512: AvKvro93OQr/7Im8pHm1QytaCbXAPoGqKtXLcoy2/TM2i+JB48pvRt2IJxPXZKs5AAOgaMXfpXfS73uz0PIzVA==
+    size: 79961830
+path: Guild Manager Standalone Setup 0.9.9.exe
+sha512: AvKvro93OQr/7Im8pHm1QytaCbXAPoGqKtXLcoy2/TM2i+JB48pvRt2IJxPXZKs5AAOgaMXfpXfS73uz0PIzVA==
+releaseDate: '2026-02-23T22:19:11.836Z'
