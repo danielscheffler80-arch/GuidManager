@@ -607,16 +607,16 @@ export default function Roster() {
                   <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Weekly (10+)</div>
                   <div style={{
                     fontWeight: 'bold',
-                    fontSize: '0.9em',
+                    fontSize: '1em',
                     color: (() => {
                       const count = member.weeklyProgress || 0;
-                      if (count >= 8) return '#FF8000'; // 3 Slots (Legendary)
-                      if (count >= 4) return '#0070DD'; // 2 Slots (Rare)
-                      if (count >= 1) return '#1EFF00'; // 1 Slot (Uncommon)
-                      return '#666'; // 0 Slots
+                      if (count >= 8) return '#1EFF00'; // Green (8)
+                      if (count >= 4) return '#FFFF00'; // Yellow (4-7)
+                      if (count >= 1) return '#FF8000'; // Orange (1-3)
+                      return '#FF0000'; // Red (0)
                     })()
                   }}>
-                    weekly {member.weeklyProgress || 0}/8
+                    {member.weeklyProgress || 0}/8
                   </div>
                 </div>
 
