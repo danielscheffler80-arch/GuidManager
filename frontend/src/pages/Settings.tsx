@@ -147,6 +147,48 @@ export default function Settings() {
     }
   };
 
+  const toggleAllGuildVisibility = async (guildId: number, visible: boolean) => {
+    setIsLoading(true);
+    try {
+      const data = await CharacterService.bulkUpdateVisibility(guildId, visible);
+      if (data.success) {
+        // Update all characters locally
+        setCharacters(prev => prev.map(c => {
+          let allowed = c.allowedGuildIds || [];
+          if (visible && !allowed.includes(guildId)) {
+            allowed = [...allowed, guildId];
+          } else if (!visible && allowed.includes(guildId)) {
+            allowed = allowed.filter(id => id !== guildId);
+          }
+          return { ...c, allowedGuildIds: allowed };
+        }));
+      }
+    } catch (err) {
+      console.error('Failed to update bulk guild visibility:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleGuildVisibility = async (charId: number, guildId: number, currentAllowed: number[]) => {
+    setUpdatingChars(prev => [...prev, charId]);
+    try {
+      const isAllowed = currentAllowed.includes(guildId);
+      const newAllowed = isAllowed
+        ? currentAllowed.filter(id => id !== guildId)
+        : [...currentAllowed, guildId];
+
+      const data = await CharacterService.updateVisibility(charId, newAllowed);
+      if (data.success) {
+        setCharacters(prev => prev.map(c => c.id === charId ? { ...c, allowedGuildIds: data.allowedGuildIds } : c));
+      }
+    } catch (err) {
+      console.error('Failed to update guild visibility:', err);
+    } finally {
+      setUpdatingChars(prev => prev.filter(id => id !== charId));
+    }
+  };
+
   const toggleFavorite = async (charId: number) => {
     const token = localStorage.getItem('accessToken');
     if (!token) return;
@@ -295,8 +337,66 @@ export default function Settings() {
           <p>Lade Charaktere...</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
-            {/* Characters Section */}
+            {/* Globale Gilden-Sichtbarkeit Cards */}
+            {user?.guildMemberships && user.guildMemberships.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '1em', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '15px' }}>Globale Gilden-Sichtbarkeit</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+                  {user.guildMemberships.map(ms => {
+                    const isVisibleForAll = characters.length > 0 && characters.every(c => (c.allowedGuildIds || []).includes(ms.guildId));
+                    const isVisibleForSome = characters.some(c => (c.allowedGuildIds || []).includes(ms.guildId));
 
+                    return (
+                      <div
+                        key={ms.guildId}
+                        onClick={() => toggleAllGuildVisibility(ms.guildId, !isVisibleForAll)}
+                        style={{
+                          background: isVisibleForAll ? 'rgba(163, 48, 201, 0.2)' : '#1D1E1F',
+                          border: `1px solid ${isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333')}`,
+                          padding: '15px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          textAlign: 'center',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                        onMouseLeave={(e) => {
+                          if (!isVisibleForAll) e.currentTarget.style.borderColor = isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333';
+                        }}
+                      >
+                        <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
+                        <div style={{ fontSize: '0.8em', color: '#666' }}>{ms.guild.realm}</div>
+                        <div style={{
+                          marginTop: '5px',
+                          fontSize: '0.75em',
+                          color: isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.8)' : '#444'),
+                          fontWeight: 'bold'
+                        }}>
+                          {isVisibleForAll ? 'ALLE CHARS SICHTBAR' : (isVisibleForSome ? 'TEILWEISE SICHTBAR' : 'NICHT SICHTBAR')}
+                        </div>
+                        {/* Progress Bar (Subtle) */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          height: '3px',
+                          background: 'var(--accent)',
+                          width: `${(characters.filter(c => (c.allowedGuildIds || []).includes(ms.guildId)).length / characters.length) * 100}%`,
+                          transition: 'width 0.3s'
+                        }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Characters Section */}
             {sortedCharacters.map(char => (
               <div
                 key={char.id}
@@ -377,78 +477,80 @@ export default function Settings() {
                 </div>
 
                 {/* 6. Spalte: Rolle */}
-                <div style={{ width: '120px', flexShrink: 0, display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                  {[
-                    { id: 'tank', label: 'Tank' },
-                    { id: 'healer', label: 'Heal' },
-                    { id: 'dps', label: 'DPS' }
-                  ].map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => updateCharacterRole(char.id, r.id, false)}
-                      title={r.label}
-                      style={{
-                        background: char.role?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
-                        border: '1px solid #333',
-                        borderRadius: '6px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                        opacity: updatingChars.includes(char.id) ? 0.3 : (char.role?.toLowerCase() === r.id ? 1 : 0.4),
-                        pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                      onMouseLeave={(e) => {
-                        if (char.role?.toLowerCase() !== r.id) e.currentTarget.style.opacity = '0.4';
-                      }}
-                    >
-                      <RoleIcon role={r.id} size={22} />
-                    </button>
-                  ))}
+                <div style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {[
+                      { id: 'tank', label: 'Tank' },
+                      { id: 'healer', label: 'Heal' },
+                      { id: 'dps', label: 'DPS' }
+                    ].map(r => (
+                      <button
+                        key={r.id}
+                        onClick={() => updateCharacterRole(char.id, r.id, false)}
+                        title={r.label}
+                        style={{
+                          background: char.role?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
+                          border: '1px solid #333',
+                          borderRadius: '6px',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          opacity: updatingChars.includes(char.id) ? 0.3 : (char.role?.toLowerCase() === r.id ? 1 : 0.4),
+                          pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={(e) => {
+                          if (char.role?.toLowerCase() !== r.id) e.currentTarget.style.opacity = '0.4';
+                        }}
+                      >
+                        <RoleIcon role={r.id} size={22} />
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* 7. Spalte: 2nd Role */}
-                <div style={{ width: '120px', flexShrink: 0, display: 'flex', gap: '5px', justifyContent: 'center' }}>
-                  {[
-                    { id: 'tank', label: '2nd Tank' },
-                    { id: 'healer', label: '2nd Heal' },
-                    { id: 'dps', label: '2nd DPS' }
-                  ].map(r => (
-                    <button
-                      key={r.id}
-                      onClick={() => updateCharacterRole(char.id, r.id, true)}
-                      title={r.label}
-                      style={{
-                        background: char.secondaryRole?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
-                        border: '1px solid #333',
-                        borderRadius: '6px',
-                        padding: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                        opacity: updatingChars.includes(char.id) ? 0.3 : (char.secondaryRole?.toLowerCase() === r.id ? 1 : 0.4),
-                        pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-                      onMouseLeave={(e) => {
-                        if (char.secondaryRole?.toLowerCase() !== r.id) e.currentTarget.style.opacity = '0.4';
-                      }}
-                    >
-                      <RoleIcon role={r.id} size={22} />
-                    </button>
-                  ))}
+                <div style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    {[
+                      { id: 'tank', label: '2nd Tank' },
+                      { id: 'healer', label: '2nd Heal' },
+                      { id: 'dps', label: '2nd DPS' }
+                    ].map(r => (
+                      <button
+                        key={r.id}
+                        onClick={() => updateCharacterRole(char.id, r.id, true)}
+                        title={r.label}
+                        style={{
+                          background: char.secondaryRole?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
+                          border: '1px solid #333',
+                          borderRadius: '6px',
+                          padding: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          opacity: updatingChars.includes(char.id) ? 0.3 : (char.secondaryRole?.toLowerCase() === r.id ? 1 : 0.4),
+                          pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                        onMouseLeave={(e) => {
+                          if (char.secondaryRole?.toLowerCase() !== r.id) e.currentTarget.style.opacity = '0.4';
+                        }}
+                      >
+                        <RoleIcon role={r.id} size={22} />
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Spacing adjustments for columns if needed */}
-
-
-
-                {/* 6. Spalte: Main Character Status / Button */}
+                {/* 8. Spalte: Main Character Status / Button */}
                 <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                   {char.isMain ? (
                     <span style={{
@@ -470,8 +572,10 @@ export default function Settings() {
                         e.currentTarget.style.color = 'var(--accent)';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#444';
-                        e.currentTarget.style.color = '#818181';
+                        if (!char.isMain) {
+                          e.currentTarget.style.borderColor = '#444';
+                          e.currentTarget.style.color = '#818181';
+                        }
                       }}
                     >Als Main setzen</button>
                   )}
