@@ -75,6 +75,11 @@ app.use('/guild', guildRouter);
 app.use('/api/debug', debugRouter);
 app.use('/api/messages', messagesRouter);
 
+// Download redirect for Universal Setup
+app.get('/api/download/latest', (req, res) => {
+  res.redirect('/updates/GuildManagerSetup.exe');
+});
+
 // Initialize Socket Service
 const io = new Server(server, {
   cors: {
