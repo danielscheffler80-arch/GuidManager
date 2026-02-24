@@ -427,13 +427,13 @@ export default function Settings() {
                 </div>
 
                 {/* 2. Spalte: Name & Realm */}
-                <div style={{ width: '220px', flexShrink: 0 }}>
+                <div style={{ width: '180px', flexShrink: 0 }}>
                   <div
                     onClick={() => handleOpenLink('armory', char.name, char.realm)}
                     style={{
                       fontWeight: 'bold',
-                      fontSize: '1.1em',
-                      color: getClassColor(char.classId),
+                      fontSize: '1.05em',
+                      color: getClassColor(char.classId || 0),
                       cursor: 'pointer',
                       display: 'inline-block'
                     }}
@@ -447,38 +447,38 @@ export default function Settings() {
                 </div>
 
                 {/* 3. Spalte: Item Level */}
-                <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ilvl</div>
+                <div style={{ width: '80px', flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ilvl</div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</div>
                 </div>
 
                 {/* 4. Spalte: RIO / Mythic Rating */}
                 <div
                   onClick={() => handleOpenLink('rio', char.name, char.realm)}
-                  style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  style={{ width: '80px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   title="Auf Raider.io öffnen"
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
                 >
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>RIO</div>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>RIO</div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</div>
                 </div>
 
                 {/* 5. Spalte: Raid Progress */}
                 <div
                   onClick={() => handleOpenLink('wcl', char.name, char.realm)}
-                  style={{ width: '150px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  style={{ width: '120px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   title="Auf Warcraft Logs öffnen"
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
                 >
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Raid Progress</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.95em', color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</div>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Progress</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</div>
                 </div>
 
                 {/* 6. Spalte: Main Role */}
-                <div style={{ width: '130px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
+                <div style={{ width: '110px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main</div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[
                       { id: 'tank', label: 'Tank' },
@@ -493,7 +493,7 @@ export default function Settings() {
                           background: char.role?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
                           border: '1px solid #333',
                           borderRadius: '6px',
-                          padding: '5px',
+                          padding: '4px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -503,15 +503,15 @@ export default function Settings() {
                           pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
                         }}
                       >
-                        <RoleIcon role={r.id} size={20} />
+                        <RoleIcon role={r.id} size={18} />
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* 7. Spalte: Secondary Role */}
-                <div style={{ width: '160px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
+                <div style={{ width: '150px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Offspec</div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[
                       { id: 'tank', label: 'Tank' },
@@ -527,7 +527,7 @@ export default function Settings() {
                           background: (char.secondaryRole?.toLowerCase() === r.id || (r.id === 'none' && !char.secondaryRole)) ? 'rgba(163, 48, 201, 0.6)' : '#121214',
                           border: '1px solid #333',
                           borderRadius: '6px',
-                          padding: '5px',
+                          padding: '4px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -537,18 +537,45 @@ export default function Settings() {
                           pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
                         }}
                       >
-                        {r.id === 'none' ? <span style={{ fontSize: '10px', color: '#fff', fontWeight: 'bold' }}>OFF</span> : <RoleIcon role={r.id} size={20} />}
+                        {r.id === 'none' ? <span style={{ fontSize: '9px', color: '#fff', fontWeight: 'bold' }}>OFF</span> : <RoleIcon role={r.id} size={18} />}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* 6. Spalte: Main Character Status / Button */}
-                <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                {/* 8. Spalte: Sichtbarkeit in Gilden */}
+                <div style={{ width: '160px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sichtbar in:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {user?.guildMemberships?.map(ms => (
+                      <div
+                        key={ms.guildId}
+                        onClick={() => toggleGuildVisibility(char.id, ms.guildId, char.allowedGuildIds || [])}
+                        style={{
+                          background: (char.allowedGuildIds || []).includes(ms.guildId) ? 'rgba(163, 48, 201, 0.4)' : '#121214',
+                          border: `1px solid ${(char.allowedGuildIds || []).includes(ms.guildId) ? 'var(--accent)' : '#333'}`,
+                          borderRadius: '4px',
+                          padding: '2px 5px',
+                          fontSize: '0.7em',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          transition: 'all 0.2s',
+                          opacity: updatingChars.includes(char.id) ? 0.5 : 1
+                        }}
+                        title={`Sichtbarkeit in ${ms.guild.name} umschalten`}
+                      >
+                        {ms.guild.name.split(' ')[0]}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 9. Spalte: Main Character Status / Button */}
+                <div style={{ width: '100px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                   {char.isMain ? (
                     <span style={{
-                      background: 'rgba(163, 48, 201, 0.2)', color: 'var(--accent)', padding: '6px 15px',
-                      borderRadius: '20px', fontSize: '0.75em', fontWeight: '900', border: '1px solid var(--accent)',
+                      background: 'rgba(163, 48, 201, 0.2)', color: 'var(--accent)', padding: '5px 12px',
+                      borderRadius: '20px', fontSize: '0.7em', fontWeight: '900', border: '1px solid var(--accent)',
                       letterSpacing: '1px'
                     }}>MAIN</span>
                   ) : (
@@ -556,8 +583,8 @@ export default function Settings() {
                       onClick={() => setMainCharacter(char.id)}
                       style={{
                         background: 'transparent', border: '1px solid #444',
-                        color: '#818181', padding: '6px 15px', borderRadius: '20px',
-                        fontSize: '0.75em', cursor: 'pointer', transition: 'all 0.2s',
+                        color: '#818181', padding: '5px 12px', borderRadius: '20px',
+                        fontSize: '0.7em', cursor: 'pointer', transition: 'all 0.2s',
                         fontWeight: 'bold'
                       }}
                       onMouseEnter={(e) => {
@@ -568,7 +595,7 @@ export default function Settings() {
                         e.currentTarget.style.borderColor = '#444';
                         e.currentTarget.style.color = '#818181';
                       }}
-                    >Als Main setzen</button>
+                    >Main</button>
                   )}
                 </div>
               </div>
