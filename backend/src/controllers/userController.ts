@@ -215,7 +215,7 @@ export class UserController {
     try {
       const user = req.user!;
       const { id } = req.params;
-      const { role, class: className, isActive } = req.body;
+      const { role, secondaryRole, class: className, isActive, isFavorite, allowedGuildIds } = req.body;
 
       const characterId = Number(id);
       if (Number.isNaN(characterId)) {
@@ -232,20 +232,24 @@ export class UserController {
       }
 
       // Role Normalization (tank -> Tank, dps -> DPS, healer -> Healer)
-      let normalizedRole = role;
-      if (role) {
-        const r = role.toLowerCase();
-        if (r === 'tank') normalizedRole = 'Tank';
-        else if (r === 'healer') normalizedRole = 'Healer';
-        else if (r === 'dps') normalizedRole = 'DPS';
-      }
+      const normalizeRole = (r: string | undefined) => {
+        if (!r) return r;
+        const low = r.toLowerCase();
+        if (low === 'tank') return 'Tank';
+        if (low === 'healer') return 'Healer';
+        if (low === 'dps') return 'DPS';
+        return r;
+      };
 
       const updated = await prisma.character.update({
         where: { id: characterId },
         data: {
-          role: normalizedRole !== undefined ? normalizedRole : character.role,
+          role: role !== undefined ? normalizeRole(role) : character.role,
+          secondaryRole: secondaryRole !== undefined ? normalizeRole(secondaryRole) : character.secondaryRole,
           class: className !== undefined ? className : character.class,
-          isActive: isActive !== undefined ? isActive : character.isActive
+          isActive: isActive !== undefined ? isActive : character.isActive,
+          isFavorite: isFavorite !== undefined ? isFavorite : character.isFavorite,
+          allowedGuildIds: allowedGuildIds !== undefined ? allowedGuildIds : character.allowedGuildIds
         }
       });
 
