@@ -46,6 +46,7 @@ model Character {
   isFavorite      Boolean     @default(false)
   isActive        Boolean     @default(true)
   role            String?     // Tank/DPS/Healer
+  secondaryRole   String?     // Optional second role (Tank/DPS/Healer)
   averageItemLevel Int?       // Aktuelles Itemlevel
   mythicRating    Float?      // Blizzard Mythic Rating (RIO Equivalent)
   raidProgress    String?     // Raid Fortschritt (z.B. 8/8 H)
