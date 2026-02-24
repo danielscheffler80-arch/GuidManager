@@ -125,10 +125,10 @@ export class BattleNetAPIService {
               },
               update: {
                 level: character.level,
-                class: getName(character.playable_class),
+                class: this.getName(character.playable_class),
                 classId: character.playable_class.id,
-                race: getName(character.playable_race),
-                faction: typeof character.faction === 'object' ? character.faction.name : character.faction,
+                race: this.getName(character.playable_race),
+                faction: typeof character.faction === 'object' ? (character.faction.name.de_DE || character.faction.name.en_US || character.faction.name) : character.faction,
                 userId: userId,
                 ...(guildId !== null ? { guildId } : {}),
                 lastSync: new Date()
@@ -139,10 +139,10 @@ export class BattleNetAPIService {
                 name: character.name.toLowerCase(),
                 realm: character.realm.slug,
                 level: character.level,
-                class: getName(character.playable_class),
+                class: this.getName(character.playable_class),
                 classId: character.playable_class.id,
-                race: getName(character.playable_race),
-                faction: typeof character.faction === 'object' ? character.faction.name : character.faction,
+                race: this.getName(character.playable_race),
+                faction: typeof character.faction === 'object' ? (character.faction.name.de_DE || character.faction.name.en_US || character.faction.name) : character.faction,
                 ...(guildId !== null ? { guildId } : {}),
                 lastSync: new Date(),
               },
@@ -483,23 +483,23 @@ export class BattleNetAPIService {
             update: {
               level: member.character.level,
               guildId: guildId,
-              class: member.character.playable_class.name.de_DE || member.character.playable_class.name.en_US || member.character.playable_class.name,
+              class: BattleNetAPIService.getStaticName(member.character.playable_class),
               classId: member.character.playable_class.id,
-              race: member.character.playable_race.name.de_DE || member.character.playable_race.name.en_US || member.character.playable_race.name,
-              faction: member.character.faction.name.de_DE || member.character.faction.name.en_US || member.character.faction.name,
+              race: BattleNetAPIService.getStaticName(member.character.playable_race),
+              faction: typeof member.character.faction === 'object' ? (member.character.faction.name.de_DE || member.character.faction.name.en_US || member.character.faction.name) : member.character.faction,
               rank: member.rank,
               lastSync: new Date(),
             },
             create: {
-              userId: 0, // Temporär, da wir keine User-ID haben (oder 0 für Gildenmitglieder)
+              userId: 0,
               battleNetId: member.character.id.toString(),
               name: charName,
               realm: charRealm,
               level: member.character.level,
-              class: member.character.playable_class.name.de_DE || member.character.playable_class.name.en_US || member.character.playable_class.name,
+              class: BattleNetAPIService.getStaticName(member.character.playable_class),
               classId: member.character.playable_class.id,
-              race: member.character.playable_race.name.de_DE || member.character.playable_race.name.en_US || member.character.playable_race.name,
-              faction: member.character.faction.name.de_DE || member.character.faction.name.en_US || member.character.faction.name,
+              race: BattleNetAPIService.getStaticName(member.character.playable_race),
+              faction: typeof member.character.faction === 'object' ? (member.character.faction.name.de_DE || member.character.faction.name.en_US || member.character.faction.name) : member.character.faction,
               guildId: guildId,
               rank: member.rank,
               lastSync: new Date(),
@@ -611,5 +611,23 @@ export class BattleNetAPIService {
     }
 
     return { raidId: raid.id, attendanceCount };
+  }
+
+  // Hilfsmethode zur Extraktion von Namen (instanz-basiert)
+  public getName(obj: any): string {
+    if (!obj || !obj.name) return 'Unknown';
+    if (typeof obj.name === 'object') {
+      return obj.name.de_DE || obj.name.en_US || obj.name.name || 'Unknown';
+    }
+    return obj.name;
+  }
+
+  // Hilfsmethode zur Extraktion von Namen (statisch)
+  public static getStaticName(obj: any): string {
+    if (!obj || !obj.name) return 'Unknown';
+    if (typeof obj.name === 'object') {
+      return obj.name.de_DE || obj.name.en_US || obj.name.name || 'Unknown';
+    }
+    return obj.name;
   }
 }

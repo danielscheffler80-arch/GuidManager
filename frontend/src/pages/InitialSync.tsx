@@ -15,12 +15,16 @@ const InitialSync: React.FC = () => {
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState('Initialisierung...');
     const [error, setError] = useState<string | null>(null);
-    const { user, checkAuth } = useAuth();
+    const { user, checkAuth, backendUrl } = useAuth();
     const navigate = useNavigate();
 
     const startSync = async () => {
         const token = localStorage.getItem('accessToken');
-        const backendUrl = localStorage.getItem('backendUrl') || 'http://localhost:3334';
+
+        if (!user) {
+            console.log('[SYNC] Waiting for user context...');
+            return;
+        }
 
         try {
             // Step 1 & 2: Account & Discovery

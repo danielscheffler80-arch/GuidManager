@@ -62,7 +62,7 @@ export const GuildProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, [isRosterSyncing]);
 
     const init = useCallback(async () => {
-        if (!user) {
+        if (!user || !user.initialSyncCompletedAt) {
             setLoading(false);
             return;
         }
