@@ -22,6 +22,7 @@ interface Member {
   lastSync: string;
   guildId?: number | null;
   rank?: number | null;
+  weeklyProgress?: number;
 }
 
 export default function Roster() {
@@ -599,6 +600,17 @@ export default function Roster() {
                   <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
                   <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(member.raidProgress || '') }}>
                     {member.raidProgress || '-'}
+                  </div>
+                </div>
+
+                <div style={{ width: '140px', flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Weekly (10+)</div>
+                  <div style={{
+                    fontWeight: 'bold',
+                    fontSize: '0.9em',
+                    color: (member.weeklyProgress || 0) >= 8 ? '#1EFF00' : (member.weeklyProgress || 0) > 0 ? 'var(--accent)' : '#666'
+                  }}>
+                    weekly {member.weeklyProgress || 0}/8
                   </div>
                 </div>
 
