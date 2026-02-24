@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.9.10",
+  "version": "0.9.11",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -24,6 +24,7 @@
     "files": [
       "main-standalone.js",
       "preload.js",
+      "wowSync.js",
       "package.json",
       "assets/**/*"
     ],
