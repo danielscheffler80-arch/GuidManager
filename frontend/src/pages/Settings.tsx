@@ -427,7 +427,7 @@ export default function Settings() {
                 </div>
 
                 {/* 2. Spalte: Name & Realm */}
-                <div style={{ width: '220px', flexShrink: 0 }}>
+                <div style={{ width: '200px', flexShrink: 0 }}>
                   <div
                     onClick={() => handleOpenLink('armory', char.name, char.realm)}
                     style={{
@@ -447,15 +447,14 @@ export default function Settings() {
                 </div>
 
                 {/* 3. Spalte: Item Level */}
-                <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                <div style={{ width: '80px', flexShrink: 0, textAlign: 'center' }}>
                   <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ilvl</div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</div>
                 </div>
 
-                {/* 4. Spalte: RIO / Mythic Rating */}
                 <div
                   onClick={() => handleOpenLink('rio', char.name, char.realm)}
-                  style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  style={{ width: '80px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   title="Auf Raider.io öffnen"
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
@@ -464,20 +463,19 @@ export default function Settings() {
                   <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</div>
                 </div>
 
-                {/* 5. Spalte: Raid Progress */}
                 <div
                   onClick={() => handleOpenLink('wcl', char.name, char.realm)}
-                  style={{ width: '120px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   title="Auf Warcraft Logs öffnen"
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
                 >
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Raid Progress</div>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Raid</div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</div>
                 </div>
 
                 {/* 6. Spalte: Rolle */}
-                <div style={{ width: '110px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                <div style={{ width: '100px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[
@@ -514,7 +512,7 @@ export default function Settings() {
                 </div>
 
                 {/* 7. Spalte: 2nd Role */}
-                <div style={{ width: '110px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                <div style={{ width: '100px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[
@@ -584,7 +582,7 @@ export default function Settings() {
                     })}
                   </div>
                 </div>
-                <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ width: '150px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                   {char.isMain ? (
                     <span style={{
                       background: 'rgba(163, 48, 201, 0.2)', color: 'var(--accent)', padding: '6px 15px',
