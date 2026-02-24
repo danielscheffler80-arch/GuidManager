@@ -60,6 +60,7 @@
     },
     "nsisWeb": {
       "appPackageUrl": "https://guild-manager-backend.onrender.com/updates",
+      "artifactName": "GuildManagerSetup.exe",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
