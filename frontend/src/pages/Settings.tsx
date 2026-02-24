@@ -477,9 +477,9 @@ export default function Settings() {
                 </div>
 
                 {/* 6. Spalte: Rolle */}
-                <div style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
-                  <div style={{ display: 'flex', gap: '5px' }}>
+                <div style={{ width: '110px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
                     {[
                       { id: 'tank', label: 'Tank' },
                       { id: 'healer', label: 'Heal' },
@@ -493,7 +493,7 @@ export default function Settings() {
                           background: char.role?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
                           border: '1px solid #333',
                           borderRadius: '6px',
-                          padding: '6px',
+                          padding: '5px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -507,16 +507,16 @@ export default function Settings() {
                           if (char.role?.toLowerCase() !== r.id) e.currentTarget.style.opacity = '0.4';
                         }}
                       >
-                        <RoleIcon role={r.id} size={22} />
+                        <RoleIcon role={r.id} size={20} />
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* 7. Spalte: 2nd Role */}
-                <div style={{ width: '120px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
-                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
-                  <div style={{ display: 'flex', gap: '5px' }}>
+                <div style={{ width: '110px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
                     {[
                       { id: 'tank', label: '2nd Tank' },
                       { id: 'healer', label: '2nd Heal' },
@@ -530,7 +530,7 @@ export default function Settings() {
                           background: char.secondaryRole?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
                           border: '1px solid #333',
                           borderRadius: '6px',
-                          padding: '6px',
+                          padding: '5px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -544,13 +544,47 @@ export default function Settings() {
                           if (char.secondaryRole?.toLowerCase() !== r.id) e.currentTarget.style.opacity = '0.4';
                         }}
                       >
-                        <RoleIcon role={r.id} size={22} />
+                        <RoleIcon role={r.id} size={20} />
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* 8. Spalte: Main Character Status / Button */}
+                {/* 8. Spalte: Sichtbar in: */}
+                <div style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Sichtbar in:</div>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                    {user?.guildMemberships?.map(ms => {
+                      const isAllowed = (char.allowedGuildIds || []).includes(ms.guildId);
+                      return (
+                        <button
+                          key={ms.guildId}
+                          onClick={() => toggleGuildVisibility(char.id, ms.guildId, char.allowedGuildIds || [])}
+                          title={isAllowed ? `In ${ms.guild.name} verstecken` : `In ${ms.guild.name} anzeigen`}
+                          style={{
+                            padding: '4px 8px',
+                            background: isAllowed ? 'rgba(163, 48, 201, 0.2)' : '#121214',
+                            border: `1px solid ${isAllowed ? 'var(--accent)' : '#333'}`,
+                            borderRadius: '15px',
+                            fontSize: '0.75em',
+                            color: isAllowed ? 'var(--accent)' : '#666',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                            transition: 'all 0.2s',
+                            opacity: updatingChars.includes(char.id) ? 0.3 : 1,
+                            pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                          onMouseLeave={(e) => {
+                            if (!isAllowed) e.currentTarget.style.borderColor = '#333';
+                          }}
+                        >
+                          {ms.guild.name.split(' ')[0]}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
                   {char.isMain ? (
                     <span style={{
