@@ -980,7 +980,10 @@ export default function MythicPlus() {
 
           return (
             <div key={main.id} className="flex flex-col">
-              {renderCharRow(main, true, mainKey)}
+              {/* Only render Main row if Main is visible (has keys or it's the anchor and we want to show it) */}
+              {(main.keys?.length > 0 || !hasAlts || main.guildId === selectedGuild?.id || main.allowedGuildIds?.includes(selectedGuild?.id)) &&
+                renderCharRow(main, true, mainKey)
+              }
 
               {hasAlts && (
                 <div style={{ marginLeft: '16px', marginTop: '-1px' }}>
