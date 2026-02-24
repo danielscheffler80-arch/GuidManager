@@ -67,7 +67,7 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
   const guild = await prisma.guild.findUnique({
     where: { id },
     include: {
-      characters: true,
+      characters: { include: { mythicKeys: true } },
       rosters: { select: { includedCharacterIds: true } }
     },
   });
@@ -82,7 +82,8 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
   const assignedCharacters = await prisma.character.findMany({
     where: {
       userId: { in: guildMemberUserIds }
-    }
+    },
+    include: { mythicKeys: true }
   });
 
   // Find all unique included IDs from ALL rosters belonging to this guild
@@ -107,7 +108,8 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
 
   if (extraManualIds.length > 0) {
     const extraChars = await prisma.character.findMany({
-      where: { id: { in: extraManualIds } }
+      where: { id: { in: extraManualIds } },
+      include: { mythicKeys: true }
     });
     pool = [...pool, ...extraChars];
     console.log(`[RosterAPI] Added ${extraChars.length} external characters to pool for guild ${guild.name}`);
@@ -124,8 +126,23 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
     return combinedManualIds.includes(char.id) || isAssignedToUser || (char.rank !== null && visibleRanks.includes(char.rank));
   });
 
+  // Process pool to calculate weeklyProgress
+  const poolWithProgress = (includeFiltered ? pool : filteredRoster).map((char: any) => {
+    // Count keys >= 10 that are NOT from bag (Blizzard sync keys)
+    const weeklyProgress = char.mythicKeys
+      ? char.mythicKeys.filter((k: any) => k.level >= 10 && !k.isFromBag).length
+      : 0;
+
+    // Remove mythicKeys from response to keep it small
+    const { mythicKeys, ...charData } = char;
+    return {
+      ...charData,
+      weeklyProgress
+    };
+  });
+
   res.json({
-    roster: includeFiltered ? pool : filteredRoster,
+    roster: poolWithProgress,
     metadata: {
       totalCount: totalInPool,
       filteredCount: filteredRoster.length,
