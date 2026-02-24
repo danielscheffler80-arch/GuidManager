@@ -608,7 +608,13 @@ export default function Roster() {
                   <div style={{
                     fontWeight: 'bold',
                     fontSize: '0.9em',
-                    color: (member.weeklyProgress || 0) >= 8 ? '#1EFF00' : (member.weeklyProgress || 0) > 0 ? 'var(--accent)' : '#666'
+                    color: (() => {
+                      const count = member.weeklyProgress || 0;
+                      if (count >= 8) return '#FF8000'; // 3 Slots (Legendary)
+                      if (count >= 4) return '#0070DD'; // 2 Slots (Rare)
+                      if (count >= 1) return '#1EFF00'; // 1 Slot (Uncommon)
+                      return '#666'; // 0 Slots
+                    })()
                   }}>
                     weekly {member.weeklyProgress || 0}/8
                   </div>
