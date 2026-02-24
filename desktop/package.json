@@ -1,11 +1,12 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.9.11",
+  "version": "0.9.12",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
   "dependencies": {
-    "electron-updater": "^6.1.7"
+    "electron-updater": "^6.1.7",
+    "axios": "^1.6.0"
   },
   "scripts": {
     "dev": "electron .",
