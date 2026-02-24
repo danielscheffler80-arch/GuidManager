@@ -14,13 +14,14 @@ interface Character {
   classId: number;
   level: number;
   faction: string;
+  isActive: boolean;
   isMain: boolean;
   isFavorite: boolean;
+  role?: string;
+  secondaryRole?: string;
   averageItemLevel?: number;
   mythicRating?: number;
   raidProgress?: string;
-  role?: string;
-  secondaryRole?: string;
   allowedGuildIds?: number[];
 }
 
@@ -32,14 +33,6 @@ export default function Settings() {
   const [characters, setCharacters] = useState<Character[]>(() => storage.get('cache_settings_characters', []));
   const [isLoading, setIsLoading] = useState(!storage.get('cache_settings_characters', null));
   const [updatingChars, setUpdatingChars] = useState<number[]>([]);
-
-  // Selection for which guild we are currently managing visibility
-  const [selectedVisibilityGuildId, setSelectedVisibilityGuildId] = useState<number | null>(() => {
-    if (user?.guildMemberships && user.guildMemberships.length > 0) {
-      return user.guildMemberships[0].guildId;
-    }
-    return null;
-  });
 
   // Permissions & Ranks state
   const [availableRanks, setAvailableRanks] = useState<{ id: number, name: string }[]>([]);
@@ -178,17 +171,26 @@ export default function Settings() {
     }
   };
 
-  const updateCharacterField = async (charId: number, fieldData: any) => {
-    setUpdatingChars(prev => [...prev, charId]);
+  const toggleAllGuildVisibility = async (guildId: number, visible: boolean) => {
+    setIsLoading(true);
     try {
-      const data = await CharacterService.updateCharacter(charId, fieldData);
+      const data = await CharacterService.bulkUpdateVisibility(guildId, visible);
       if (data.success) {
-        setCharacters(prev => prev.map(c => c.id === charId ? { ...c, ...fieldData } : c));
+        // Update all characters locally
+        setCharacters(prev => prev.map(c => {
+          let allowed = c.allowedGuildIds || [];
+          if (visible && !allowed.includes(guildId)) {
+            allowed = [...allowed, guildId];
+          } else if (!visible && allowed.includes(guildId)) {
+            allowed = allowed.filter(id => id !== guildId);
+          }
+          return { ...c, allowedGuildIds: allowed };
+        }));
       }
     } catch (err) {
-      console.error('Failed to update character field:', err);
+      console.error('Failed to update bulk guild visibility:', err);
     } finally {
-      setUpdatingChars(prev => prev.filter(id => id !== charId));
+      setIsLoading(false);
     }
   };
 
@@ -211,18 +213,34 @@ export default function Settings() {
     }
   };
 
+  const updateCharacterRole = async (charId: number, role: string, isSecondary: boolean = false) => {
+    setUpdatingChars(prev => [...prev, charId]);
+    try {
+      const payload = isSecondary ? { secondaryRole: role } : { role };
+      const data = await CharacterService.updateCharacter(charId, payload);
+      if (data.success) {
+        // Update local state immediately for fast feedback
+        setCharacters(prev => prev.map(c => c.id === charId ? { ...c, ...(isSecondary ? { secondaryRole: role } : { role }) } : c));
+      }
+    } catch (err) {
+      console.error('Failed to update character role:', err);
+    } finally {
+      setUpdatingChars(prev => prev.filter(id => id !== charId));
+    }
+  };
+
   const getRoleIcon = (role: string | null) => {
     const r = role?.toLowerCase();
     const baseUrl = 'https://render.worldofwarcraft.com/us/icons/56';
     if (r === 'tank') return `${baseUrl}/inv_shield_06.jpg`;
-    if (r === 'healer' || r === 'heal') return `${baseUrl}/spell_holy_renew.jpg`;
+    if (r === 'healer') return `${baseUrl}/spell_holy_renew.jpg`;
     if (r === 'dps') return `${baseUrl}/inv_sword_04.jpg`;
     return null;
   };
 
   const RoleIcon = ({ role, size = 18 }: { role: string | null, size?: number }) => {
     const iconUrl = getRoleIcon(role);
-    const fallbackEmoji = role?.toLowerCase() === 'tank' ? '🛡️' : (role?.toLowerCase() === 'healer' || role?.toLowerCase() === 'heal' ? '➕' : '⚔️');
+    const fallbackEmoji = role?.toLowerCase() === 'tank' ? '🛡️' : role?.toLowerCase() === 'healer' ? '➕' : '⚔️';
 
     if (!iconUrl) return <span style={{ fontSize: `${size}px` }}>{fallbackEmoji}</span>;
     return (
@@ -236,6 +254,7 @@ export default function Settings() {
             (e.target as HTMLImageElement).style.display = 'none';
           }}
         />
+        {/* Fallback Emoji below the image (only shown if image fails, handled by img onError) */}
       </div>
     );
   };
@@ -244,15 +263,10 @@ export default function Settings() {
     fetchCharacters();
   }, []);
 
-  useEffect(() => {
-    if (user?.guildMemberships && user.guildMemberships.length > 0 && !selectedVisibilityGuildId) {
-      setSelectedVisibilityGuildId(user.guildMemberships[0].guildId);
-    }
-  }, [user, selectedVisibilityGuildId]);
-
   // Check leadership status when user or characters change
   useEffect(() => {
     if (user && user.guildMemberships && user.guildMemberships.length > 0) {
+      // Suche nach einer Mitgliedschaft mit Rank 0 (Gildenleiter)
       const leaderMembership = user.guildMemberships.find(m => m.rank === 0);
       if (leaderMembership) {
         setIsLeader(true);
@@ -276,27 +290,27 @@ export default function Settings() {
 
   const getDifficultyColor = (progress: string) => {
     if (!progress || progress === '-') return '#D1D9E0';
-    if (progress.includes('M')) return '#FF8000'; // Mythic
-    if (progress.includes('H')) return '#A335EE'; // Heroic
-    if (progress.includes('N')) return '#0070DD'; // Normal
-    if (progress.includes('L')) return '#1EFF00'; // LFR
-    return '#ABD473';
+    if (progress.includes('M')) return '#FF8000'; // Mythic (Orange)
+    if (progress.includes('H')) return '#A335EE'; // Heroic (Purple)
+    if (progress.includes('N')) return '#0070DD'; // Normal (Blue)
+    if (progress.includes('L')) return '#1EFF00'; // LFR (Green)
+    return '#ABD473'; // Fallback Green
   };
 
   const getRIOColor = (score: number | undefined) => {
     if (score === undefined || score === 0) return '#666';
-    if (score >= 3500) return '#FF8000';
-    if (score >= 3000) return '#A335EE';
-    if (score >= 2000) return '#0070DD';
-    return '#1EFF00';
+    if (score >= 3500) return '#FF8000'; // Orange
+    if (score >= 3000) return '#A335EE'; // Purple
+    if (score >= 2000) return '#0070DD'; // Blue
+    return '#1EFF00'; // Green
   };
 
   const getIlvlColor = (ilvl: number | undefined) => {
     if (!ilvl) return '#666';
-    if (ilvl >= 160) return '#1EFF00';
-    if (ilvl >= 130) return '#FFFF00';
-    if (ilvl >= 90) return '#FF8000';
-    return '#FF0000';
+    if (ilvl >= 160) return '#1EFF00'; // Green
+    if (ilvl >= 130) return '#FFFF00'; // Yellow
+    if (ilvl >= 90) return '#FF8000';  // Orange
+    return '#FF0000';                 // Red
   };
 
   const handleOpenLink = (type: 'armory' | 'rio' | 'wcl', name: string, realm: string) => {
@@ -304,9 +318,13 @@ export default function Settings() {
     const realmLower = realm.toLowerCase();
     let url = '';
 
-    if (type === 'armory') url = `https://worldofwarcraft.blizzard.com/de-de/character/eu/${realmLower}/${nameLower}`;
-    else if (type === 'rio') url = `https://raider.io/characters/eu/${realmLower}/${nameLower}`;
-    else if (type === 'wcl') url = `https://www.warcraftlogs.com/character/eu/${realmLower}/${nameLower}`;
+    if (type === 'armory') {
+      url = `https://worldofwarcraft.blizzard.com/de-de/character/eu/${realmLower}/${nameLower}`;
+    } else if (type === 'rio') {
+      url = `https://raider.io/characters/eu/${realmLower}/${nameLower}`;
+    } else if (type === 'wcl') {
+      url = `https://www.warcraftlogs.com/character/eu/${realmLower}/${nameLower}`;
+    }
 
     if (url && (window as any).electronAPI?.openExternal) {
       (window as any).electronAPI.openExternal(url);
@@ -314,195 +332,260 @@ export default function Settings() {
   };
 
   return (
-    <div className="page-container p-4 md:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Configuration Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#1D1E1F] p-6 rounded-2xl border border-[#333] shadow-xl">
-        <div className="space-y-1">
-          <h2 className="text-2xl font-black text-white tracking-tight">Account Management</h2>
-          <p className="text-gray-400 text-sm">Manage your characters, roles, and guild visibility.</p>
-        </div>
-
-        <div className="flex flex-col gap-2 min-w-[240px]">
-          <label className="text-[10px] font-black uppercase tracking-wider text-gray-500 ml-1">Visibility focus</label>
-          <div className="relative">
-            <select
-              value={selectedVisibilityGuildId || ''}
-              onChange={(e) => setSelectedVisibilityGuildId(Number(e.target.value))}
-              className="w-full bg-[#121214] border border-[#333] text-white py-2.5 px-4 rounded-xl text-sm focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer pr-10"
-            >
-              <option value="" disabled>Select Guild...</option>
-              {user?.guildMemberships?.map(ms => (
-                <option key={ms.guildId} value={ms.guildId}>{ms.guild.name} ({ms.guild.realm})</option>
-              ))}
-            </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <section className="space-y-4">
+    <div className="page-container">
+      <section style={{ marginTop: '5px' }}>
         {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent"></div>
-          </div>
+          <p>Lade Charaktere...</p>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
-            {sortedCharacters.map(char => {
-              const classColor = getClassColor(char.classId);
-              const isUpdating = updatingChars.includes(char.id);
-              const isVisibleInSelected = selectedVisibilityGuildId ? (char.allowedGuildIds || []).includes(selectedVisibilityGuildId) : false;
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginTop: '20px' }}>
+            {/* Globale Gilden-Sichtbarkeit Cards */}
+            {user?.guildMemberships && user.guildMemberships.length > 0 && (
+              <div style={{ marginBottom: '10px' }}>
+                <h3 style={{ fontSize: '1em', color: '#888', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '15px' }}>Globale Gilden-Sichtbarkeit</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px' }}>
+                  {user.guildMemberships.map(ms => {
+                    const isVisibleForAll = characters.length > 0 && characters.every(c => (c.allowedGuildIds || []).includes(ms.guildId));
+                    const isVisibleForSome = characters.some(c => (c.allowedGuildIds || []).includes(ms.guildId));
 
-              return (
+                    return (
+                      <div
+                        key={ms.guildId}
+                        onClick={() => toggleAllGuildVisibility(ms.guildId, !isVisibleForAll)}
+                        style={{
+                          background: isVisibleForAll ? 'rgba(163, 48, 201, 0.2)' : '#1D1E1F',
+                          border: `1px solid ${isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333')}`,
+                          padding: '15px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '8px',
+                          textAlign: 'center',
+                          position: 'relative',
+                          overflow: 'hidden'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                        onMouseLeave={(e) => {
+                          if (!isVisibleForAll) e.currentTarget.style.borderColor = isVisibleForSome ? 'rgba(163, 48, 201, 0.4)' : '#333';
+                        }}
+                      >
+                        <div style={{ fontSize: '1.1em', fontWeight: 'bold', color: isVisibleForAll ? 'var(--accent)' : '#fff' }}>{ms.guild.name}</div>
+                        <div style={{ fontSize: '0.8em', color: '#666' }}>{ms.guild.realm}</div>
+                        <div style={{
+                          marginTop: '5px',
+                          fontSize: '0.75em',
+                          color: isVisibleForAll ? 'var(--accent)' : (isVisibleForSome ? 'rgba(163, 48, 201, 0.8)' : '#444'),
+                          fontWeight: 'bold'
+                        }}>
+                          {isVisibleForAll ? 'ALLE CHARS SICHTBAR' : (isVisibleForSome ? 'TEILWEISE SICHTBAR' : 'NICHT SICHTBAR')}
+                        </div>
+                        {/* Progress Bar (Subtle) */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          height: '3px',
+                          background: 'var(--accent)',
+                          width: `${(characters.filter(c => (c.allowedGuildIds || []).includes(ms.guildId)).length / characters.length) * 100}%`,
+                          transition: 'width 0.3s'
+                        }} />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {sortedCharacters.map(char => (
+              <div
+                key={char.id}
+                style={{
+                  background: '#1D1E1F',
+                  padding: '8px 16px',
+                  borderRadius: '10px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  border: char.isMain ? '1px solid var(--accent)' : '1px solid #333',
+                  transition: 'border-color 0.2s',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
+              >
+                {/* 1. Spalte: Favoriten-Stern */}
+                <div style={{ width: '40px', flexShrink: 0 }}>
+                  <div
+                    onClick={() => toggleFavorite(char.id)}
+                    style={{
+                      cursor: 'pointer', fontSize: '1.4em',
+                      color: char.isFavorite ? '#FFD700' : '#333',
+                      userSelect: 'none'
+                    }}
+                    title={char.isFavorite ? 'Von Favoriten entfernen' : 'Als Favorit markieren'}
+                  >★</div>
+                </div>
+
+                {/* 2. Spalte: Name & Realm */}
+                <div style={{ width: '220px', flexShrink: 0 }}>
+                  <div
+                    onClick={() => handleOpenLink('armory', char.name, char.realm)}
+                    style={{
+                      fontWeight: 'bold',
+                      fontSize: '1.1em',
+                      color: getClassColor(char.classId),
+                      cursor: 'pointer',
+                      display: 'inline-block'
+                    }}
+                    title="Im Arsenal öffnen"
+                    onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                    onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                  >
+                    {capitalizeName(char.name)}
+                  </div>
+                  <div style={{ fontSize: '0.8em', color: '#666' }}>{formatRealm(char.realm)}</div>
+                </div>
+
+                {/* 3. Spalte: Item Level */}
+                <div style={{ width: '100px', flexShrink: 0, textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ilvl</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</div>
+                </div>
+
+                {/* 4. Spalte: RIO / Mythic Rating */}
                 <div
-                  key={char.id}
-                  className={`bg-[#1D1E1F] rounded-xl flex flex-col md:flex-row md:items-center justify-between p-4 border transition-all duration-300 ${char.isMain ? 'border-accent shadow-[0_0_15px_rgba(163,48,201,0.15)]' : 'border-[#333] hover:border-[#444]'}`}
+                  onClick={() => handleOpenLink('rio', char.name, char.realm)}
+                  style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  title="Auf Raider.io öffnen"
+                  onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
+                  onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
                 >
-                  {/* Left Section: Fav + Identification */}
-                  <div className="flex items-center gap-4 flex-1">
-                    <button
-                      onClick={() => toggleFavorite(char.id)}
-                      className={`text-xl transition-all hover:scale-125 ${char.isFavorite ? 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.5)]' : 'text-gray-700 hover:text-gray-500'}`}
-                    >
-                      ★
-                    </button>
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>RIO</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</div>
+                </div>
 
-                    <div className="min-w-[180px]">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleOpenLink('armory', char.name, char.realm)}
-                          className="font-bold text-lg hover:underline transition-all"
-                          style={{ color: classColor }}
-                        >
-                          {capitalizeName(char.name)}
-                        </button>
-                        {char.isMain && (
-                          <span className="text-[10px] font-black bg-accent/20 text-accent px-2 py-0.5 rounded-full border border-accent/30 tracking-wider">MAIN</span>
-                        )}
-                      </div>
-                      <p className="text-gray-500 text-xs font-medium">{formatRealm(char.realm)}</p>
-                    </div>
-                  </div>
+                {/* 5. Spalte: Raid Progress */}
+                <div
+                  onClick={() => handleOpenLink('wcl', char.name, char.realm)}
+                  style={{ width: '150px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  title="Auf Warcraft Logs öffnen"
+                  onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
+                  onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
+                >
+                  <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Raid Progress</div>
+                  <div style={{ fontWeight: 'bold', fontSize: '0.95em', color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</div>
+                </div>
 
-                  {/* Middle Section: Stats & Links */}
-                  <div className="flex items-center md:justify-center gap-8 flex-[1.5] py-4 md:py-0 border-y md:border-y-0 border-[#333] my-4 md:my-0">
-                    <div className="text-center group cursor-help">
-                      <p className="text-[9px] font-black uppercase text-gray-600 tracking-tighter mb-0.5">Ilvl</p>
-                      <p className="font-bold text-sm" style={{ color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</p>
-                    </div>
-
-                    <button
-                      onClick={() => handleOpenLink('rio', char.name, char.realm)}
-                      className="text-center group transition-transform hover:-translate-y-0.5"
-                    >
-                      <p className="text-[9px] font-black uppercase text-gray-600 tracking-tighter mb-0.5">RIO</p>
-                      <p className="font-bold text-sm" style={{ color: getRIOColor(char.mythicRating) }}>{char.mythicRating?.toFixed(0) || '-'}</p>
-                    </button>
-
-                    <button
-                      onClick={() => handleOpenLink('wcl', char.name, char.realm)}
-                      className="text-center group transition-transform hover:-translate-y-0.5"
-                    >
-                      <p className="text-[9px] font-black uppercase text-gray-600 tracking-tighter mb-0.5">Prog</p>
-                      <p className="font-bold text-sm" style={{ color: getDifficultyColor(char.raidProgress || '') }}>{char.raidProgress || '-'}</p>
-                    </button>
-                  </div>
-
-                  {/* Right Section: Roles & Visibility */}
-                  <div className="flex items-center justify-between md:justify-end gap-6 flex-1">
-                    {/* Role Pickers */}
-                    <div className="flex flex-col gap-2">
-                      {/* Main Role */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-black text-gray-600 uppercase w-8">Main:</span>
-                        <div className="flex gap-1">
-                          {['tank', 'healer', 'dps'].map(r => (
-                            <button
-                              key={`main-${r}`}
-                              onClick={() => updateCharacterField(char.id, { role: r })}
-                              className={`p-1.5 rounded-lg border transition-all ${char.role?.toLowerCase() === (r === 'healer' ? 'healer' : r) ? 'bg-accent border-accent text-white' : 'bg-[#121214] border-[#333] text-gray-600 hover:border-gray-500 hover:text-gray-400'}`}
-                              disabled={isUpdating}
-                            >
-                              <RoleIcon role={r} size={16} />
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Secondary Role */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[9px] font-black text-gray-600 uppercase w-8">Off:</span>
-                        <div className="flex gap-1">
-                          {['tank', 'healer', 'dps'].map(r => (
-                            <button
-                              key={`off-${r}`}
-                              onClick={() => updateCharacterField(char.id, { secondaryRole: r })}
-                              className={`p-1.5 rounded-lg border transition-all ${char.secondaryRole?.toLowerCase() === (r === 'healer' ? 'healer' : r) ? 'bg-accent/40 border-accent/60 text-white' : 'bg-[#121214] border-[#333] text-gray-600 hover:border-gray-500 hover:text-gray-400'}`}
-                              disabled={isUpdating}
-                            >
-                              <RoleIcon role={r} size={16} />
-                            </button>
-                          ))}
-                          <button
-                            onClick={() => updateCharacterField(char.id, { secondaryRole: null })}
-                            className={`p-1.5 rounded-lg border transition-all ${!char.secondaryRole ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-[#121214] border-[#333] text-gray-600 hover:border-red-500/50 hover:text-red-400'}`}
-                            title="No off-spec"
-                          >
-                            <span className="text-xs">✕</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Visibility & Main Toggle */}
-                    <div className="flex flex-col items-end gap-3 min-w-[100px]">
-                      {selectedVisibilityGuildId && (
-                        <div className="flex items-center gap-2 group cursor-pointer" onClick={() => toggleGuildVisibility(char.id, selectedVisibilityGuildId, char.allowedGuildIds || [])}>
-                          <span className={`text-[10px] font-black uppercase tracking-wider transition-colors ${isVisibleInSelected ? 'text-accent' : 'text-gray-600'}`}>Visible</span>
-                          <div className={`w-8 h-4 rounded-full relative transition-colors ${isVisibleInSelected ? 'bg-accent' : 'bg-[#333]'}`}>
-                            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${isVisibleInSelected ? 'left-[17px]' : 'left-0.5'}`} />
-                          </div>
-                        </div>
-                      )}
-
-                      {!char.isMain && (
-                        <button
-                          onClick={() => setMainCharacter(char.id)}
-                          className="text-[10px] font-black text-gray-500 hover:text-accent uppercase tracking-tighter border border-[#333] hover:border-accent px-3 py-1 rounded-full transition-all"
-                        >
-                          Make Main
-                        </button>
-                      )}
-                    </div>
+                {/* 6. Spalte: Main Role */}
+                <div style={{ width: '130px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {[
+                      { id: 'tank', label: 'Tank' },
+                      { id: 'healer', label: 'Heal' },
+                      { id: 'dps', label: 'DPS' }
+                    ].map(r => (
+                      <button
+                        key={r.id}
+                        onClick={() => updateCharacterRole(char.id, r.id)}
+                        title={r.label}
+                        style={{
+                          background: char.role?.toLowerCase() === r.id ? 'var(--accent)' : '#121214',
+                          border: '1px solid #333',
+                          borderRadius: '6px',
+                          padding: '5px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          opacity: updatingChars.includes(char.id) ? 0.3 : (char.role?.toLowerCase() === r.id ? 1 : 0.4),
+                          pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
+                        }}
+                      >
+                        <RoleIcon role={r.id} size={20} />
+                      </button>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
+
+                {/* 7. Spalte: Secondary Role */}
+                <div style={{ width: '160px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                  <div style={{ fontSize: '0.7em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {[
+                      { id: 'tank', label: 'Tank' },
+                      { id: 'healer', label: 'Heal' },
+                      { id: 'dps', label: 'DPS' },
+                      { id: 'none', label: 'None' }
+                    ].map(r => (
+                      <button
+                        key={r.id}
+                        onClick={() => updateCharacterRole(char.id, r.id, true)}
+                        title={r.label}
+                        style={{
+                          background: (char.secondaryRole?.toLowerCase() === r.id || (r.id === 'none' && !char.secondaryRole)) ? 'rgba(163, 48, 201, 0.6)' : '#121214',
+                          border: '1px solid #333',
+                          borderRadius: '6px',
+                          padding: '5px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                          opacity: updatingChars.includes(char.id) ? 0.3 : ((char.secondaryRole?.toLowerCase() === r.id || (r.id === 'none' && !char.secondaryRole)) ? 1 : 0.4),
+                          pointerEvents: updatingChars.includes(char.id) ? 'none' : 'auto'
+                        }}
+                      >
+                        {r.id === 'none' ? <span style={{ fontSize: '10px', color: '#fff', fontWeight: 'bold' }}>OFF</span> : <RoleIcon role={r.id} size={20} />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 6. Spalte: Main Character Status / Button */}
+                <div style={{ width: '130px', flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                  {char.isMain ? (
+                    <span style={{
+                      background: 'rgba(163, 48, 201, 0.2)', color: 'var(--accent)', padding: '6px 15px',
+                      borderRadius: '20px', fontSize: '0.75em', fontWeight: '900', border: '1px solid var(--accent)',
+                      letterSpacing: '1px'
+                    }}>MAIN</span>
+                  ) : (
+                    <button
+                      onClick={() => setMainCharacter(char.id)}
+                      style={{
+                        background: 'transparent', border: '1px solid #444',
+                        color: '#818181', padding: '6px 15px', borderRadius: '20px',
+                        fontSize: '0.75em', cursor: 'pointer', transition: 'all 0.2s',
+                        fontWeight: 'bold'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'var(--accent)';
+                        e.currentTarget.style.color = 'var(--accent)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#444';
+                        e.currentTarget.style.color = '#818181';
+                      }}
+                    >Als Main setzen</button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </section>
 
-      {/* Account Info Footer */}
-      <div className="bg-[#1D1E1F] p-6 rounded-2xl border border-[#333] shadow-lg flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center text-accent text-2xl">
-            👤
-          </div>
-          <div>
-            <p className="text-white font-bold text-lg">{capitalizeName(user?.battletag)}</p>
-            <p className="text-gray-500 text-xs">Battle.net ID: {user?.battlenetId}</p>
-          </div>
-        </div>
+      <section style={{ marginTop: '50px', padding: '20px', background: '#2D2D2D', borderRadius: '12px', border: '1px solid #444' }}>
+        <h3 style={{ marginTop: 0 }}>Account-Informationen</h3>
+        <p>Eingeloggt als: <strong>{capitalizeName(user?.battletag)}</strong></p>
+        <p style={{ fontSize: '0.9em', color: '#888' }}>Battle.net ID: {user?.battlenetId}</p>
 
         {String(user?.battlenetId) === '100379014' && (
-          <div className="bg-accent/10 border border-accent/20 px-4 py-2 rounded-xl">
-            <p className="text-accent font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
-              <span className="animate-pulse">✨</span> Superuser-Modus aktive
-            </p>
-          </div>
+          <p style={{ color: 'var(--accent)', fontWeight: 'bold', marginTop: '10px' }}>✨ Superuser-Modus aktiv (Debug/Test)</p>
         )}
-      </div>
+      </section>
     </div>
   );
 }
