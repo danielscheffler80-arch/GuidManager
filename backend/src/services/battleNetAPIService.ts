@@ -20,32 +20,22 @@ export class BattleNetAPIService {
     try {
       const battleNetId = String(userProfile.id);
 
-      let user = await prisma.user.findUnique({
-        where: { battleNetId }
+      return await prisma.user.upsert({
+        where: { battleNetId },
+        update: {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+          lastLogin: new Date()
+        },
+        create: {
+          battleNetId,
+          name: userProfile.battletag,
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+        }
       });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            battleNetId,
-            name: userProfile.battletag,
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
-          }
-        });
-      } else {
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
-          }
-        });
-      }
-
-      return user;
     } catch (error) {
       console.error(`Failed to sync basic user: ${error}`);
       throw error;
@@ -61,33 +51,23 @@ export class BattleNetAPIService {
       // Ensure battleNetId is a string
       const battleNetId = String(userProfile.id);
 
-      // Synchronisiere User und Charaktere
-      let user = await prisma.user.findUnique({
-        where: { battleNetId }
+      // Atomic upsert for user
+      const user = await prisma.user.upsert({
+        where: { battleNetId },
+        update: {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+          lastLogin: new Date()
+        },
+        create: {
+          battleNetId,
+          name: userProfile.battletag,
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
+        }
       });
-
-      if (!user) {
-        console.log(`Creating new user: ${userProfile.battletag}`);
-        user = await prisma.user.create({
-          data: {
-            battleNetId,
-            name: userProfile.battletag,
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
-          }
-        });
-      } else {
-        console.log(`Updating existing user: ${userProfile.battletag}`);
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: {
-            accessToken: tokenData.access_token,
-            refreshToken: tokenData.refresh_token,
-            tokenExpiresAt: new Date(Date.now() + tokenData.expires_in * 1000),
-          }
-        });
-      }
 
       // Hole und synchronisiere Charaktere
       await service.syncUserCharactersData(user.id);
