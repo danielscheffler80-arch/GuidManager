@@ -427,7 +427,7 @@ export default function Settings() {
                 </div>
 
                 {/* 2. Spalte: Name & Realm */}
-                <div style={{ width: '200px', flexShrink: 0 }}>
+                <div style={{ flex: '2', minWidth: '150px', flexShrink: 0 }}>
                   <div
                     onClick={() => handleOpenLink('armory', char.name, char.realm)}
                     style={{
@@ -447,14 +447,14 @@ export default function Settings() {
                 </div>
 
                 {/* 3. Spalte: Item Level */}
-                <div style={{ width: '80px', flexShrink: 0, textAlign: 'center' }}>
+                <div style={{ flex: '1', minWidth: '70px', flexShrink: 0, textAlign: 'center' }}>
                   <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>Ilvl</div>
                   <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: getIlvlColor(char.averageItemLevel) }}>{char.averageItemLevel || '-'}</div>
                 </div>
 
                 <div
                   onClick={() => handleOpenLink('rio', char.name, char.realm)}
-                  style={{ width: '80px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  style={{ flex: '1', minWidth: '70px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   title="Auf Raider.io öffnen"
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
@@ -465,7 +465,7 @@ export default function Settings() {
 
                 <div
                   onClick={() => handleOpenLink('wcl', char.name, char.realm)}
-                  style={{ width: '100px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
+                  style={{ flex: '1', minWidth: '90px', flexShrink: 0, textAlign: 'center', cursor: 'pointer' }}
                   title="Auf Warcraft Logs öffnen"
                   onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.5)'}
                   onMouseLeave={(e) => e.currentTarget.style.filter = 'none'}
@@ -475,7 +475,7 @@ export default function Settings() {
                 </div>
 
                 {/* 6. Spalte: Rolle */}
-                <div style={{ width: '100px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                <div style={{ flex: '1.2', minWidth: '100px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Main Role</div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[
@@ -512,7 +512,7 @@ export default function Settings() {
                 </div>
 
                 {/* 7. Spalte: 2nd Role */}
-                <div style={{ width: '100px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                <div style={{ flex: '1.2', minWidth: '100px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                   <div style={{ fontSize: '0.70em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>2nd Role</div>
                   <div style={{ display: 'flex', gap: '4px' }}>
                     {[
@@ -549,7 +549,8 @@ export default function Settings() {
                 </div>
 
                 {/* 8. Spalte: Sichtbar in: */}
-                <div style={{ width: '180px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
+                {/* 8. Spalte: Gilden (Sichtbarkeit) */}
+                <div style={{ flex: '1.8', minWidth: '140px', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'center' }}>
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     {user?.guildMemberships?.map(ms => {
                       const isAllowed = (char.allowedGuildIds || []).includes(ms.guildId);
