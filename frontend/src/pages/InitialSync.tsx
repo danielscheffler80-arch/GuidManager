@@ -18,16 +18,19 @@ const InitialSync: React.FC = () => {
     const [phase, setPhase] = useState<'idle' | 'syncing' | 'completed'>('idle');
     const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0); // 0=Intro, 1=Account, 2=Guilds, 3=Finalize, 4=Done
 
-    const { user, checkAuth, backendUrl } = useAuth();
+    const { user, checkAuth, backendUrl, isLoading } = useAuth();
     const navigate = useNavigate();
 
     useEffect(() => {
+        // Wenn Auth noch lädt (Backend-Check), warten wir ab
+        if (isLoading) return;
+
         // Wenn Sync bereits erledigt ist, sofort weg hier
         if (user?.initialSyncCompletedAt) {
             console.log('[SYNC] Already completed, skipping to /account');
             navigate('/account');
         }
-    }, [user?.initialSyncCompletedAt, navigate]);
+    }, [user?.initialSyncCompletedAt, navigate, isLoading]);
 
     const runPhase1 = async () => {
         setPhase('syncing');

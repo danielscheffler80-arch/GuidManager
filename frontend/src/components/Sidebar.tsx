@@ -15,7 +15,7 @@ const items = [
 ];
 
 export default function Sidebar() {
-  const { user, logout, isSyncing, syncCharacters, isAdmin } = useAuth();
+  const { user, logout, isSyncing, syncCharacters, isAdmin, backendUrl } = useAuth();
   const location = useLocation();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -58,8 +58,8 @@ export default function Sidebar() {
       if (!char) return;
 
       try {
-        const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/messages/${char.id}/unread`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        const resp = await fetch(`${backendUrl}/api/messages/${char.id}/unread`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
         });
         if (resp.ok) {
           const data = await resp.json();
@@ -210,11 +210,12 @@ export default function Sidebar() {
               onClick={async () => {
                 if (window.confirm('Möchtest du deinen Sync-Status wirklich zurücksetzen? Die App wird danach neu gestartet.')) {
                   try {
-                    const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/sync/initial/reset`, {
+                    const resp = await fetch(`${backendUrl}/api/sync/initial/reset`, {
                       method: 'POST',
                       headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
                     });
                     if (resp.ok) {
+                      localStorage.removeItem('user');
                       localStorage.removeItem('accessToken');
                       localStorage.removeItem('refreshToken');
                       window.location.href = '/';
@@ -251,8 +252,8 @@ export default function Sidebar() {
               const char = user.characters?.find((c: any) => c.isMain) || user.characters?.[0];
               if (!char) return;
               try {
-                const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/messages/${char.id}/unread`, {
-                  headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                const resp = await fetch(`${backendUrl}/api/messages/${char.id}/unread`, {
+                  headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
                 });
                 if (resp.ok) {
                   const data = await resp.json();
