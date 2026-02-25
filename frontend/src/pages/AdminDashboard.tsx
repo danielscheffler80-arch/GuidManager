@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { openInternalWindow } from '../utils/windowUtils';
 
 const AdminDashboard: React.FC = () => {
     const { backendUrl, user } = useAuth();
@@ -58,7 +59,7 @@ const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Sync Logs Card */}
-                <div style={cardStyle} onClick={() => window.open('/#/debug-logs', '_blank')}>
+                <div style={cardStyle} onClick={() => openInternalWindow('/debug-logs')}>
                     <div style={iconStyle}>📜</div>
                     <h3 style={cardTitleStyle}>Live Sync Debugger</h3>
                     <p style={cardDescStyle}>Echtzeit-Überwachung des Synchronisations-Prozesses in einem neuen Fenster.</p>

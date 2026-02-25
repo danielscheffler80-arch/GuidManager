@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { openInternalWindow } from '../utils/windowUtils';
 
 const steps = [
     { id: 1, title: 'Phase 1: Sync Account Daten', description: 'Check Battle.net ID und Profil-Verifizierung.' },
@@ -164,7 +165,7 @@ const InitialSync: React.FC = () => {
 
                         {isSuperuser && (
                             <button
-                                onClick={() => window.open('/#/debug-logs', '_blank', 'width=1000,height=800')}
+                                onClick={() => openInternalWindow('/debug-logs')}
                                 style={{ marginTop: '20px', background: 'rgba(163, 48, 201, 0.1)', border: '1px solid #a330c9', color: '#a330c9', borderRadius: '8px', padding: '10px', cursor: 'pointer', fontWeight: 'bold' }}
                             >
                                 🛠 Debugger in neuem Fenster öffnen
