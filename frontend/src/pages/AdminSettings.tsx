@@ -162,6 +162,28 @@ export default function AdminSettings() {
         }
     };
 
+    const handleSystemWipe = async () => {
+        if (!window.confirm('--- GEFAHR ---\n\nDies wird ALLE Gilden-Daten, Charaktere und Logs unwiderruflich löschen.\nNur dein Account bleibt bestehen.\n\nWirklich fortfahren?')) return;
+
+        if (!window.confirm('Bist du absolut sicher? Die App wird danach neu synchronisiert werden müssen.')) return;
+
+        try {
+            setSaving(true);
+            const data = await GuildService.wipeDatabase();
+            if (data.success) {
+                alert('Datenbank erfolgreich zurückgesetzt! Die App wird neu geladen.');
+                window.location.href = '/initial-sync';
+            } else {
+                alert('Fehler beim Wipe: ' + data.error);
+            }
+        } catch (err) {
+            console.error('Wipe failed:', err);
+            alert('Wipe fehlgeschlagen.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
     // Ensure we have 10 ranks (0-9) even if API returns fewer
     const displayRanks = Array.from({ length: 10 }, (_, i) => {
         const found = availableRanks.find(r => r.id === i);
@@ -402,7 +424,7 @@ export default function AdminSettings() {
                     </div>
                 </div>
 
-                {/* WoW Path Configuration attached at the bottom */}
+                {/* WoW Path Configuration */}
                 <div style={{
                     marginTop: '30px',
                     background: '#1D1E1F',
@@ -452,6 +474,25 @@ export default function AdminSettings() {
                         </div>
                         {pathStatus && <p style={{ marginTop: '8px', fontSize: '0.8em', color: '#1EFF00', fontWeight: 'bold' }}>{pathStatus}</p>}
                     </div>
+                </div>
+
+                {/* DANGEROUS SYSTEM WIPE */}
+                <div style={{
+                    marginTop: '40px',
+                    padding: '25px',
+                    borderRadius: '20px',
+                    background: 'rgba(239, 68, 68, 0.05)',
+                    border: '2px dashed rgba(239, 68, 68, 0.2)'
+                }}>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-red-500 mb-2">Gefahrenbereich</h4>
+                    <p className="text-[11px] text-gray-500 mb-4 font-bold uppercase tracking-wide">Vollständiger Datenbank-Wipe (Clean Reset)</p>
+                    <button
+                        onClick={handleSystemWipe}
+                        disabled={saving}
+                        className="px-6 py-3 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-red-500/20"
+                    >
+                        {saving ? 'Wiping...' : 'Datenbank jetzt vollständig löschen'}
+                    </button>
                 </div>
             </div>
         </div>

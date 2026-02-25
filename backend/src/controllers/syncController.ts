@@ -210,4 +210,33 @@ export class SyncController {
             res.status(500).json({ success: false, error: error.message });
         }
     }
+
+    /**
+     * Admin: Full Database Wipe (Clean Reset)
+     */
+    static async wipeDatabase(req: any, res: Response) {
+        // Simple security check: Only allow if user is an admin or if it's explicitly allowed in this context
+        // (The route should be protected by authenticateToken and potentially an admin check middleware)
+        try {
+            console.log('--- DANGEROUS DATABASE WIPE STARTED VIA API ---');
+
+            // Delete in reverse dependency order
+            await (prisma as any).syncLog.deleteMany({});
+            await (prisma as any).raidSignup.deleteMany({});
+            await (prisma as any).raidEvent.deleteMany({});
+            await (prisma as any).guildMembership.deleteMany({});
+            await (prisma as any).character.deleteMany({});
+            await (prisma as any).guild.deleteMany({});
+
+            await prisma.user.updateMany({
+                data: { initialSyncCompletedAt: null }
+            });
+
+            console.log('--- DATABASE WIPE COMPLETED SUCCESSFULLY ---');
+            res.json({ success: true, message: 'Database wiped successfully' });
+        } catch (error: any) {
+            console.error('[SYNC] Wipe failed:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
 }
