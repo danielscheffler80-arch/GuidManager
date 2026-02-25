@@ -17,4 +17,7 @@ router.post('/initial/reset', authenticateToken, SyncController.resetInitialSync
 // Debugger
 router.get('/debug/logs', authenticateToken, SyncController.getLogs);
 
+// Admin
+router.post('/admin/wipe', authenticateToken, SyncController.wipeDatabase);
+
 export default router;

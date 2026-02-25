@@ -179,5 +179,14 @@ export const GuildService = {
             headers: getAuthHeader() as HeadersInit
         });
         return response.json();
+    },
+
+    // Admin commands
+    wipeDatabase: async () => {
+        const response = await fetch(`${getBackendUrl()}/api/sync/admin/wipe`, {
+            method: 'POST',
+            headers: getAuthHeader() as HeadersInit
+        });
+        return response.json();
     }
 };
