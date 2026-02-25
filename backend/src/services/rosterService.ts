@@ -3,6 +3,7 @@
 
 import prisma from '../prisma';
 import { BattleNetAPIService } from './battleNetAPIService';
+import { SyncLogService, SyncCategory } from './syncLogService';
 
 // Helper to process in chunks to avoid rate limits / timeouts
 const chunk = <T>(arr: T[], size: number): T[][] =>
@@ -12,7 +13,7 @@ const chunk = <T>(arr: T[], size: number): T[][] =>
 
 export class RosterService {
     // Synchronisiert den kompletten Roster einer Gilde
-    static async syncRoster(guildId: number, accessToken: string): Promise<any> {
+    static async syncRoster(guildId: number, accessToken: string, userId: number = 0): Promise<any> {
         try {
             const guild = await prisma.guild.findUnique({
                 where: { id: guildId }
@@ -26,8 +27,10 @@ export class RosterService {
 
             const service = new BattleNetAPIService(accessToken);
             console.log(`[RosterService] Fetching roster from API...`);
+            await SyncLogService.log(userId, 3, SyncCategory.BNET_API_INPUT, `Fetching roster for ${guild.name}@${guild.realm}`);
             const members = await service.getGuildRoster(guild.realm, guild.name);
             console.log(`[RosterService] Fetched ${members.length} members from Battle.net API`);
+            await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Found ${members.length} members in ${guild.name}`);
 
             // Fetch Guild Ranks
             try {
@@ -39,6 +42,7 @@ export class RosterService {
                         where: { id: guildId },
                         data: { ranks: ranks }
                     });
+                    await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Updated guild ranks for ${guild.name}`);
                 } else {
                     console.log(`[RosterService] No ranks returned by API.`);
                 }
@@ -118,7 +122,9 @@ export class RosterService {
                         });
 
                         syncStats.updated++;
-                        syncStats.updated++;
+                        if (syncStats.updated % 50 === 0) {
+                            await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Saved ${syncStats.updated}/${members.length} members basic info`);
+                        }
                     } catch (err) {
                         console.error(`[RosterService] Error in Phase 1 for ${member?.character?.name}:`, err);
                         syncStats.errors++;
@@ -170,11 +176,28 @@ export class RosterService {
                             try {
                                 const raids = await service.getCharacterRaidEncounters(charData.realm.slug, charData.name.toLowerCase());
                                 if (raids && raids.expansions) {
-                                    // Use dynamic detection instead of hardcoded name
+                                    // Priority 1: Specifically look for "Manaforge Omega"
                                     let targetRaid = null;
-                                    const latestExp = raids.expansions[raids.expansions.length - 1];
-                                    if (latestExp?.instances?.length > 0) {
-                                        targetRaid = latestExp.instances[latestExp.instances.length - 1];
+
+                                    for (const exp of raids.expansions) {
+                                        if (exp.instances) {
+                                            const omegaRaid = exp.instances.find((inst: any) =>
+                                                inst.instance.name === 'Manaforge Omega' ||
+                                                (inst.instance.name.de_DE && inst.instance.name.de_DE === 'Manaschmiede Omega')
+                                            );
+                                            if (omegaRaid) {
+                                                targetRaid = omegaRaid;
+                                                break;
+                                            }
+                                        }
+                                    }
+
+                                    // Priority 2: Fallback to the latest raid in the most recent expansion
+                                    if (!targetRaid) {
+                                        const latestExp = raids.expansions[raids.expansions.length - 1];
+                                        if (latestExp?.instances?.length > 0) {
+                                            targetRaid = latestExp.instances[latestExp.instances.length - 1];
+                                        }
                                     }
 
                                     if (targetRaid) {
@@ -222,7 +245,10 @@ export class RosterService {
                     }
                 }));
                 processedCount += batch.length;
-                if (processedCount % 20 === 0) console.log(`[RosterService] Processed ${processedCount}/${members.length} members`);
+                if (processedCount % 5 === 0) {
+                    await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Detailed sync: ${processedCount}/${members.length} members`);
+                }
+                console.log(`[RosterService] Processed ${processedCount}/${members.length} members`);
             }
             console.log(`[RosterService] Phase 2 complete.`);
 

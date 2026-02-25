@@ -3,6 +3,7 @@ import prisma from '../prisma';
 import { BattleNetAPIService } from '../services/battleNetAPIService';
 import { SyncLogService, SyncCategory } from '../services/syncLogService';
 import { MythicPlusService } from '../services/mythicPlusService';
+import { RosterService } from '../services/rosterService';
 
 export class SyncController {
     /**
@@ -80,7 +81,7 @@ export class SyncController {
                 const guild = guilds[i];
                 try {
                     await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Syncing guild ${i + 1}/${guilds.length}: ${guild.name}`);
-                    await BattleNetAPIService.syncGuildMembers(userId, guild.id, guild.name, guild.realm, user.accessToken, true);
+                    await RosterService.syncRoster(guild.id, user.accessToken, userId);
                 } catch (guildErr: any) {
                     console.error(`[SYNC] Failed to sync guild ${guild.name}:`, guildErr.message);
                     await SyncLogService.log(userId, 3, SyncCategory.ERROR, `Phase 3 failed for ${guild.name}: ${guildErr.message}. Skipping guild...`);
@@ -132,14 +133,29 @@ export class SyncController {
     static async syncAddonData(req: any, res: Response) {
         const userId = req.user.userId;
         try {
-            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Starting Phase 4: Addon data (Mythic+ Keys)');
+            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Starting Phase 4: Mythic+ Weekly Keys Sync');
 
-            // For now, we just log that we are ready for addon data.
-            // In a real flow, the desktop app would send data, but here we can simulate 
-            // a check for existing addon data or simply mark it as ready.
-            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Phase 4: Addon synchronization ready');
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                include: { guildMemberships: { include: { guild: true } } }
+            });
 
-            res.json({ success: true, message: 'Phase 4: Addon sync ready' });
+            if (!user || user.accessToken === null) {
+                return res.status(401).json({ success: false, error: 'User not found' });
+            }
+
+            const guilds = user.guildMemberships.map(m => m.guild);
+
+            for (let i = 0; i < guilds.length; i++) {
+                const guild = guilds[i];
+                await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, `Syncing keys for guild ${i + 1}/${guilds.length}: ${guild.name}`);
+                await MythicPlusService.syncGuildMythicPlus(guild.id, user.accessToken);
+                await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, `Completed keys for ${guild.name}`);
+            }
+
+            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Phase 4: Mythic+ key synchronization completed');
+
+            res.json({ success: true, message: 'Phase 4: Mythic+ Weekly Keys sync completed' });
         } catch (error: any) {
             await SyncLogService.log(userId, 4, SyncCategory.ERROR, `Phase 4 failed: ${error.message}`);
             res.status(500).json({ success: false, error: error.message });

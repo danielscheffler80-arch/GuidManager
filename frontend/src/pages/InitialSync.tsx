@@ -7,7 +7,7 @@ const steps = [
     { id: 1, title: 'Phase 1: Sync Account Daten', description: 'Check Battle.net ID und Profil-Verifizierung.' },
     { id: 2, title: 'Phase 2: Charaktere & Gilden entdecken', description: 'Suche nach all deinen Helden und ihren Communities.' },
     { id: 3, title: 'Phase 3: Gilden-Daten Deep Sync', description: 'Deep Sync der Gilden-Roster (ilvl, RIO, Raid Progress).' },
-    { id: 4, title: 'Phase 4: Addon-Daten abgleichen', description: 'Integriere aktuelle Keys von Blizzard & AlterEgo.' },
+    { id: 4, title: 'Phase 4: Mythic+ Weekly Keys', description: 'Synchronisiere wöchentliche Bestleistungen für alle Gildenmitglieder.' },
     { id: 5, title: 'Phase 5: Chat-History laden', description: 'Gilden-Chat Nachrichten vom Server laden.' }
 ];
 
