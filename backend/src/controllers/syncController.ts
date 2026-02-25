@@ -104,4 +104,21 @@ export class SyncController {
             res.status(500).json({ success: false, error: error.message });
         }
     }
+
+    /**
+     * Debug: Reset Initial Sync status
+     */
+    static async resetInitialSync(req: any, res: Response) {
+        const userId = req.user.userId;
+        try {
+            await prisma.user.update({
+                where: { id: userId },
+                data: { initialSyncCompletedAt: null }
+            });
+            res.json({ success: true, message: 'Initial sync status reset' });
+        } catch (error: any) {
+            console.error('[SYNC] Reset failed:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
 }
