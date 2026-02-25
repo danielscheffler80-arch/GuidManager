@@ -277,7 +277,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       });
 
-      return response.ok;
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setUser(result.user);
+          storage.set('user', result.user);
+          return true;
+        }
+      }
+
+      return false;
     } catch (error) {
       console.error('CheckAuth error:', error);
       setConnectionError('Server nicht erreichbar.');

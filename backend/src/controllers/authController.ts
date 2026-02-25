@@ -366,6 +366,7 @@ export class AuthController {
           name: true,
           battleNetId: true,
           createdAt: true,
+          initialSyncCompletedAt: true,
           guildMemberships: {
             include: {
               guild: {
