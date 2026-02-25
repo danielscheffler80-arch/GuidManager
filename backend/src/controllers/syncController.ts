@@ -216,33 +216,31 @@ export class SyncController {
      */
     static async wipeDatabase(req: any, res: Response) {
         try {
-            console.log('--- DANGEROUS DATABASE WIPE STARTED VIA API ---');
-            const modelsToDelete = [
-                'syncLog',
-                'mythicKeySignup',
-                'mythicKey',
-                'attendance',
-                'raid',
-                'roster',
-                'guildChat',
-                'userGuild',
-                'privateMessage',
-                'stream',
-                'character',
-                'guild'
+            console.log('--- DANGEROUS DATABASE WIPE STARTED VIA SQL TRUNCATE ---');
+
+            // Absolute nuclear option: Truncate with CASCADE using Raw SQL
+            // Order doesn't matter much with CASCADE, but sequences are restarted.
+            const tables = [
+                'sync_logs',
+                'mythic_key_signups',
+                'mythic_keys',
+                'attendances',
+                'raids',
+                'rosters',
+                'guild_chats',
+                'user_guilds',
+                'private_messages',
+                'streams',
+                'characters',
+                'guilds'
             ];
 
-            for (const model of modelsToDelete) {
+            for (const table of tables) {
                 try {
-                    console.log(`[Wipe] Deleting data from model: ${model}...`);
-                    if ((prisma as any)[model]) {
-                        await (prisma as any)[model].deleteMany({});
-                        console.log(`[Wipe] Successfully cleared ${model}.`);
-                    } else {
-                        console.warn(`[Wipe] Model ${model} NOT FOUND on prisma client!`);
-                    }
-                } catch (modelErr: any) {
-                    console.error(`[Wipe] Error deleting ${model}:`, modelErr.message);
+                    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`);
+                    console.log(`[Wipe] Truncated table: ${table}`);
+                } catch (err: any) {
+                    console.error(`[Wipe] Error truncating ${table}:`, err.message);
                 }
             }
 
@@ -250,8 +248,8 @@ export class SyncController {
                 data: { initialSyncCompletedAt: null }
             });
 
-            console.log('--- DATABASE WIPE COMPLETED ---');
-            res.json({ success: true, message: 'Database wiped successfully' });
+            console.log('--- DATABASE WIPE COMPLETED VIA SQL ---');
+            res.json({ success: true, message: 'Database wiped successfully using SQL Truncate' });
         } catch (error: any) {
             console.error('[SYNC] Wipe failed:', error);
             res.status(500).json({ success: false, error: error.message });
