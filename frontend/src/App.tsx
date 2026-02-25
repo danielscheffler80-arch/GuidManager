@@ -15,7 +15,10 @@ import Settings from './pages/Settings';
 import Login from './pages/Login';
 import CreateRaid from './pages/CreateRaid';
 import AdminSettings from './pages/AdminSettings';
+import AdminDashboard from './pages/AdminDashboard';
+import DatabaseExplorer from './pages/DatabaseExplorer';
 import InitialSync from './pages/InitialSync';
+import DebugSyncLogs from './pages/DebugSyncLogs';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -64,6 +67,7 @@ function AppContent() {
     return (
       <Routes>
         <Route path="/initial-sync" element={<InitialSync />} />
+        <Route path="/debug-logs" element={<DebugSyncLogs />} />
         <Route path="*" element={<Navigate to="/initial-sync" />} />
       </Routes>
     );
@@ -128,6 +132,17 @@ function AppContent() {
                 <AdminSettings />
               </ProtectedRoute>
             } />
+            <Route path="/admin/dashboard" element={
+              <ProtectedRoute>
+                <AdminDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/database" element={
+              <ProtectedRoute>
+                <DatabaseExplorer />
+              </ProtectedRoute>
+            } />
+            <Route path="/debug-logs" element={<DebugSyncLogs />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </main>

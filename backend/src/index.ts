@@ -17,6 +17,7 @@ import guildRouter from './routes/guild';
 import debugRouter from './routes/debug';
 import messagesRouter from './routes/messages';
 import syncRouter from './routes/sync';
+import adminRouter from './routes/admin';
 import { initSocketService } from './services/socketService';
 import prisma from './prisma';
 
@@ -78,6 +79,7 @@ app.use('/guild', guildRouter);
 app.use('/api/debug', debugRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/admin', adminRouter);
 
 // Download redirect for Universal Setup
 app.get('/api/download/latest', (req, res) => {

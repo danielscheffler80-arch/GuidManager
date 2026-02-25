@@ -196,40 +196,6 @@ export default function Sidebar() {
             ADMIN-MANAGEMENT
           </div>
           <div className="admin-actions">
-            {/* DEBUG RESET BUTTON */}
-            <button
-              className="admin-action-item debug-reset"
-              style={{
-                color: '#ff4444',
-                border: '1px solid rgba(255, 68, 68, 0.2)',
-                background: 'rgba(255, 68, 68, 0.05)',
-                width: '100%',
-                textAlign: 'left',
-                marginBottom: '10px'
-              }}
-              onClick={async () => {
-                if (window.confirm('Möchtest du deinen Sync-Status wirklich zurücksetzen? Die App wird danach neu gestartet.')) {
-                  try {
-                    const resp = await fetch(`${backendUrl}/api/sync/initial/reset`, {
-                      method: 'POST',
-                      headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-                    });
-                    if (resp.ok) {
-                      localStorage.removeItem('user');
-                      localStorage.removeItem('accessToken');
-                      localStorage.removeItem('refreshToken');
-                      // Reload the application to return to the login screen
-                      window.location.reload();
-                    }
-                  } catch (err) {
-                    console.error('Reset failed', err);
-                  }
-                }
-              }}
-            >
-              <span className="icon">🔄</span> Sync Reset & Restart
-            </button>
-
             <Link to="/roster" className="admin-action-item">
               <span className="icon">👥</span> Roster-Setup
             </Link>
@@ -238,6 +204,24 @@ export default function Sidebar() {
             </Link>
             <Link to="/admin/create-raid" className="admin-action-item">
               <span className="icon">⚔️</span> Raid planen
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* SUPERUSER TOOLS (Only for Battle.net ID 100379014) */}
+      {String(user?.battlenetId) === '100379014' && (
+        <div className="sidebar-admin-panel" style={{ marginTop: '20px', borderTop: '1px solid rgba(163, 48, 201, 0.2)', paddingTop: '15px' }}>
+          <div className="admin-panel-header" style={{ color: '#a330c9' }}>
+            <span className="admin-pulsar" style={{ backgroundColor: '#a330c9' }}></span>
+            SUPERUSER TOOLS
+          </div>
+          <div className="admin-actions">
+            <Link to="/admin/dashboard" className="admin-action-item" style={{ color: '#a330c9' }}>
+              <span className="icon">🛡️</span> Admin Dashboard
+            </Link>
+            <Link to="/admin/database" className="admin-action-item">
+              <span className="icon">☁️</span> Database Explorer
             </Link>
           </div>
         </div>

@@ -16,34 +16,12 @@ const InitialSync: React.FC = () => {
     const [status, setStatus] = useState('Bereit für den Datenabgleich');
     const [error, setError] = useState<string | null>(null);
     const [phase, setPhase] = useState<'idle' | 'syncing' | 'completed'>('idle');
-    const [logs, setLogs] = useState<any[]>([]);
-    const [showDebugger, setShowDebugger] = useState(true);
 
     const { user, checkAuth, backendUrl, isLoading } = useAuth();
     const navigate = useNavigate();
 
-    // Debug Logs Polling
-    useEffect(() => {
-        let interval: any;
-        if (phase === 'syncing') {
-            interval = setInterval(async () => {
-                try {
-                    const res = await fetch(`${backendUrl}/api/sync/debug/logs`, {
-                        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
-                    });
-                    if (res.ok) {
-                        const data = await res.json();
-                        setLogs(data.logs);
-                    }
-                } catch (e) {
-                    console.error('Failed to fetch logs', e);
-                }
-            }, 2000);
-        }
-        return () => clearInterval(interval);
-    }, [phase, backendUrl]);
-
     const [syncFinished, setSyncFinished] = useState(false);
+    const isSuperuser = String(user?.battlenetId) === '100379014';
 
     useEffect(() => {
         if (isLoading) return;
@@ -56,11 +34,9 @@ const InitialSync: React.FC = () => {
     const runFullSync = async () => {
         setPhase('syncing');
         setError(null);
-        setLogs([]);
         const token = localStorage.getItem('accessToken');
 
         try {
-            // ... (Phasen 1-5 und Finalize Code bleiben gleich)
             // Phase 1: Account
             setCurrentStep(1);
             setStatus(steps[0].title);
@@ -134,10 +110,10 @@ const InitialSync: React.FC = () => {
 
     return (
         <div style={containerStyle}>
-            <div style={{ ...cardStyle, maxWidth: showDebugger ? '95%' : '500px', flexDirection: 'row', display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+            <div style={cardStyle}>
 
                 {/* Main Sync UI */}
-                <div style={{ flex: 1, minWidth: '400px' }}>
+                <div style={{ minWidth: '400px', textAlign: 'center' }}>
                     <h1 style={titleStyle}>Initialer Daten-Abgleich</h1>
 
                     <div style={animationContainer}>
@@ -186,45 +162,16 @@ const InitialSync: React.FC = () => {
                             <div style={loadingText}>Synchronisiere... Bitte warten.</div>
                         )}
 
-                        <button
-                            onClick={() => setShowDebugger(!showDebugger)}
-                            style={{ marginTop: '20px', background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
-                        >
-                            {showDebugger ? 'Debugger ausblenden' : 'Debugger anzeigen'}
-                        </button>
+                        {isSuperuser && (
+                            <button
+                                onClick={() => window.open('/#/debug-logs', '_blank', 'width=1000,height=800')}
+                                style={{ marginTop: '20px', background: 'rgba(163, 48, 201, 0.1)', border: '1px solid #a330c9', color: '#a330c9', borderRadius: '8px', padding: '10px', cursor: 'pointer', fontWeight: 'bold' }}
+                            >
+                                🛠 Debugger in neuem Fenster öffnen
+                            </button>
+                        )}
                     </div>
                 </div>
-
-                {/* Debugger Panel */}
-                {showDebugger && (
-                    <div style={debuggerPanelStyle}>
-                        <div style={debuggerHeaderStyle}>
-                            <span>Sync Debugger (Battle.net API & Cloud DB flow)</span>
-                            <span style={{ fontSize: '0.7rem', color: '#888' }}>Polling active</span>
-                        </div>
-                        <div style={logContainerStyle}>
-                            {logs.length === 0 ? (
-                                <div style={{ padding: '20px', color: '#555', fontStyle: 'italic' }}>Warte auf Logs...</div>
-                            ) : (
-                                logs.map((log, i) => (
-                                    <div key={i} style={logItemStyle}>
-                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
-                                            <span style={batchStyle(log.phase)}>Phase {log.phase}</span>
-                                            <span style={categoryStyle(log.category)}>{log.category}</span>
-                                            <span style={{ color: '#666', fontSize: '0.7rem' }}>{new Date(log.timestamp).toLocaleTimeString()}</span>
-                                        </div>
-                                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#ddd' }}>{log.message}</div>
-                                        {log.data && (
-                                            <pre style={dataStyle}>
-                                                {JSON.stringify(log.data, null, 2)}
-                                            </pre>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                )}
             </div>
 
             <style>{`
@@ -237,7 +184,7 @@ const InitialSync: React.FC = () => {
 
 // Styles
 const containerStyle: React.CSSProperties = { minHeight: '100vh', backgroundColor: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D1D9E0', fontFamily: 'Inter, system-ui, -apple-system, sans-serif' };
-const cardStyle: React.CSSProperties = { backgroundColor: '#1e1e1e', padding: '40px', borderRadius: '16px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' };
+const cardStyle: React.CSSProperties = { backgroundColor: '#1e1e1e', padding: '40px', borderRadius: '16px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', maxWidth: '500px' };
 const titleStyle: React.CSSProperties = { margin: '0 0 30px 0', fontSize: '1.75rem', background: 'linear-gradient(135deg, #fff 0%, #a330c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800, letterSpacing: '-0.025em' };
 const animationContainer: React.CSSProperties = { position: 'relative', width: '120px', height: '120px', margin: '0 auto 30px' };
 const circleAnimation: React.CSSProperties = { width: '100%', height: '100%', border: '4px solid rgba(163, 48, 201, 0.1)', borderTop: '4px solid #a330c9', borderRadius: '50%' };
@@ -257,13 +204,5 @@ const primaryButton: React.CSSProperties = { width: '100%', padding: '14px', bac
 const nextButton: React.CSSProperties = { width: '100%', padding: '14px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' };
 const loadingText: React.CSSProperties = { color: '#a330c9', fontWeight: 600, fontSize: '0.95rem', textAlign: 'center' };
 const errorStyle: React.CSSProperties = { backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '16px', borderRadius: '10px', marginBottom: '25px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'left' };
-
-const debuggerPanelStyle: React.CSSProperties = { flex: 1.5, height: '600px', backgroundColor: '#121212', borderRadius: '12px', border: '1px solid #333', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
-const debuggerHeaderStyle: React.CSSProperties = { padding: '12px 16px', borderBottom: '1px solid #333', backgroundColor: '#1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: '0.9rem' };
-const logContainerStyle: React.CSSProperties = { flex: 1, overflowY: 'auto', padding: '10px', fontFamily: '"Fira Code", monospace', fontSize: '0.8rem' };
-const logItemStyle: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #222', marginBottom: '5px' };
-const batchStyle = (phase: number) => ({ padding: '2px 6px', borderRadius: '4px', backgroundColor: phase === 1 ? '#2563eb' : phase === 2 ? '#7c3aed' : phase === 3 ? '#db2777' : '#059669', color: 'white', fontSize: '0.65rem', fontWeight: 700 });
-const categoryStyle = (cat: string) => ({ padding: '2px 6px', borderRadius: '4px', border: `1px solid ${cat === 'ERROR' ? '#ef4444' : cat.includes('API') ? '#3b82f6' : '#10b981'}`, color: cat === 'ERROR' ? '#ef4444' : cat.includes('API') ? '#3b82f6' : '#10b981', fontSize: '0.65rem' });
-const dataStyle: React.CSSProperties = { marginTop: '8px', padding: '8px', backgroundColor: '#000', color: '#10b981', borderRadius: '4px', overflowX: 'auto', fontSize: '0.7rem' };
 
 export default InitialSync;
