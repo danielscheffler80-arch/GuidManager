@@ -45,6 +45,7 @@ webrtc_debug.log
 # Updates folder (installer)
 !backend/updates/*.exe
 !backend/updates/*.blockmap
+!backend/updates/*.7z
 !backend/updates/latest.yml
 
 # Test files
