@@ -4,6 +4,7 @@
 
 import axios from 'axios';
 import prisma from '../prisma';
+import { SyncLogService, SyncCategory } from './syncLogService';
 
 const BNET_API_URL = process.env.BNET_API_URL || 'https://eu.api.blizzard.com';
 const BNET_REGION = process.env.BNET_REGION || 'eu';
@@ -84,6 +85,9 @@ export class BattleNetAPIService {
     try {
       console.log(`Syncing characters for user ${userId} (Detailed: ${detailed})...`);
       const accounts = await this.getUserCharacters();
+
+      await SyncLogService.log(userId, 2, SyncCategory.BNET_API_INPUT, `Found ${accounts.length} WoW accounts from Blizzard API`, { accountCount: accounts.length });
+
       console.log(`API returned ${accounts.length} WoW accounts.`);
 
       let count = 0;
@@ -152,6 +156,8 @@ export class BattleNetAPIService {
             if (detailed) {
               await this.syncSingleCharacterDetails(userId, character.realm.slug, character.name.toLowerCase());
             }
+
+            await SyncLogService.log(userId, 2, SyncCategory.CLOUD_DB_OUTPUT, `Upserted basic info for character ${character.name.toLowerCase()}@${character.realm.slug}`, { character: character.name.toLowerCase(), realm: character.realm.slug });
 
             console.log(`Synced character basic info: ${character.name.toLowerCase()}@${character.realm.slug}`);
           } catch (charError) {
@@ -343,7 +349,7 @@ export class BattleNetAPIService {
       }
 
       // Update DB
-      await prisma.character.update({
+      const updatedChar = await prisma.character.update({
         where: { name_realm: { name, realm: realmSlug } },
         data: {
           guildId,
@@ -354,6 +360,9 @@ export class BattleNetAPIService {
           lastSync: new Date()
         }
       });
+
+      await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Updated details for ${name}@${realmSlug} (ilvl: ${averageItemLevel}, RIO: ${mythicRating}, Raid: ${raidProgress})`, { name, realm: realmSlug, averageItemLevel, mythicRating, raidProgress });
+
     } catch (error) {
       console.error(`Failed to sync details for ${name}@${realmSlug}:`, error);
     }
