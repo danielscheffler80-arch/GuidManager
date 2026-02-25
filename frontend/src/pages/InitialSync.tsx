@@ -43,12 +43,15 @@ const InitialSync: React.FC = () => {
         return () => clearInterval(interval);
     }, [phase, backendUrl]);
 
+    const [syncFinished, setSyncFinished] = useState(false);
+
     useEffect(() => {
         if (isLoading) return;
-        if (user?.initialSyncCompletedAt) {
+        // Only auto-redirect if we didn't JUST finish the sync on this page
+        if (user?.initialSyncCompletedAt && !syncFinished) {
             navigate('/account');
         }
-    }, [user?.initialSyncCompletedAt, navigate, isLoading]);
+    }, [user?.initialSyncCompletedAt, navigate, isLoading, syncFinished]);
 
     const runFullSync = async () => {
         setPhase('syncing');
@@ -57,6 +60,7 @@ const InitialSync: React.FC = () => {
         const token = localStorage.getItem('accessToken');
 
         try {
+            // ... (Phasen 1-5 und Finalize Code bleiben gleich)
             // Phase 1: Account
             setCurrentStep(1);
             setStatus(steps[0].title);
@@ -118,6 +122,7 @@ const InitialSync: React.FC = () => {
 
             // Success
             setProgress(100);
+            setSyncFinished(true); // Verhindert Auto-Redirect
             setPhase('completed');
             setStatus('Synchronisation vollständig!');
             await checkAuth(); // User-Objekt aktualisieren
