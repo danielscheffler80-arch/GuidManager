@@ -61,6 +61,33 @@ export class SyncController {
     }
 
     /**
+     * Sync a single guild specifically.
+     */
+    static async syncSingleGuild(req: any, res: Response) {
+        const userId = req.user.userId;
+        const guildId = parseInt(req.params.guildId);
+        try {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            if (!user || !user.accessToken) {
+                return res.status(401).json({ success: false, error: 'Auth failed' });
+            }
+
+            const guild = await prisma.guild.findUnique({ where: { id: guildId } });
+            if (!guild) {
+                return res.status(404).json({ success: false, error: 'Guild not found' });
+            }
+
+            console.log(`[SYNC] Deep syncing single guild: ${guild.name} for user ${user.name}`);
+            await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+
+            res.json({ success: true, message: `Sync of ${guild.name} completed` });
+        } catch (error: any) {
+            console.error('[SYNC] Single guild sync failed:', error);
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
+    /**
      * Step 4 & 5: Finalization
      * Mark initial sync as completed.
      */

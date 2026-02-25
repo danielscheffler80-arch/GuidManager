@@ -64,15 +64,41 @@ const InitialSync: React.FC = () => {
         const token = localStorage.getItem('accessToken');
 
         try {
-            setCurrentStep(3);
-            setStatus(steps[2].title);
-            setProgress(50);
+            // Wir refreshed den User-State nochmal, um sicherzugehen dass wir die Gilden-Liste haben
+            await checkAuth();
 
-            const res2 = await fetch(`${backendUrl}/api/sync/initial/guilds`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res2.ok) throw new Error('Gilden-Sync fehlgeschlagen.');
+            const memberships = user?.guildMemberships || [];
+            if (memberships.length === 0) {
+                console.log('[SYNC] No guilds found to sync.');
+                setProgress(75);
+                setPhase('completed');
+                setCurrentPhaseIndex(2);
+                setStatus('Phase 2 abgeschlossen (Keine Gilden gefunden)');
+                return;
+            }
+
+            console.log(`[SYNC] Starting granular sync for ${memberships.length} guilds`);
+
+            for (let i = 0; i < memberships.length; i++) {
+                const membership = memberships[i];
+                const guildName = membership.guild?.name || 'Unbekannte Gilde';
+                const guildId = membership.guild?.id;
+
+                setCurrentStep(3);
+                setStatus(`Syncing Gilde ${i + 1} von ${memberships.length}: ${guildName}`);
+                // Progress zwischen 25% und 75% verteilen
+                const guildProgress = 25 + Math.floor(((i + 1) / memberships.length) * 50);
+                setProgress(guildProgress);
+
+                const res = await fetch(`${backendUrl}/api/sync/initial/guild/${guildId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!res.ok) {
+                    console.warn(`[SYNC] Failed to sync guild ${guildName}, skipping and continuing...`);
+                }
+            }
 
             setProgress(75);
             setPhase('completed');
