@@ -22,7 +22,7 @@ interface AuthContextType {
   isSyncing: boolean;
   login: (user: User) => Promise<void>;
   logout: () => void;
-  checkAuth: () => Promise<boolean>;
+  checkAuth: () => Promise<any | null>;
   syncCharacters: (detailed?: boolean) => Promise<void>;
 
   isAdmin: boolean;
@@ -266,9 +266,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const checkAuth = async (): Promise<boolean> => {
+  const checkAuth = async (): Promise<any | null> => {
     const token = localStorage.getItem('accessToken');
-    if (!token || !user) return false;
+    if (!token) return null;
 
     try {
       const response = await fetch(`${backendUrl}/auth/me`, {
@@ -282,15 +282,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         if (result.success) {
           setUser(result.user);
           storage.set('user', result.user);
-          return true;
+          return result.user;
         }
       }
 
-      return false;
+      return null;
     } catch (error) {
       console.error('CheckAuth error:', error);
       setConnectionError('Server nicht erreichbar.');
-      return false;
+      return null;
     }
   };
 

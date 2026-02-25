@@ -75,7 +75,7 @@ model Character {
 // Guild Model
 model Guild {
   id              Int         @id @default(autoincrement())
-  name            String      @unique
+  name            String
   realm           String
   faction         String      // Alliance/Horde
   description     String?
@@ -99,6 +99,7 @@ model Guild {
   mainRosterIncludedCharacterIds Int[] @default([]) // Characters manually added to Main Roster
   mainRosterExcludedCharacterIds Int[] @default([]) // Characters manually hidden from Main Roster
   
+  @@unique([name, realm])
   @@map("guilds")
 }
 

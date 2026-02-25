@@ -64,20 +64,25 @@ const InitialSync: React.FC = () => {
         const token = localStorage.getItem('accessToken');
 
         try {
-            // Wir refreshed den User-State nochmal, um sicherzugehen dass wir die Gilden-Liste haben
-            await checkAuth();
+            // Hol frische Daten vom Backend, um sicherzustellen dass guildMemberships da sind
+            console.log('[SYNC] Phase 2: Fetching fresh user data...');
+            const freshUser = await checkAuth();
 
-            const memberships = user?.guildMemberships || [];
+            if (!freshUser) {
+                throw new Error('Sitzung abgelaufen. Bitte neu einloggen.');
+            }
+
+            const memberships = freshUser.guildMemberships || [];
+            console.log(`[SYNC] Phase 2: Found ${memberships.length} guilds to sync`);
+
             if (memberships.length === 0) {
-                console.log('[SYNC] No guilds found to sync.');
+                console.warn('[SYNC] No guilds found after Phase 1. Skipping to Phase 3.');
                 setProgress(75);
                 setPhase('completed');
                 setCurrentPhaseIndex(2);
                 setStatus('Phase 2 abgeschlossen (Keine Gilden gefunden)');
                 return;
             }
-
-            console.log(`[SYNC] Starting granular sync for ${memberships.length} guilds`);
 
             for (let i = 0; i < memberships.length; i++) {
                 const membership = memberships[i];
@@ -96,7 +101,9 @@ const InitialSync: React.FC = () => {
                 });
 
                 if (!res.ok) {
-                    console.warn(`[SYNC] Failed to sync guild ${guildName}, skipping and continuing...`);
+                    const errData = await res.json();
+                    console.error(`[SYNC] Failed to sync guild ${guildName}:`, errData);
+                    // Wir machen trotzdem weiter bei anderen Gilden
                 }
             }
 
@@ -104,8 +111,10 @@ const InitialSync: React.FC = () => {
             setPhase('completed');
             setCurrentPhaseIndex(2);
             setStatus('Phase 2 abgeschlossen!');
+            console.log('[SYNC] Phase 2 completed successfully');
         } catch (err: any) {
-            setError(err.message);
+            console.error('[SYNC] Phase 2 error:', err);
+            setError(err.message || 'Gilden-Sync fehlgeschlagen.');
             setPhase('idle');
         }
     };
@@ -116,13 +125,10 @@ const InitialSync: React.FC = () => {
         const token = localStorage.getItem('accessToken');
 
         try {
+            console.log('[SYNC] Phase 3: Finalizing sync...');
             setCurrentStep(4);
             setStatus(steps[3].title);
             setProgress(85);
-
-            setCurrentStep(5);
-            setStatus(steps[4].title);
-            setProgress(95);
 
             const res3 = await fetch(`${backendUrl}/api/sync/initial/finalize`, {
                 method: 'POST',
@@ -130,14 +136,32 @@ const InitialSync: React.FC = () => {
             });
             if (!res3.ok) throw new Error('Finalisierung fehlgeschlagen.');
 
-            setProgress(100);
-            await checkAuth();
+            setProgress(95);
+            setStatus('Warte auf Bestätigung...');
 
+            // Polling bis initialSyncCompletedAt im User-Objekt erscheint
+            let persisted = false;
+            let attempts = 0;
+            while (!persisted && attempts < 10) {
+                attempts++;
+                console.log(`[SYNC] Persistence check attempt ${attempts}/10...`);
+                const updatedUser = await checkAuth();
+                if (updatedUser?.initialSyncCompletedAt) {
+                    persisted = true;
+                    console.log('[SYNC] initialSyncCompletedAt is now persisted!');
+                } else {
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+            }
+
+            setProgress(100);
             setPhase('completed');
             setCurrentPhaseIndex(3);
             setStatus('Synchronisation vollständig!');
+            console.log('[SYNC] Phase 3 completed successfully');
         } catch (err: any) {
-            setError(err.message);
+            console.error('[SYNC] Phase 3 error:', err);
+            setError(err.message || 'Abschluss fehlgeschlagen.');
             setPhase('idle');
         }
     };

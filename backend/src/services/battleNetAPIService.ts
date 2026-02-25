@@ -92,18 +92,18 @@ export class BattleNetAPIService {
         for (const character of account.characters || []) {
           try {
             count++;
-            const getName = (obj: any) => typeof obj.name === 'object' ? obj.name.de_DE : obj.name;
-
             // Extract Guild from Basic Info if available
             let guildId = null;
             if (character.guild) {
               const guildName = character.guild.name;
               const guildRealm = character.guild.realm.slug;
-              const faction = typeof character.faction === 'object' ? character.faction.name : character.faction;
+              const faction = typeof character.faction === 'object' ? (character.faction.name.de_DE || character.faction.name.en_US || character.faction.name) : character.faction;
+
+              console.log(`[SYNC] Character ${character.name.toLowerCase()} in guild ${guildName}@${guildRealm}`);
 
               const upsertedGuild = await prisma.guild.upsert({
-                where: { name: guildName },
-                update: { realm: guildRealm, faction },
+                where: { name_realm: { name: guildName, realm: guildRealm } },
+                update: { faction },
                 create: { name: guildName, realm: guildRealm, faction }
               });
               guildId = upsertedGuild.id;
@@ -232,11 +232,11 @@ export class BattleNetAPIService {
         if (details.guild) {
           const guildName = details.guild.name;
           const guildRealm = details.guild.realm.slug;
-          const faction = typeof details.faction === 'object' ? details.faction.name : details.faction;
+          const faction = typeof details.faction === 'object' ? (details.faction.name.de_DE || details.faction.name.en_US || details.faction.name) : details.faction;
 
           const upsertedGuild = await prisma.guild.upsert({
-            where: { name: guildName },
-            update: { realm: guildRealm, faction },
+            where: { name_realm: { name: guildName, realm: guildRealm } },
+            update: { faction },
             create: { name: guildName, realm: guildRealm, faction }
           });
           guildId = upsertedGuild.id;
