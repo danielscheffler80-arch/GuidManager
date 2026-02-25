@@ -47,10 +47,15 @@ export class SyncController {
 
             console.log(`[SYNC] Deep syncing ${guilds.length} guilds for user ${user.name}`);
 
-            for (const guild of guilds) {
-                // Perform deep roster sync
-                console.log(`[SYNC] Starting deep roster sync for ${guild.name}...`);
-                await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+            for (let i = 0; i < guilds.length; i++) {
+                const guild = guilds[i];
+                const startTime = Date.now();
+                console.log(`[SYNC] [${i + 1}/${guilds.length}] Starting deep roster sync for ${guild.name} (${guild.realm})...`);
+
+                const memberCount = await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+
+                const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+                console.log(`[SYNC] [${i + 1}/${guilds.length}] Completed ${guild.name} in ${duration}s. Synced ${memberCount} members.`);
             }
 
             res.json({ success: true, message: `Deep sync of ${guilds.length} guilds completed` });
@@ -78,7 +83,10 @@ export class SyncController {
             }
 
             console.log(`[SYNC] Deep syncing single guild: ${guild.name} for user ${user.name}`);
-            await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+            const startTime = Date.now();
+            const memberCount = await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+            const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+            console.log(`[SYNC] Completed single guild sync for ${guild.name} in ${duration}s. Synced ${memberCount} members.`);
 
             res.json({ success: true, message: `Sync of ${guild.name} completed` });
         } catch (error: any) {

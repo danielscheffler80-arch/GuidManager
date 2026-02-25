@@ -218,7 +218,8 @@ export default function Sidebar() {
                       localStorage.removeItem('user');
                       localStorage.removeItem('accessToken');
                       localStorage.removeItem('refreshToken');
-                      window.location.href = '/';
+                      // Reload the application to return to the login screen
+                      window.location.reload();
                     }
                   } catch (err) {
                     console.error('Reset failed', err);
