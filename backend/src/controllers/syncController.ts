@@ -80,7 +80,7 @@ export class SyncController {
                 const guild = guilds[i];
                 await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Syncing guild ${i + 1}/${guilds.length}: ${guild.name}`);
 
-                await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+                await BattleNetAPIService.syncGuildMembers(userId, guild.id, guild.name, guild.realm, user.accessToken, true);
             }
 
             await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, 'Phase 3: Deep sync completed');
@@ -110,7 +110,7 @@ export class SyncController {
 
             console.log(`[SYNC] Deep syncing single guild: ${guild.name} for user ${user.name}`);
             const startTime = Date.now();
-            const memberCount = await BattleNetAPIService.syncGuildMembers(guild.id, guild.name, guild.realm, user.accessToken, true);
+            const memberCount = await BattleNetAPIService.syncGuildMembers(userId, guild.id, guild.name, guild.realm, user.accessToken, true);
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
             console.log(`[SYNC] Completed single guild sync for ${guild.name} in ${duration}s. Synced ${memberCount} members.`);
 

@@ -521,19 +521,24 @@ export class BattleNetAPIService {
   }
 
   // Statische Methode zum Synchronisieren von Gildenmitgliedern
-  static async syncGuildMembers(guildId: number, guildName: string, realmSlug: string, accessToken: string, deepSync: boolean = false): Promise<number> {
+  static async syncGuildMembers(userId: number, guildId: number, guildName: string, realmSlug: string, accessToken: string, deepSync: boolean = false): Promise<number> {
     try {
       const service = new BattleNetAPIService(accessToken);
+
+      await SyncLogService.log(userId, 3, SyncCategory.BNET_API_INPUT, `Fetching roster for: ${guildName}@${realmSlug}`);
       const members = await service.getGuildRoster(realmSlug, guildName);
 
-      console.log(`[BNET] Syncing ${members.length} members for guild ${guildName} (DeepSync: ${deepSync})`);
+      const logMsg = `[BNET] Syncing ${members.length} members for guild ${guildName} (DeepSync: ${deepSync})`;
+      console.log(logMsg);
+      await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, logMsg);
 
+      let processedCount = 0;
       for (const member of members) {
         try {
           const charName = member.character.name.toLowerCase();
           const charRealm = member.character.realm.slug;
 
-          const updatedChar = await prisma.character.upsert({
+          await prisma.character.upsert({
             where: {
               name_realm: {
                 name: charName,
@@ -566,10 +571,15 @@ export class BattleNetAPIService {
             },
           });
 
+          processedCount++;
+          if (processedCount % 50 === 0) {
+            await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Saved ${processedCount}/${members.length} members for ${guildName}`);
+          }
+
           // Wenn DeepSync an ist, holen wir RIO und Raid Fortschritt
           if (deepSync && member.character.level >= 70) {
             console.log(`[BNET] Deep Syncing details for ${charName}@${charRealm}...`);
-            await service.syncSingleCharacterDetails(0, charRealm, charName);
+            await service.syncSingleCharacterDetails(userId, charRealm, charName);
             // Kleines Delay um Rate Limits zu schonen
             await new Promise(r => setTimeout(r, 200));
           }
@@ -578,6 +588,7 @@ export class BattleNetAPIService {
         }
       }
 
+      await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Completed sync for guild ${guildName}. Total members: ${members.length}`);
       return members.length;
     } catch (error) {
       console.error(`Failed to sync guild members for ${guildName}:`, error);
