@@ -404,23 +404,33 @@ export class BattleNetAPIService {
   async getGuildRoster(realm: string, guildName: string): Promise<any[]> {
     try {
       // Blizzard API expects a slug: lowercase, spaces/dots replaced by dashes
+      // IMPORTANT: European realms use localized slugs for names with special characters!
       const slug = guildName.toLowerCase()
+        .replace(/[ä]/g, 'a')
+        .replace(/[ö]/g, 'o')
+        .replace(/[ü]/g, 'u')
+        .replace(/[ß]/g, 'ss')
         .replace(/[\s\.]+/g, '-') // Handle spaces and dots
+        .replace(/[^a-z0-9-]/g, '') // Remove everything else
         .replace(/-+/g, '-')      // Avoid double dashes
         .replace(/^-|-$/g, '');   // Trim dashes from start/end
 
       const encodedName = encodeURIComponent(slug);
+      console.log(`[BNET] Fetching roster for guild: ${guildName} -> slug: ${slug} (encoded: ${encodedName}) on realm: ${realm}`);
+
       const data = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}/roster`);
 
       // LOGGING RAW KEYS
       const { members, ...meta } = data;
-      console.log(`[BNET] Roster Response Meta Keys: ${Object.keys(meta).join(', ')}`);
-      if (members) console.log(`[BNET] Roster Member Count: ${members.length}`);
+      console.log(`[BNET] Roster success for ${guildName}. Member Count: ${members?.length || 0}`);
 
       return members || [];
-    } catch (error) {
-      console.error(`Failed to fetch guild roster for ${guildName}@${realm}:`, error);
-      // Re-throw error so the caller knows it failed
+    } catch (error: any) {
+      console.error(`[BNET] Failed to fetch roster for ${guildName}@${realm}:`, error.message);
+      // Detailed error log to help debugging
+      if (error.response?.status === 404) {
+        console.warn(`[BNET] 404 NOT FOUND for guild slug: ${guildName} -> ${realm}. Please check slugification logic.`);
+      }
       throw error;
     }
   }
