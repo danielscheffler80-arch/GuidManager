@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.9.31",
+  "version": "0.9.32",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -49,10 +49,14 @@
     "icon": "assets/app-icon.png",
     "win": {
       "icon": "assets/app-icon.ico",
-      "target": "nsis-web",
+      "target": [
+        "nsis-web",
+        "nsis"
+      ],
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
+      "artifactName": "GuildManagerUniversalSetup.exe",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,

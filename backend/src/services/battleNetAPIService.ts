@@ -272,18 +272,29 @@ export class BattleNetAPIService {
       try {
         const raidEncounters = await this.getCharacterRaidEncounters(realmSlug, name);
         if (raidEncounters && raidEncounters.expansions) {
-          // Dynamic raid detection: search for the latest raid in the most recent expansion
           let targetRaid = null;
 
-          if (raidEncounters.expansions && raidEncounters.expansions.length > 0) {
-            // Sort expansions by ID if possible, or just take the last one (usually latest)
+          // Priority 1: Specifically look for "Manaforge Omega"
+          for (const exp of raidEncounters.expansions) {
+            if (exp.instances) {
+              const omegaRaid = exp.instances.find((inst: any) =>
+                inst.instance.name === 'Manaforge Omega' ||
+                (inst.instance.name.de_DE && inst.instance.name.de_DE === 'Manaschmiede Omega')
+              );
+              if (omegaRaid) {
+                targetRaid = omegaRaid;
+                console.log(`[RaidSync] Prioritizing Manaforge Omega for ${name}`);
+                break;
+              }
+            }
+          }
+
+          // Priority 2: Fallback to the latest raid in the most recent expansion
+          if (!targetRaid && raidEncounters.expansions.length > 0) {
             const latestExp = raidEncounters.expansions[raidEncounters.expansions.length - 1];
-
             if (latestExp.instances && latestExp.instances.length > 0) {
-              // Take the last instance - Blizzard usually appends new raids to the end of the expansion's array
               targetRaid = latestExp.instances[latestExp.instances.length - 1];
-
-              console.log(`[RaidSync] Detected latest raid: ${targetRaid.instance.name} in expansion: ${latestExp.expansion.name}`);
+              console.log(`[RaidSync] Detected latest raid: ${targetRaid.instance.name} for ${name}`);
             }
           }
 
@@ -300,6 +311,36 @@ export class BattleNetAPIService {
           }
         }
       } catch (e) { }
+
+      // Sync Mythic Keys (>= 10) for Weekly Progress
+      try {
+        const mythicData = await this.getCharacterMythicKeystone(realmSlug, name);
+        if (mythicData && mythicData.current_period && mythicData.current_period.best_runs) {
+          // Delete existing Blizzard-synced keys for this character
+          const char = await prisma.character.findUnique({ where: { name_realm: { name, realm: realmSlug } } });
+          if (char) {
+            await prisma.mythicKey.deleteMany({
+              where: { characterId: char.id, isFromBag: false }
+            });
+
+            for (const run of mythicData.current_period.best_runs) {
+              await prisma.mythicKey.create({
+                data: {
+                  characterId: char.id,
+                  dungeon: this.getName(run.dungeon),
+                  level: run.keystone_level,
+                  affixes: JSON.stringify(run.affixes?.map((a: any) => a.id) || []),
+                  completed: true,
+                  completedAt: new Date(run.completed_timestamp),
+                  isFromBag: false
+                }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.error(`[M+Sync] Failed best runs for ${name}:`, e.message);
+      }
 
       // Update DB
       await prisma.character.update({
@@ -518,9 +559,10 @@ export class BattleNetAPIService {
 
           // Wenn DeepSync an ist, holen wir RIO und Raid Fortschritt
           if (deepSync && member.character.level >= 70) {
+            console.log(`[BNET] Deep Syncing details for ${charName}@${charRealm}...`);
             await service.syncSingleCharacterDetails(0, charRealm, charName);
             // Kleines Delay um Rate Limits zu schonen
-            await new Promise(r => setTimeout(r, 100));
+            await new Promise(r => setTimeout(r, 200));
           }
         } catch (charErr) {
           console.error(`[BNET] Error syncing member ${member.character.name}:`, charErr);
