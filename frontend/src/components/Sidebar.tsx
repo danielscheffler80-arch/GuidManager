@@ -196,6 +196,38 @@ export default function Sidebar() {
             ADMIN-MANAGEMENT
           </div>
           <div className="admin-actions">
+            {/* DEBUG RESET BUTTON */}
+            <button
+              className="admin-action-item debug-reset"
+              style={{
+                color: '#ff4444',
+                border: '1px solid rgba(255, 68, 68, 0.2)',
+                background: 'rgba(255, 68, 68, 0.05)',
+                width: '100%',
+                textAlign: 'left',
+                marginBottom: '10px'
+              }}
+              onClick={async () => {
+                if (window.confirm('Möchtest du deinen Sync-Status wirklich zurücksetzen? Die App wird danach neu gestartet.')) {
+                  try {
+                    const resp = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:3334'}/api/sync/initial/reset`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+                    });
+                    if (resp.ok) {
+                      localStorage.removeItem('accessToken');
+                      localStorage.removeItem('refreshToken');
+                      window.location.href = '/';
+                    }
+                  } catch (err) {
+                    console.error('Reset failed', err);
+                  }
+                }
+              }}
+            >
+              <span className="icon">🔄</span> Sync Reset & Restart
+            </button>
+
             <Link to="/roster" className="admin-action-item">
               <span className="icon">👥</span> Roster-Setup
             </Link>
