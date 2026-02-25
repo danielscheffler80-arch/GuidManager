@@ -414,10 +414,10 @@ router.get('/guilds/:guildId/ranks', authMiddleware, GuildController.getGuildRan
 router.post('/guilds/:guildId/admin-ranks', authMiddleware, checkPermission('edit_roster'), GuildController.updateAdminRanks);
 
 // POST /api/guilds/:guildId/visible-ranks - Update Sichtbare Ränge
-router.post('/guilds/:guildId/visible-ranks', authMiddleware, checkPermission('edit_roster'), GuildController.updateVisibleRanks);
-
+router.put('/guilds/:guildId/visible-ranks', authMiddleware, checkPermission('edit_roster'), GuildController.updateVisibleRanks);
+router.put('/guilds/:guildId/exclusive-raid', authMiddleware, checkPermission('edit_roster'), GuildController.updateExclusiveRaid);
 // POST /api/guilds/:guildId/main-roster-overrides - Update Main Roster Overrides
-router.post('/guilds/:guildId/main-roster-overrides', authMiddleware, checkPermission('edit_roster'), GuildController.updateMainRosterOverrides);
+router.put('/guilds/:guildId/main-roster-overrides', authMiddleware, checkPermission('edit_roster'), GuildController.updateMainRosterOverrides);
 
 // POST /api/guilds/:guildId/main-roster/add-external
 router.post('/guilds/:guildId/main-roster/add-external', authMiddleware, checkPermission('edit_roster'), GuildController.addExternalToMainRoster);

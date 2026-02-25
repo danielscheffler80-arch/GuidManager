@@ -173,6 +173,7 @@ export class GuildController {
                 ranks: ranks,
                 currentAdminRanks: guild.adminRanks,
                 currentVisibleRanks: guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                exclusiveRaidName: guild.exclusiveRaidName,
                 mainRosterIncludedCharacterIds: guild.mainRosterIncludedCharacterIds || [],
                 mainRosterExcludedCharacterIds: guild.mainRosterExcludedCharacterIds || []
             });
@@ -275,6 +276,24 @@ export class GuildController {
         } catch (error) {
             console.error('[AddExternalMain] Error:', error);
             res.status(500).json({ error: 'Failed to add external character to main roster' });
+        }
+    }
+
+    // Aktualisiert den exklusiven Raid für den Fortschritt
+    static async updateExclusiveRaid(req: Request, res: Response) {
+        const { guildId } = req.params;
+        const { raidName } = req.body;
+
+        try {
+            const guild = await prisma.guild.update({
+                where: { id: Number(guildId) },
+                data: { exclusiveRaidName: raidName || null }
+            });
+
+            res.json({ success: true, exclusiveRaidName: guild.exclusiveRaidName });
+        } catch (error) {
+            console.error('Update exclusive raid error:', error);
+            res.status(500).json({ success: false, error: 'Failed to update exclusive raid' });
         }
     }
 }

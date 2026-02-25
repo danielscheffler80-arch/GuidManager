@@ -176,27 +176,45 @@ export class RosterService {
                             try {
                                 const raids = await service.getCharacterRaidEncounters(charData.realm.slug, charData.name.toLowerCase());
                                 if (raids && raids.expansions) {
-                                    // Priority 1: Specifically look for "Manaforge Omega"
+                                    // Determine which raid to use
+                                    const exclusiveRaid = guild.exclusiveRaidName;
                                     let targetRaid = null;
 
-                                    for (const exp of raids.expansions) {
-                                        if (exp.instances) {
-                                            const omegaRaid = exp.instances.find((inst: any) =>
-                                                inst.instance.name === 'Manaforge Omega' ||
-                                                (inst.instance.name.de_DE && inst.instance.name.de_DE === 'Manaschmiede Omega')
-                                            );
-                                            if (omegaRaid) {
-                                                targetRaid = omegaRaid;
-                                                break;
+                                    if (exclusiveRaid) {
+                                        // Strictly look for the exclusive raid
+                                        for (const exp of raids.expansions) {
+                                            if (exp.instances) {
+                                                const match = exp.instances.find((inst: any) =>
+                                                    inst.instance.name === exclusiveRaid ||
+                                                    (inst.instance.name.de_DE && inst.instance.name.de_DE === exclusiveRaid)
+                                                );
+                                                if (match) {
+                                                    targetRaid = match;
+                                                    break;
+                                                }
                                             }
                                         }
-                                    }
+                                    } else {
+                                        // Priority 1: Specifically look for "Manaforge Omega" as default behavior
+                                        for (const exp of raids.expansions) {
+                                            if (exp.instances) {
+                                                const omegaRaid = exp.instances.find((inst: any) =>
+                                                    inst.instance.name === 'Manaforge Omega' ||
+                                                    (inst.instance.name.de_DE && inst.instance.name.de_DE === 'Manaschmiede Omega')
+                                                );
+                                                if (omegaRaid) {
+                                                    targetRaid = omegaRaid;
+                                                    break;
+                                                }
+                                            }
+                                        }
 
-                                    // Priority 2: Fallback to the latest raid in the most recent expansion
-                                    if (!targetRaid) {
-                                        const latestExp = raids.expansions[raids.expansions.length - 1];
-                                        if (latestExp?.instances?.length > 0) {
-                                            targetRaid = latestExp.instances[latestExp.instances.length - 1];
+                                        // Priority 2: Fallback to the latest raid in the most recent expansion
+                                        if (!targetRaid) {
+                                            const latestExp = raids.expansions[raids.expansions.length - 1];
+                                            if (latestExp?.instances?.length > 0) {
+                                                targetRaid = latestExp.instances[latestExp.instances.length - 1];
+                                            }
                                         }
                                     }
 

@@ -278,29 +278,53 @@ export class BattleNetAPIService {
       try {
         const raidEncounters = await this.getCharacterRaidEncounters(realmSlug, name);
         if (raidEncounters && raidEncounters.expansions) {
-          let targetRaid = null;
-
-          // Priority 1: Specifically look for "Manaforge Omega"
-          for (const exp of raidEncounters.expansions) {
-            if (exp.instances) {
-              const omegaRaid = exp.instances.find((inst: any) =>
-                inst.instance.name === 'Manaforge Omega' ||
-                (inst.instance.name.de_DE && inst.instance.name.de_DE === 'Manaschmiede Omega')
-              );
-              if (omegaRaid) {
-                targetRaid = omegaRaid;
-                console.log(`[RaidSync] Prioritizing Manaforge Omega for ${name}`);
-                break;
-              }
-            }
+          // Determine which raid to use
+          let exclusiveRaidName = null;
+          if (guildId) {
+            const guildObj = await prisma.guild.findUnique({ where: { id: guildId }, select: { exclusiveRaidName: true } });
+            exclusiveRaidName = guildObj?.exclusiveRaidName;
           }
 
-          // Priority 2: Fallback to the latest raid in the most recent expansion
-          if (!targetRaid && raidEncounters.expansions.length > 0) {
-            const latestExp = raidEncounters.expansions[raidEncounters.expansions.length - 1];
-            if (latestExp.instances && latestExp.instances.length > 0) {
-              targetRaid = latestExp.instances[latestExp.instances.length - 1];
-              console.log(`[RaidSync] Detected latest raid: ${targetRaid.instance.name} for ${name}`);
+          let targetRaid = null;
+
+          if (exclusiveRaidName) {
+            // Strictly look for the exclusive raid
+            for (const exp of raidEncounters.expansions) {
+              if (exp.instances) {
+                const match = exp.instances.find((inst: any) =>
+                  inst.instance.name === exclusiveRaidName ||
+                  (inst.instance.name.de_DE && inst.instance.name.de_DE === exclusiveRaidName)
+                );
+                if (match) {
+                  targetRaid = match;
+                  console.log(`[RaidSync] Exclusive raid found: ${exclusiveRaidName} for ${name}`);
+                  break;
+                }
+              }
+            }
+          } else {
+            // Priority 1: Specifically look for "Manaforge Omega"
+            for (const exp of raidEncounters.expansions) {
+              if (exp.instances) {
+                const omegaRaid = exp.instances.find((inst: any) =>
+                  inst.instance.name === 'Manaforge Omega' ||
+                  (inst.instance.name.de_DE && inst.instance.name.de_DE === 'Manaschmiede Omega')
+                );
+                if (omegaRaid) {
+                  targetRaid = omegaRaid;
+                  console.log(`[RaidSync] Prioritizing Manaforge Omega for ${name}`);
+                  break;
+                }
+              }
+            }
+
+            // Priority 2: Fallback to the latest raid in the most recent expansion
+            if (!targetRaid && raidEncounters.expansions.length > 0) {
+              const latestExp = raidEncounters.expansions[raidEncounters.expansions.length - 1];
+              if (latestExp.instances && latestExp.instances.length > 0) {
+                targetRaid = latestExp.instances[latestExp.instances.length - 1];
+                console.log(`[RaidSync] Detected latest raid: ${targetRaid.instance.name} for ${name}`);
+              }
             }
           }
 

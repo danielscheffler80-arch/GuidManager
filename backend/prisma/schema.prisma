@@ -99,6 +99,8 @@ model Guild {
   mainRosterIncludedCharacterIds Int[] @default([]) // Characters manually added to Main Roster
   mainRosterExcludedCharacterIds Int[] @default([]) // Characters manually hidden from Main Roster
   
+  exclusiveRaidName String? // If set, only this raid's progress will be displayed
+  
   @@unique([name, realm])
   @@map("guilds")
 }
