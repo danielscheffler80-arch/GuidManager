@@ -10,14 +10,26 @@ async function main() {
         console.log('Deleting Sync Logs...');
         await (prisma as any).syncLog.deleteMany({});
 
-        console.log('Deleting Raid Signups...');
-        await (prisma as any).raidSignup.deleteMany({});
+        console.log('Deleting Mythic Signups...');
+        await (prisma as any).mythicKeySignup.deleteMany({});
+
+        console.log('Deleting Mythic Keys...');
+        await (prisma as any).mythicKey.deleteMany({});
+
+        console.log('Deleting Raid Attendances...');
+        await (prisma as any).attendance.deleteMany({});
 
         console.log('Deleting Raid Events...');
-        await (prisma as any).raidEvent.deleteMany({});
+        await (prisma as any).raid.deleteMany({});
+
+        console.log('Deleting Rosters...');
+        await (prisma as any).roster.deleteMany({});
+
+        console.log('Deleting Guild Chat History...');
+        await (prisma as any).guildChat.deleteMany({});
 
         console.log('Deleting Guild Memberships...');
-        await (prisma as any).guildMembership.deleteMany({});
+        await (prisma as any).userGuild.deleteMany({});
 
         console.log('Deleting Characters...');
         await (prisma as any).character.deleteMany({});
