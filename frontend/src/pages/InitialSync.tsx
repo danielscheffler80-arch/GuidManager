@@ -101,6 +101,13 @@ const InitialSync: React.FC = () => {
     };
 
     useEffect(() => {
+        // Wenn Sync bereits erledigt ist (z.B. durch Re-mount nach Layout-Switch), sofort weg hier
+        if (user?.initialSyncCompletedAt) {
+            console.log('[SYNC] Already completed, skipping to /account');
+            navigate('/account');
+            return;
+        }
+
         // Nur starten wenn Backend URL bereit ist (nicht localhost fallback oder Render)
         if (backendUrl && !backendUrl.includes('localhost') && !backendUrl.includes('onrender')) {
             console.log(`[SYNC] Triggered by backendUrl: ${backendUrl}`);
@@ -110,7 +117,7 @@ const InitialSync: React.FC = () => {
             console.log(`[SYNC] Triggered by backendUrl (Dev): ${backendUrl}`);
             startSync();
         }
-    }, [backendUrl]); // React on backendUrl changes
+    }, [backendUrl, user?.initialSyncCompletedAt]); // React on backendUrl and sync status changes
 
     return (
         <div style={containerStyle}>

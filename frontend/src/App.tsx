@@ -127,7 +127,6 @@ function AppContent() {
                 <AdminSettings />
               </ProtectedRoute>
             } />
-            <Route path="/initial-sync" element={<InitialSync />} />
             <Route path="*" element={<Navigate to="/dashboard" />} />
           </Routes>
         </main>
