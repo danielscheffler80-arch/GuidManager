@@ -17,34 +17,44 @@ const InitialSync: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const { user, checkAuth, backendUrl } = useAuth();
     const navigate = useNavigate();
+    const syncStarted = React.useRef(false); // Guard gegen Mehrfach-Execution
 
     const startSync = async () => {
+        if (syncStarted.current) return;
+        syncStarted.current = true;
+
         const token = localStorage.getItem('accessToken');
 
         if (!user) {
             console.log('[SYNC] Waiting for user context...');
+            syncStarted.current = false; // Reset damit es später triggern kann
             return;
         }
 
         try {
-            // Step 1 & 2: Account & Discovery
+            console.log('[SYNC] Initialization complete, starting phase 1...');
+
+            // Step 1: Account Daten
             setCurrentStep(1);
             setStatus(steps[0].title);
-            setProgress(10);
+            setProgress(5);
 
             const res1 = await fetch(`${backendUrl}/api/sync/initial/account`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res1.ok) throw new Error('Account sync fehlgeschlagen');
+            if (!res1.ok) throw new Error('Account sync fehlgeschlagen. Bitte prüfe deine Battle.net Verbindung.');
 
-            setProgress(30);
+            // Step 2: Discovery
+            setProgress(25);
             setCurrentStep(2);
             setStatus(steps[1].title);
-            await new Promise(r => setTimeout(r, 1000)); // Visuelle Pause
+
+            // Wir warten hier nicht künstlich sondern gehen direkt weiter da Step 1 fertig ist
 
             // Step 3: Deep Guild Sync (The heavy part)
-            setProgress(40);
+            // Dieser Schritt kann MINUTEN dauern. Wir setzen kein Timeout im Fetch.
+            setProgress(45);
             setCurrentStep(3);
             setStatus(steps[2].title);
 
@@ -52,12 +62,12 @@ const InitialSync: React.FC = () => {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res2.ok) throw new Error('Gilden deep-sync fehlgeschlagen');
+            if (!res2.ok) throw new Error('Gilden deep-sync fehlgeschlagen. Der Server braucht eventuell länger, bitte versuche es erneut.');
 
-            setProgress(70);
+            // Step 4: Addon Daten
+            setProgress(75);
             setCurrentStep(4);
             setStatus(steps[3].title);
-            await new Promise(r => setTimeout(r, 1000));
 
             // Step 5: Finalize
             setProgress(90);
@@ -68,29 +78,36 @@ const InitialSync: React.FC = () => {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res3.ok) throw new Error('Finalisierung fehlgeschlagen');
+            if (!res3.ok) throw new Error('Finalisierung fehlgeschlagen.');
 
             setProgress(100);
             setStatus('Abgeschlossen!');
 
-            // Refresh user state and redirect
+            // Refresh user state
+            console.log('[SYNC] Sync finished, refreshing auth state...');
             await checkAuth();
-            setTimeout(() => navigate('/dashboard'), 1500);
+
+            // Redirect to account settings so user can choose main char
+            setTimeout(() => {
+                console.log('[SYNC] Redirecting to /account');
+                navigate('/account');
+            }, 1000);
 
         } catch (err: any) {
-            console.error('[SYNC] Error:', err);
+            console.error('[SYNC] Error during synchronization:', err);
             setError(err.message);
+            syncStarted.current = false; // Allow retry
         }
     };
 
     useEffect(() => {
         // Nur starten wenn Backend URL bereit ist (nicht localhost fallback oder Render)
         if (backendUrl && !backendUrl.includes('localhost') && !backendUrl.includes('onrender')) {
-            console.log(`[SYNC] Starting initial sync with backend: ${backendUrl}`);
+            console.log(`[SYNC] Triggered by backendUrl: ${backendUrl}`);
             startSync();
         } else if (backendUrl && backendUrl.includes('localhost')) {
             // Im Dev Modus auch starten
-            console.log(`[SYNC] Starting initial sync (Dev Mode): ${backendUrl}`);
+            console.log(`[SYNC] Triggered by backendUrl (Dev): ${backendUrl}`);
             startSync();
         }
     }, [backendUrl]); // React on backendUrl changes
