@@ -50,24 +50,6 @@ const InitialSync: React.FC = () => {
         }
     }, [user?.initialSyncCompletedAt, navigate, isLoading]);
 
-    const [waitingForNext, setWaitingForNext] = useState(false);
-    const [resolveNext, setResolveNext] = useState<(() => void) | null>(null);
-
-    const waitForUser = () => {
-        setWaitingForNext(true);
-        return new Promise<void>((resolve) => {
-            setResolveNext(() => resolve);
-        });
-    };
-
-    const handleNext = () => {
-        if (resolveNext) {
-            setWaitingForNext(false);
-            resolveNext();
-            setResolveNext(null);
-        }
-    };
-
     const runFullSync = async () => {
         setPhase('syncing');
         setError(null);
@@ -84,7 +66,6 @@ const InitialSync: React.FC = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res1.ok) throw new Error('Phase 1 fehlgeschlagen.');
-            await waitForUser();
 
             // Phase 2: Discover
             setCurrentStep(2);
@@ -95,7 +76,6 @@ const InitialSync: React.FC = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res2.ok) throw new Error('Phase 2 fehlgeschlagen.');
-            await waitForUser();
 
             // Phase 3: Deep Sync Guilds
             setCurrentStep(3);
@@ -106,7 +86,6 @@ const InitialSync: React.FC = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res3.ok) throw new Error('Phase 3 fehlgeschlagen.');
-            await waitForUser();
 
             // Phase 4: Addon Data
             setCurrentStep(4);
@@ -117,7 +96,6 @@ const InitialSync: React.FC = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res4.ok) throw new Error('Phase 4 fehlgeschlagen.');
-            await waitForUser();
 
             // Phase 5: Chat History
             setCurrentStep(5);
@@ -128,14 +106,10 @@ const InitialSync: React.FC = () => {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             if (!res5.ok) throw new Error('Phase 5 fehlgeschlagen.');
-            await waitForUser();
 
             // Finalize
-            setStatus('Bereit zur Finalisierung...');
-            setProgress(95);
-            await waitForUser();
-
             setStatus('Finalisiere...');
+            setProgress(95);
             const resFinal = await fetch(`${backendUrl}/api/sync/initial/finalize`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -150,7 +124,6 @@ const InitialSync: React.FC = () => {
         } catch (err: any) {
             setError(err.message);
             setPhase('idle');
-            setWaitingForNext(false);
         }
     };
 
@@ -200,21 +173,12 @@ const InitialSync: React.FC = () => {
                             <button onClick={runFullSync} style={primaryButton}>Sync Starten</button>
                         )}
 
-                        {waitingForNext && (
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                <div style={{ color: '#10b981', fontSize: '0.8rem', textAlign: 'center', fontWeight: 'bold', marginBottom: '5px' }}>
-                                    Phase erfolgreich! Bereit für den nächsten Schritt.
-                                </div>
-                                <button onClick={handleNext} style={nextButton}>Nächster Schritt</button>
-                            </div>
-                        )}
-
                         {phase === 'completed' && (
                             <button onClick={() => navigate('/account')} style={nextButton}>Initialisierung abgeschlossen - App öffnen</button>
                         )}
 
-                        {(phase === 'syncing' && !waitingForNext) && (
-                            <div style={loadingText}>Verarbeite Daten... Bitte warten.</div>
+                        {phase === 'syncing' && (
+                            <div style={loadingText}>Synchronisiere... Bitte warten.</div>
                         )}
 
                         <button
