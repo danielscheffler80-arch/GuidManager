@@ -4,11 +4,17 @@ import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
 
-// Step-based initial sync
-router.post('/initial/account', authenticateToken, SyncController.syncAccount);
-router.post('/initial/guilds', authenticateToken, SyncController.syncGuilds);
-router.post('/initial/guild/:guildId', authenticateToken, SyncController.syncSingleGuild);
+// 5-Phase initial sync
+router.post('/initial/account', authenticateToken, SyncController.syncAccount);    // Phase 1
+router.post('/initial/discover', authenticateToken, SyncController.discoverCharacters); // Phase 2
+router.post('/initial/guilds', authenticateToken, SyncController.syncGuilds);        // Phase 3
+router.post('/initial/addon', authenticateToken, SyncController.syncAddonData);      // Phase 4
+router.post('/initial/history', authenticateToken, SyncController.loadChatHistory);  // Phase 5
+
 router.post('/initial/finalize', authenticateToken, SyncController.finalize);
 router.post('/initial/reset', authenticateToken, SyncController.resetInitialSync);
+
+// Debugger
+router.get('/debug/logs', authenticateToken, SyncController.getLogs);
 
 export default router;

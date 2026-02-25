@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const steps = [
-    { id: 1, title: 'Sync Account Daten', description: 'Grundlegende Profil-Informationen werden abgerufen.' },
-    { id: 2, title: 'Charaktere & Gilden entdecken', description: 'Suche nach all deinen Helden und ihren Communities.' },
-    { id: 3, title: 'Gilden-Daten Deep Sync', description: 'Roster, RIO-Scores und Raid-Fortschritte werden geladen.' },
-    { id: 4, title: 'Addon-Daten abgleichen', description: 'Lokale Keys und Addon-Informationen werden integriert.' },
-    { id: 5, title: 'Chat-History laden', description: 'Letzte Nachrichten vom Server abrufen.' }
+    { id: 1, title: 'Phase 1: Sync Account Daten', description: 'Check Battle.net ID und Profil-Verifizierung.' },
+    { id: 2, title: 'Phase 2: Charaktere & Gilden entdecken', description: 'Suche nach all deinen Helden und ihren Communities.' },
+    { id: 3, title: 'Phase 3: Gilden-Daten Deep Sync', description: 'Deep Sync der Gilden-Roster (ilvl, RIO, Raid Progress).' },
+    { id: 4, title: 'Phase 4: Addon-Daten abgleichen', description: 'Integriere aktuelle Keys von Blizzard & AlterEgo.' },
+    { id: 5, title: 'Phase 5: Chat-History laden', description: 'Gilden-Chat Nachrichten vom Server laden.' }
 ];
 
 const InitialSync: React.FC = () => {
@@ -16,254 +16,247 @@ const InitialSync: React.FC = () => {
     const [status, setStatus] = useState('Bereit für den Datenabgleich');
     const [error, setError] = useState<string | null>(null);
     const [phase, setPhase] = useState<'idle' | 'syncing' | 'completed'>('idle');
-    const [currentPhaseIndex, setCurrentPhaseIndex] = useState(0); // 0=Intro, 1=Account, 2=Guilds, 3=Finalize, 4=Done
+    const [logs, setLogs] = useState<any[]>([]);
+    const [showDebugger, setShowDebugger] = useState(true);
 
     const { user, checkAuth, backendUrl, isLoading } = useAuth();
     const navigate = useNavigate();
 
+    // Debug Logs Polling
     useEffect(() => {
-        // Wenn Auth noch lädt (Backend-Check), warten wir ab
-        if (isLoading) return;
+        let interval: any;
+        if (phase === 'syncing') {
+            interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${backendUrl}/api/sync/debug/logs`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setLogs(data.logs);
+                    }
+                } catch (e) {
+                    console.error('Failed to fetch logs', e);
+                }
+            }, 2000);
+        }
+        return () => clearInterval(interval);
+    }, [phase, backendUrl]);
 
-        // Wenn Sync bereits erledigt ist, sofort weg hier
+    useEffect(() => {
+        if (isLoading) return;
         if (user?.initialSyncCompletedAt) {
-            console.log('[SYNC] Already completed, skipping to /account');
             navigate('/account');
         }
     }, [user?.initialSyncCompletedAt, navigate, isLoading]);
 
-    const runPhase1 = async () => {
+    const runFullSync = async () => {
         setPhase('syncing');
         setError(null);
+        setLogs([]);
         const token = localStorage.getItem('accessToken');
 
         try {
+            // Phase 1: Account
             setCurrentStep(1);
             setStatus(steps[0].title);
             setProgress(10);
-
             const res1 = await fetch(`${backendUrl}/api/sync/initial/account`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res1.ok) throw new Error('Account sync fehlgeschlagen.');
+            if (!res1.ok) throw new Error('Phase 1 fehlgeschlagen.');
 
-            setProgress(25);
+            // Phase 2: Discover
             setCurrentStep(2);
             setStatus(steps[1].title);
+            setProgress(30);
+            const res2 = await fetch(`${backendUrl}/api/sync/initial/discover`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res2.ok) throw new Error('Phase 2 fehlgeschlagen.');
 
+            // Phase 3: Deep Sync Guilds
+            setCurrentStep(3);
+            setStatus(steps[2].title);
+            setProgress(60);
+            const res3 = await fetch(`${backendUrl}/api/sync/initial/guilds`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res3.ok) throw new Error('Phase 3 fehlgeschlagen.');
+
+            // Phase 4: Addon Data
+            setCurrentStep(4);
+            setStatus(steps[3].title);
+            setProgress(80);
+            const res4 = await fetch(`${backendUrl}/api/sync/initial/addon`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res4.ok) throw new Error('Phase 4 fehlgeschlagen.');
+
+            // Phase 5: Chat History
+            setCurrentStep(5);
+            setStatus(steps[4].title);
+            setProgress(90);
+            const res5 = await fetch(`${backendUrl}/api/sync/initial/history`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res5.ok) throw new Error('Phase 5 fehlgeschlagen.');
+
+            // Finalize
+            setStatus('Finalisiere...');
+            setProgress(95);
+            const resFinal = await fetch(`${backendUrl}/api/sync/initial/finalize`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resFinal.ok) throw new Error('Finalisierung fehlgeschlagen.');
+
+            // Success
+            setProgress(100);
             setPhase('completed');
-            setCurrentPhaseIndex(1);
-            setStatus('Phase 1 abgeschlossen!');
+            setStatus('Synchronisation vollständig!');
+            await checkAuth(); // User-Objekt aktualisieren
         } catch (err: any) {
             setError(err.message);
             setPhase('idle');
         }
     };
 
-    const runPhase2 = async () => {
-        setPhase('syncing');
-        setError(null);
-        const token = localStorage.getItem('accessToken');
-
-        try {
-            // Hol frische Daten vom Backend, um sicherzustellen dass guildMemberships da sind
-            console.log('[SYNC] Phase 2: Fetching fresh user data...');
-            const freshUser = await checkAuth();
-
-            if (!freshUser) {
-                throw new Error('Sitzung abgelaufen. Bitte neu einloggen.');
-            }
-
-            const memberships = freshUser.guildMemberships || [];
-            console.log(`[SYNC] Phase 2: Found ${memberships.length} guilds to sync`);
-
-            if (memberships.length === 0) {
-                console.warn('[SYNC] No guilds found after Phase 1. Skipping to Phase 3.');
-                setProgress(75);
-                setPhase('completed');
-                setCurrentPhaseIndex(2);
-                setStatus('Phase 2 abgeschlossen (Keine Gilden gefunden)');
-                return;
-            }
-
-            for (let i = 0; i < memberships.length; i++) {
-                const membership = memberships[i];
-                const guildName = membership.guild?.name || 'Unbekannte Gilde';
-                const guildId = membership.guild?.id;
-
-                setCurrentStep(3);
-                setStatus(`Syncing Gilde ${i + 1} von ${memberships.length}: ${guildName}`);
-                // Progress zwischen 25% und 75% verteilen
-                const guildProgress = 25 + Math.floor(((i + 1) / memberships.length) * 50);
-                setProgress(guildProgress);
-
-                const res = await fetch(`${backendUrl}/api/sync/initial/guild/${guildId}`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                if (!res.ok) {
-                    const errData = await res.json();
-                    console.error(`[SYNC] Failed to sync guild ${guildName}:`, errData);
-                    // Wir machen trotzdem weiter bei anderen Gilden
-                }
-            }
-
-            setProgress(75);
-            setPhase('completed');
-            setCurrentPhaseIndex(2);
-            setStatus('Phase 2 abgeschlossen!');
-            console.log('[SYNC] Phase 2 completed successfully');
-        } catch (err: any) {
-            console.error('[SYNC] Phase 2 error:', err);
-            setError(err.message || 'Gilden-Sync fehlgeschlagen.');
-            setPhase('idle');
-        }
-    };
-
-    const runPhase3 = async () => {
-        setPhase('syncing');
-        setError(null);
-        const token = localStorage.getItem('accessToken');
-
-        try {
-            console.log('[SYNC] Phase 3: Finalizing sync...');
-            setCurrentStep(4);
-            setStatus(steps[3].title);
-            setProgress(85);
-
-            const res3 = await fetch(`${backendUrl}/api/sync/initial/finalize`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res3.ok) throw new Error('Finalisierung fehlgeschlagen.');
-
-            setProgress(95);
-            setStatus('Warte auf Bestätigung...');
-
-            // Polling bis initialSyncCompletedAt im User-Objekt erscheint
-            let persisted = false;
-            let attempts = 0;
-            while (!persisted && attempts < 10) {
-                attempts++;
-                console.log(`[SYNC] Persistence check attempt ${attempts}/10...`);
-                const updatedUser = await checkAuth();
-                if (updatedUser?.initialSyncCompletedAt) {
-                    persisted = true;
-                    console.log('[SYNC] initialSyncCompletedAt is now persisted!');
-                } else {
-                    await new Promise(r => setTimeout(r, 1000));
-                }
-            }
-
-            setProgress(100);
-            setPhase('completed');
-            setCurrentPhaseIndex(3);
-            setStatus('Synchronisation vollständig!');
-            console.log('[SYNC] Phase 3 completed successfully');
-        } catch (err: any) {
-            console.error('[SYNC] Phase 3 error:', err);
-            setError(err.message || 'Abschluss fehlgeschlagen.');
-            setPhase('idle');
-        }
-    };
-
-    const handleNext = () => {
-        setPhase('idle');
-        if (currentPhaseIndex === 1) runPhase2();
-        else if (currentPhaseIndex === 2) runPhase3();
-        else if (currentPhaseIndex === 3) navigate('/account');
-    };
-
     return (
         <div style={containerStyle}>
-            <div style={cardStyle}>
-                <h1 style={titleStyle}>Initialer Daten-Abgleich</h1>
+            <div style={{ ...cardStyle, maxWidth: showDebugger ? '95%' : '500px', flexDirection: 'row', display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
 
-                <div style={animationContainer}>
-                    <div style={{ ...circleAnimation, animation: phase === 'syncing' ? 'spin 2s linear infinite' : 'none', borderTopColor: phase === 'completed' ? '#4CAF50' : 'var(--accent)' }}></div>
-                    <div style={progressText}>{progress}%</div>
-                </div>
+                {/* Main Sync UI */}
+                <div style={{ flex: 1, minWidth: '400px' }}>
+                    <h1 style={titleStyle}>Initialer Daten-Abgleich</h1>
 
-                <div style={progressBarContainer}>
-                    <div style={{ ...progressBar, width: `${progress}%`, backgroundColor: phase === 'completed' ? '#4CAF50' : 'var(--accent)' }}></div>
-                </div>
+                    <div style={animationContainer}>
+                        <div style={{ ...circleAnimation, animation: phase === 'syncing' ? 'spin 2s linear infinite' : 'none', borderTopColor: phase === 'completed' ? '#4CAF50' : '#a330c9' }}></div>
+                        <div style={progressText}>{progress}%</div>
+                    </div>
 
-                <div style={statusContainer}>
-                    <h3 style={currentStepTitle}>{status}</h3>
-                    <p style={descriptionStyle}>{steps[currentStep - 1]?.description || 'Bereit zum Starten.'}</p>
-                </div>
+                    <div style={progressBarContainer}>
+                        <div style={{ ...progressBar, width: `${progress}%`, backgroundColor: phase === 'completed' ? '#4CAF50' : '#a330c9' }}></div>
+                    </div>
 
-                <div style={stepsList}>
-                    {steps.map((step) => (
-                        <div key={step.id} style={{
-                            ...stepItem,
-                            color: currentStep >= step.id ? (currentPhaseIndex >= 3 ? '#4CAF50' : 'var(--accent)') : '#666',
-                            opacity: currentStep >= step.id ? 1 : 0.5
-                        }}>
-                            <div style={currentStep === step.id ? activeIndicator : (currentStep > step.id ? doneIndicator : dotIndicator)}></div>
-                            <span>{step.title}</span>
+                    <div style={statusContainer}>
+                        <h3 style={currentStepTitle}>{status}</h3>
+                        <p style={descriptionStyle}>{steps[currentStep - 1]?.description || 'Bereit zum Starten.'}</p>
+                    </div>
+
+                    <div style={stepsList}>
+                        {steps.map((step) => (
+                            <div key={step.id} style={{
+                                ...stepItem,
+                                color: currentStep >= step.id ? (phase === 'completed' ? '#4CAF50' : '#a330c9') : '#666',
+                                opacity: currentStep >= step.id ? 1 : 0.5
+                            }}>
+                                <div style={currentStep === step.id ? activeIndicator : (currentStep > step.id ? doneIndicator : dotIndicator)}></div>
+                                <span>{step.title}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {error && (
+                        <div style={errorStyle}>
+                            <strong>Fehler:</strong> {error}
                         </div>
-                    ))}
+                    )}
+
+                    <div style={actionContainer}>
+                        {phase === 'idle' && (
+                            <button onClick={runFullSync} style={primaryButton}>Sync Starten</button>
+                        )}
+                        {phase === 'completed' && (
+                            <button onClick={() => navigate('/account')} style={nextButton}>App öffnen</button>
+                        )}
+                        {phase === 'syncing' && (
+                            <div style={loadingText}>Synchronisiere... Bitte warten.</div>
+                        )}
+
+                        <button
+                            onClick={() => setShowDebugger(!showDebugger)}
+                            style={{ marginTop: '15px', background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline' }}
+                        >
+                            {showDebugger ? 'Debugger ausblenden' : 'Debugger anzeigen'}
+                        </button>
+                    </div>
                 </div>
 
-                {error && (
-                    <div style={errorStyle}>
-                        <strong>Fehler:</strong> {error}
+                {/* Debugger Panel */}
+                {showDebugger && (
+                    <div style={debuggerPanelStyle}>
+                        <div style={debuggerHeaderStyle}>
+                            <span>Sync Debugger (Battle.net API & Cloud DB flow)</span>
+                            <span style={{ fontSize: '0.7rem', color: '#888' }}>Polling active</span>
+                        </div>
+                        <div style={logContainerStyle}>
+                            {logs.length === 0 ? (
+                                <div style={{ padding: '20px', color: '#555', fontStyle: 'italic' }}>Warte auf Logs...</div>
+                            ) : (
+                                logs.map((log, i) => (
+                                    <div key={i} style={logItemStyle}>
+                                        <div style={{ display: 'flex', gap: '8px', marginBottom: '4px' }}>
+                                            <span style={batchStyle(log.phase)}>Phase {log.phase}</span>
+                                            <span style={categoryStyle(log.category)}>{log.category}</span>
+                                            <span style={{ color: '#666', fontSize: '0.7rem' }}>{new Date(log.timestamp).toLocaleTimeString()}</span>
+                                        </div>
+                                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#ddd' }}>{log.message}</div>
+                                        {log.data && (
+                                            <pre style={dataStyle}>
+                                                {JSON.stringify(log.data, null, 2)}
+                                            </pre>
+                                        )}
+                                    </div>
+                                ))
+                            )}
+                        </div>
                     </div>
                 )}
-
-                <div style={actionContainer}>
-                    {phase === 'idle' && currentPhaseIndex === 0 && (
-                        <button onClick={runPhase1} style={primaryButton}>Starten</button>
-                    )}
-                    {phase === 'completed' && currentPhaseIndex < 3 && (
-                        <button onClick={handleNext} style={nextButton}>Weiter zu Phase {currentPhaseIndex + 1}</button>
-                    )}
-                    {phase === 'completed' && currentPhaseIndex === 3 && (
-                        <button onClick={handleNext} style={primaryButton}>App öffnen</button>
-                    )}
-                    {phase === 'syncing' && (
-                        <div style={loadingText}>Synchronisiere... Bitte warten.</div>
-                    )}
-                </div>
-
-                <div style={infoFooter}>
-                    <p>Wähle "Weiter", um den nächsten Schritt manuell zu starten.</p>
-                </div>
             </div>
 
             <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 0.5; } }
-      `}</style>
+                @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                @keyframes pulse { 0% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 0.5; } }
+            `}</style>
         </div>
     );
 };
 
 // Styles
-const containerStyle: React.CSSProperties = { minHeight: '100vh', backgroundColor: '#1a1a1a', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D1D9E0', fontFamily: 'system-ui, -apple-system, sans-serif' };
-const cardStyle: React.CSSProperties = { backgroundColor: '#252525', padding: '40px', borderRadius: '16px', width: '100%', maxWidth: '500px', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', textAlign: 'center', border: '1px solid #333' };
-const titleStyle: React.CSSProperties = { margin: '0 0 30px 0', fontSize: '1.5rem', background: 'linear-gradient(90deg, #fff, var(--accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800 };
+const containerStyle: React.CSSProperties = { minHeight: '100vh', backgroundColor: '#141414', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D1D9E0', fontFamily: 'Inter, system-ui, -apple-system, sans-serif' };
+const cardStyle: React.CSSProperties = { backgroundColor: '#1e1e1e', padding: '40px', borderRadius: '16px', border: '1px solid #333', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' };
+const titleStyle: React.CSSProperties = { margin: '0 0 30px 0', fontSize: '1.75rem', background: 'linear-gradient(135deg, #fff 0%, #a330c9 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 800, letterSpacing: '-0.025em' };
 const animationContainer: React.CSSProperties = { position: 'relative', width: '120px', height: '120px', margin: '0 auto 30px' };
-const circleAnimation: React.CSSProperties = { width: '100%', height: '100%', border: '4px solid rgba(163, 48, 201, 0.1)', borderTop: '4px solid var(--accent)', borderRadius: '50%' };
-const progressText: React.CSSProperties = { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.2rem', fontWeight: 'bold' };
-const progressBarContainer: React.CSSProperties = { width: '100%', height: '8px', backgroundColor: '#333', borderRadius: '4px', overflow: 'hidden', marginBottom: '20px' };
-const progressBar: React.CSSProperties = { height: '100%', transition: 'width 0.5s ease-in-out', boxShadow: '0 0 10px var(--accent)' };
+const circleAnimation: React.CSSProperties = { width: '100%', height: '100%', border: '4px solid rgba(163, 48, 201, 0.1)', borderTop: '4px solid #a330c9', borderRadius: '50%' };
+const progressText: React.CSSProperties = { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '1.5rem', fontWeight: 800, color: '#fff' };
+const progressBarContainer: React.CSSProperties = { width: '100%', height: '6px', backgroundColor: '#333', borderRadius: '3px', overflow: 'hidden', marginBottom: '25px' };
+const progressBar: React.CSSProperties = { height: '100%', transition: 'width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)', boxShadow: '0 0 15px rgba(163, 48, 201, 0.5)' };
 const statusContainer: React.CSSProperties = { marginBottom: '30px' };
-const currentStepTitle: React.CSSProperties = { margin: '0 0 8px 0', fontSize: '1.1rem' };
-const descriptionStyle: React.CSSProperties = { color: '#888', fontSize: '0.9rem', margin: 0 };
-const stepsList: React.CSSProperties = { textAlign: 'left', marginBottom: '30px', padding: '20px', backgroundColor: '#1e1e1e', borderRadius: '12px' };
-const stepItem: React.CSSProperties = { display: 'flex', alignItems: 'center', marginBottom: '12px', fontSize: '0.9rem', transition: 'all 0.3s ease' };
-const dotIndicator: React.CSSProperties = { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#444', marginRight: '12px' };
-const doneIndicator: React.CSSProperties = { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#4CAF50', marginRight: '12px' };
-const activeIndicator: React.CSSProperties = { width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent)', marginRight: '12px', boxShadow: '0 0 10px var(--accent)', animation: 'pulse 1.5s infinite' };
-const infoFooter: React.CSSProperties = { borderTop: '1px solid #333', paddingTop: '20px', fontSize: '0.9rem', color: '#aaa' };
-const errorStyle: React.CSSProperties = { backgroundColor: 'rgba(255, 0, 0, 0.1)', border: '1px solid rgba(255, 0, 0, 0.3)', padding: '15px', borderRadius: '8px', marginBottom: '20px', color: '#ff4444', fontSize: '0.9rem' };
-const actionContainer: React.CSSProperties = { marginBottom: '30px' };
-const primaryButton: React.CSSProperties = { width: '100%', padding: '12px', backgroundColor: 'var(--accent)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' };
-const nextButton: React.CSSProperties = { width: '100%', padding: '12px', backgroundColor: '#4CAF50', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' };
-const loadingText: React.CSSProperties = { color: 'var(--accent)', fontStyle: 'italic' };
+const currentStepTitle: React.CSSProperties = { margin: '0 0 8px 0', fontSize: '1.1rem', fontWeight: 600, color: '#fff' };
+const descriptionStyle: React.CSSProperties = { color: '#9ca3af', fontSize: '0.9rem', lineHeight: '1.5' };
+const stepsList: React.CSSProperties = { textAlign: 'left', marginBottom: '30px', padding: '24px', backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' };
+const stepItem: React.CSSProperties = { display: 'flex', alignItems: 'center', marginBottom: '14px', fontSize: '0.9rem', fontWeight: 500, transition: 'all 0.3s ease' };
+const dotIndicator: React.CSSProperties = { width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#374151', marginRight: '14px' };
+const doneIndicator: React.CSSProperties = { width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#10b981', marginRight: '14px', boxShadow: '0 0 8px rgba(16, 185, 129, 0.4)' };
+const activeIndicator: React.CSSProperties = { width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#a330c9', marginRight: '14px', boxShadow: '0 0 12px rgba(163, 48, 201, 0.6)', animation: 'pulse 2s infinite' };
+const actionContainer: React.CSSProperties = { display: 'flex', flexDirection: 'column' };
+const primaryButton: React.CSSProperties = { width: '100%', padding: '14px', backgroundColor: '#a330c9', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem', transition: 'all 0.2s ease', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' };
+const nextButton: React.CSSProperties = { width: '100%', padding: '14px', backgroundColor: '#10b981', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontWeight: 700, fontSize: '1rem' };
+const loadingText: React.CSSProperties = { color: '#a330c9', fontWeight: 600, fontSize: '0.95rem', textAlign: 'center' };
+const errorStyle: React.CSSProperties = { backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '16px', borderRadius: '10px', marginBottom: '25px', color: '#ef4444', fontSize: '0.9rem', textAlign: 'left' };
+
+const debuggerPanelStyle: React.CSSProperties = { flex: 1.5, height: '600px', backgroundColor: '#121212', borderRadius: '12px', border: '1px solid #333', display: 'flex', flexDirection: 'column', overflow: 'hidden' };
+const debuggerHeaderStyle: React.CSSProperties = { padding: '12px 16px', borderBottom: '1px solid #333', backgroundColor: '#1a1a1a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600, fontSize: '0.9rem' };
+const logContainerStyle: React.CSSProperties = { flex: 1, overflowY: 'auto', padding: '10px', fontFamily: '"Fira Code", monospace', fontSize: '0.8rem' };
+const logItemStyle: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #222', marginBottom: '5px' };
+const batchStyle = (phase: number) => ({ padding: '2px 6px', borderRadius: '4px', backgroundColor: phase === 1 ? '#2563eb' : phase === 2 ? '#7c3aed' : phase === 3 ? '#db2777' : '#059669', color: 'white', fontSize: '0.65rem', fontWeight: 700 });
+const categoryStyle = (cat: string) => ({ padding: '2px 6px', borderRadius: '4px', border: `1px solid ${cat === 'ERROR' ? '#ef4444' : cat.includes('API') ? '#3b82f6' : '#10b981'}`, color: cat === 'ERROR' ? '#ef4444' : cat.includes('API') ? '#3b82f6' : '#10b981', fontSize: '0.65rem' });
+const dataStyle: React.CSSProperties = { marginTop: '8px', padding: '8px', backgroundColor: '#000', color: '#10b981', borderRadius: '4px', overflowX: 'auto', fontSize: '0.7rem' };
 
 export default InitialSync;

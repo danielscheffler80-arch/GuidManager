@@ -279,3 +279,17 @@ model PrivateMessage {
   @@index([receiverId])
   @@map("private_messages")
 }
+// Sync Log Model for Debugging
+model SyncLog {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  phase       Int      // 1-5
+  category    String   // BNET_API_INPUT, CLOUD_DB_OUTPUT, ERROR, etc.
+  message     String
+  data        Json?    // Raw API data or DB update data
+  timestamp   DateTime @default(now())
+
+  @@index([userId])
+  @@index([phase])
+  @@map("sync_logs")
+}
