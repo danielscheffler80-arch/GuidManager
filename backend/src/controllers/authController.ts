@@ -395,6 +395,7 @@ export class AuthController {
           battletag: currentUser.name,
           battlenetId: currentUser.battleNetId,
           createdAt: currentUser.createdAt,
+          initialSyncCompletedAt: currentUser.initialSyncCompletedAt,
           guildMemberships: currentUser.guildMemberships
         }
       });
