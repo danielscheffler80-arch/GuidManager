@@ -455,7 +455,7 @@ export class BattleNetAPIService {
     try {
       // Blizzard API expects a slug: lowercase, spaces/dots replaced by dashes
       // IMPORTANT: European realms use localized slugs for names with special characters!
-      const slug = guildName.toLowerCase()
+      const slug = guildName.trim().toLowerCase()
         .replace(/[ä]/g, 'a')
         .replace(/[ö]/g, 'o')
         .replace(/[ü]/g, 'u')
@@ -468,19 +468,25 @@ export class BattleNetAPIService {
       const encodedName = encodeURIComponent(slug);
       console.log(`[BNET] Fetching roster for guild: ${guildName} -> slug: ${slug} (encoded: ${encodedName}) on realm: ${realm}`);
 
-      const data = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}/roster`);
+      try {
+        const data = await this.makeAPICall(`/data/wow/guild/${realm}/${encodedName}/roster`);
 
-      // LOGGING RAW KEYS
-      const { members, ...meta } = data;
-      console.log(`[BNET] Roster success for ${guildName}. Member Count: ${members?.length || 0}`);
+        // LOGGING RAW KEYS
+        const { members, ...meta } = data;
+        console.log(`[BNET] Roster success for ${guildName}. Member Count: ${members?.length || 0}`);
 
-      return members || [];
-    } catch (error: any) {
-      console.error(`[BNET] Failed to fetch roster for ${guildName}@${realm}:`, error.message);
-      // Detailed error log to help debugging
-      if (error.response?.status === 404) {
-        console.warn(`[BNET] 404 NOT FOUND for guild slug: ${guildName} -> ${realm}. Please check slugification logic.`);
+        return members || [];
+      } catch (apiError: any) {
+        // If it's a 404 from makeAPICall (which mentions "Failed to fetch data..."), return empty.
+        // makeAPICall re-throws with a specific message.
+        if (apiError.message.includes('Battle.net API') || (apiError.response && apiError.response.status === 404)) {
+          console.warn(`[BNET] Could not fetch roster for guild: ${guildName} (@${realm}). Returning empty roster.`);
+          return [];
+        }
+        throw apiError;
       }
+    } catch (error: any) {
+      console.error(`[BNET] Error in getGuildRoster for ${guildName}@${realm}:`, error.message);
       throw error;
     }
   }

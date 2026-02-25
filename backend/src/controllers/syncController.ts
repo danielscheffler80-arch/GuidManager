@@ -78,9 +78,14 @@ export class SyncController {
 
             for (let i = 0; i < guilds.length; i++) {
                 const guild = guilds[i];
-                await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Syncing guild ${i + 1}/${guilds.length}: ${guild.name}`);
-
-                await BattleNetAPIService.syncGuildMembers(userId, guild.id, guild.name, guild.realm, user.accessToken, true);
+                try {
+                    await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Syncing guild ${i + 1}/${guilds.length}: ${guild.name}`);
+                    await BattleNetAPIService.syncGuildMembers(userId, guild.id, guild.name, guild.realm, user.accessToken, true);
+                } catch (guildErr: any) {
+                    console.error(`[SYNC] Failed to sync guild ${guild.name}:`, guildErr.message);
+                    await SyncLogService.log(userId, 3, SyncCategory.ERROR, `Phase 3 failed for ${guild.name}: ${guildErr.message}. Skipping guild...`);
+                    // We continue the loop to try the next guild
+                }
             }
 
             await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, 'Phase 3: Deep sync completed');
