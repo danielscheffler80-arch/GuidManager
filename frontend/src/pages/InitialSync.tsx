@@ -84,8 +84,16 @@ const InitialSync: React.FC = () => {
     };
 
     useEffect(() => {
-        startSync();
-    }, []);
+        // Nur starten wenn Backend URL bereit ist (nicht localhost fallback oder Render)
+        if (backendUrl && !backendUrl.includes('localhost') && !backendUrl.includes('onrender')) {
+            console.log(`[SYNC] Starting initial sync with backend: ${backendUrl}`);
+            startSync();
+        } else if (backendUrl && backendUrl.includes('localhost')) {
+            // Im Dev Modus auch starten
+            console.log(`[SYNC] Starting initial sync (Dev Mode): ${backendUrl}`);
+            startSync();
+        }
+    }, [backendUrl]); // React on backendUrl changes
 
     return (
         <div style={containerStyle}>

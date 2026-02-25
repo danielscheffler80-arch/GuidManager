@@ -110,7 +110,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
           if (window.electronAPI.isBackendReady && window.electronAPI.isBackendReady()) {
             setConnectionStatus('ready');
-            console.log(`[AUTH] Backend ready and verified`);
+            const verifiedUrl = window.electronAPI.getBackendUrl();
+            setBackendUrlState(verifiedUrl); // Update state with verified URL
+            localStorage.setItem('backendUrl', verifiedUrl); // Persist
+            console.log(`[AUTH] Backend ready and verified: ${verifiedUrl}`);
           } else {
             setConnectionStatus('checking'); // Keep checking if not verified
             console.log(`[AUTH] Backend not verified yet, but check finished.`);
