@@ -7,6 +7,7 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "db:fix-sequences": "ts-node src/scripts/fix-sequences.ts",
     "db:migrate:deploy": "prisma migrate deploy",
+    "db:wipe": "ts-node src/scripts/wipe-database.ts",
     "updates:clean": "ts-node src/scripts/clean-updates.ts",
     "build": "npx prisma generate && tsc",
     "lint": "eslint src/**/*.ts",

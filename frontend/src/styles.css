@@ -60,6 +60,7 @@ body {
 .layout {
   display: grid;
   grid-template-columns: 260px 1fr;
+  grid-template-rows: 1fr 34px; /* Narrow bottom bar */
   height: 100vh;
   width: 100vw;
   overflow: hidden;
@@ -68,7 +69,7 @@ body {
 .main-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%; /* Changed from 100vh to 100% of grid cell */
   overflow: hidden;
   position: relative;
 }
@@ -797,6 +798,67 @@ th {
   background: rgba(30, 255, 0, 0.2);
   color: #1EFF00;
   border: 1px solid rgba(30, 255, 0, 0.3);
+}
+
+/* Bottom Feedback Bar */
+.bottom-bar {
+  grid-column: 1 / 3;
+  grid-row: 2;
+  background: #111;
+  border-top: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 0.75rem;
+  color: #666;
+  z-index: 2000;
+}
+
+.bottom-bar-left {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.bottom-bar-actions {
+  display: flex;
+  gap: 12px;
+  height: 100%;
+  align-items: center;
+}
+
+.feedback-btn {
+  background: transparent;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: #999;
+  font-weight: 600;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  height: 24px;
+}
+
+.feedback-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.feedback-btn.bug:hover {
+  color: #ef4444;
+}
+
+.feedback-btn.feedback:hover {
+  color: #3b82f6;
+}
+
+.feedback-btn .icon {
+  font-size: 0.9rem;
 }
 
 .raid-count-badge {

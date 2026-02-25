@@ -22,6 +22,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { WebRTCProvider } from './contexts/WebRTCContext';
 import { useAuth } from './contexts/AuthContext';
 import { GuildProvider } from './contexts/GuildContext';
+import BottomBar from './components/BottomBar';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
@@ -131,6 +132,7 @@ function AppContent() {
           </Routes>
         </main>
       </div>
+      <BottomBar />
     </div>
   );
 }
