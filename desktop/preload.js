@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Backend URL Management
-let workingBackendUrl = 'https://guild-manager-backend.onrender.com';
+let workingBackendUrl = 'https://guidmanager-production.up.railway.app';
 let backendCheckComplete = false;
 let backendVerified = false;
 
@@ -37,8 +37,8 @@ ipcRenderer.invoke('get-config').then(async (config) => {
   // 3. Current Render URL (as temporary fallback during migration)
   const urlsToTry = Array.from(new Set([
     config.backendUrl,
-    'http://localhost:3334',
-    'https://guild-manager-backend.onrender.com'
+    'https://guidmanager-production.up.railway.app',
+    'http://localhost:3334'
   ])).filter(Boolean);
 
   for (const url of urlsToTry) {
