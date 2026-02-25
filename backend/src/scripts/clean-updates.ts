@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
 
-const updatesDir = path.join(__dirname, '../updates');
+const updatesDir = path.join(__dirname, '../../updates');
 const latestYmlPath = path.join(updatesDir, 'latest.yml');
 
 function cleanLegacyUpdates() {
