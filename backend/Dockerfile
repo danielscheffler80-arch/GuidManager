@@ -34,5 +34,5 @@ COPY --from=builder /app/updates ./updates
 
 EXPOSE 3334
 
-# Use a shell script or direct command that runs migrations before starting
-CMD npx prisma migrate deploy && node dist/index.js
+# Run migrations and start the app
+CMD ["npm", "start"]
