@@ -4,16 +4,15 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.50 - Recovery & Diagnostics
+## [Current] v0.9.51 - Recovery & Migration Fix
 - **Status**: Deployment in Progress
-- **Backend**: Healthcheck an den absoluten Anfang des App-Lebenszyklus verschoben.
-- **Backend**: Detaillierteres Startup-Logging ("INIT Step 1-4").
-- **Backend**: `/health` ist nun extrem leichtgewichtig (nur Liveness).
-- **Rollback Artifact**: `git checkout 8a28f24` (v0.9.49)
+- **Backend**: Migration Lock (P3009) behoben durch automatischen `migrate resolve`.
+- **Database**: Migration SQL korrigiert (`IF NOT EXISTS` & `manualRaidProgress` hinzugefügt).
+- **Rollback Artifact**: `git checkout 41f5b53` (v0.9.50)
 
-## v0.9.49 - Deployment Fix & Update Cleanup
-- **Status**: Deployment Failed (Healthcheck)
-- **Backend**: Automatische Bereinigung alter Update-Dateien.
+## v0.9.50 - Recovery & Diagnostics
+- **Status**: Deployment Failed (Migration Lock)
+- **Backend**: Healthcheck an den Anfang verschoben.
 - **Rollback Artifact**: `git checkout 765ea22` (v0.9.48)
 
 ## v0.9.48 - Enhanced Raid Selection
