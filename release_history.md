@@ -4,7 +4,13 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.47 - Schema Fix & Admin Raid Feature
+## [Current] v0.9.48 - Enhanced Raid Selection
+- **Status**: Deployment in Progress
+- **Admin**: "Exklusiver Raid" ist nun eine Auswahl-Liste (Dropdown). 
+- **Admin**: Liste wird aus vorhandenen Raid-Events und Standard-Raids (z.B. Manaschmiede Omega) generiert.
+- **Rollback Artifact**: `git checkout 0a9406e` (v0.9.47)
+
+## v0.9.47 - Schema Fix & Admin Raid Feature
 - **Status**: Deployment in Progress
 - **Changes**:
     - **Database**: Added manual self-healing for missing columns via `/api/debug/db?fix=true`.

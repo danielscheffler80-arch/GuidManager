@@ -20,6 +20,7 @@ export default function AdminSettings() {
     const [newRosterRanks, setNewRosterRanks] = useState<number[]>([]);
     const [exclusiveRaid, setExclusiveRaid] = useState<string>('');
     const [manualProgress, setManualProgress] = useState<string>('');
+    const [availableRaids, setAvailableRaids] = useState<string[]>([]);
 
     useEffect(() => {
         if (selectedGuild) {
@@ -42,6 +43,7 @@ export default function AdminSettings() {
                 setVisibleRanks(data.currentVisibleRanks || []);
                 setExclusiveRaid(data.exclusiveRaidName || '');
                 setManualProgress(data.manualRaidProgress || '');
+                setAvailableRaids(data.availableRaids || []);
             }
 
             // Load current WoW Path from Electron config
@@ -484,14 +486,17 @@ export default function AdminSettings() {
                             </p>
                             <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-2 block">Exklusiver Raid Name (Blizzard Original)</label>
-                                    <input
-                                        type="text"
+                                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-2 block">Exklusiver Raid (Filter)</label>
+                                    <select
                                         value={exclusiveRaid}
                                         onChange={e => setExclusiveRaid(e.target.value)}
-                                        placeholder="z.B. Manaforge Omega"
-                                        className="w-full bg-black/20 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-white/5 focus:border-[var(--accent)]/50 transition-all text-white"
-                                    />
+                                        className="w-full bg-black/20 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-white/5 focus:border-[var(--accent)]/50 transition-all text-white cursor-pointer"
+                                    >
+                                        <option value="">-- Automatisch (Letzter Raid) --</option>
+                                        {availableRaids.map(raid => (
+                                            <option key={raid} value={raid}>{raid}</option>
+                                        ))}
+                                    </select>
                                 </div>
                                 <button
                                     onClick={handleSaveExclusiveRaid}

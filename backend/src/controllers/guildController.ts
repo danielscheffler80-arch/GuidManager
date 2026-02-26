@@ -178,6 +178,21 @@ export class GuildController {
                 }));
             }
 
+            // Hole Liste aller einzigartigen Raid-Titel aus der Datenbank
+            const dbRaids = await prisma.raid.findMany({
+                where: { guildId: Number(guildId) },
+                select: { title: true },
+                distinct: ['title']
+            });
+
+            const availableRaids = [...new Set([
+                'Manaschmiede Omega',
+                'Manaforge Omega',
+                'Nerub-ar Palace',
+                'Palast der Nerub\'ar',
+                ...dbRaids.map(r => r.title)
+            ])].sort();
+
             res.json({
                 success: true,
                 ranks: ranks,
@@ -186,6 +201,8 @@ export class GuildController {
                     ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
                     : (guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
                 exclusiveRaidName: guild.exclusiveRaidName,
+                manualRaidProgress: guild.manualRaidProgress,
+                availableRaids,
                 mainRosterIncludedCharacterIds: guild.mainRosterIncludedCharacterIds || [],
                 mainRosterExcludedCharacterIds: guild.mainRosterExcludedCharacterIds || []
             });
@@ -195,6 +212,8 @@ export class GuildController {
             res.status(500).json({ success: false, error: 'Failed to fetch guild ranks' });
         }
     }
+
+
 
     // Aktualisiert die sichtbaren Ränge
     static async updateVisibleRanks(req: Request, res: Response) {
