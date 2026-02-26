@@ -95,7 +95,8 @@ export class GuildController {
                 guild: {
                     name: guild?.name,
                     realm: guild?.realm,
-                    faction: guild?.faction
+                    faction: guild?.faction,
+                    manualRaidProgress: guild?.manualRaidProgress
                 },
                 announcements,
                 raids: raidsWithStatus,
@@ -305,6 +306,24 @@ export class GuildController {
         } catch (error) {
             console.error('Update exclusive raid error:', error);
             res.status(500).json({ success: false, error: 'Failed to update exclusive raid' });
+        }
+    }
+
+    // Aktualisiert den manuellen Raid-Fortschritt
+    static async updateRaidProgress(req: Request, res: Response) {
+        const { guildId } = req.params;
+        const { progress } = req.body;
+
+        try {
+            const guild = await prisma.guild.update({
+                where: { id: Number(guildId) },
+                data: { manualRaidProgress: progress || null }
+            });
+
+            res.json({ success: true, manualRaidProgress: guild.manualRaidProgress });
+        } catch (error) {
+            console.error('Update raid progress error:', error);
+            res.status(500).json({ success: false, error: 'Failed to update raid progress' });
         }
     }
 }

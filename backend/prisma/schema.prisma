@@ -100,6 +100,7 @@ model Guild {
   mainRosterExcludedCharacterIds Int[] @default([]) // Characters manually hidden from Main Roster
   
   exclusiveRaidName String? // If set, only this raid's progress will be displayed
+  manualRaidProgress String? // Manual override for raid progress (e.g. "8/8 M")
   
   @@unique([name, realm])
   @@map("guilds")

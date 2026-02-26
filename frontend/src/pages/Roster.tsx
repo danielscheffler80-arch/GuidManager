@@ -128,6 +128,7 @@ export default function Roster() {
     const isIncluded = selectedRoster.includedCharacterIds?.includes(member.id);
     const hasRank = !isActuallyExternal && rank !== null && selectedRoster.allowedRanks?.includes(rank);
 
+    // This was a thought, I'll apply it in the next tool call properly.
     // Admin view: Show if they have the rank OR are explicitly included OR search matches
     if (isAdmin) return hasRank || isIncluded || matchesFilter;
 
@@ -598,8 +599,8 @@ export default function Roster() {
                   title="Warcraft Logs öffnen"
                 >
                   <div style={{ fontSize: '0.75em', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px', fontWeight: '800' }}>Raid Progress</div>
-                  <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(member.raidProgress || '') }}>
-                    {member.raidProgress || '-'}
+                  <div style={{ fontWeight: 'bold', fontSize: '0.9em', color: getDifficultyColor(metadata?.manualRaidProgress || member.raidProgress || '') }}>
+                    {metadata?.manualRaidProgress || member.raidProgress || '-'}
                   </div>
                 </div>
 

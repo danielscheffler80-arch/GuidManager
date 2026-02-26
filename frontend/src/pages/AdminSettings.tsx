@@ -19,6 +19,7 @@ export default function AdminSettings() {
     const [newRosterName, setNewRosterName] = useState('');
     const [newRosterRanks, setNewRosterRanks] = useState<number[]>([]);
     const [exclusiveRaid, setExclusiveRaid] = useState<string>('');
+    const [manualProgress, setManualProgress] = useState<string>('');
 
     useEffect(() => {
         if (selectedGuild) {
@@ -40,6 +41,7 @@ export default function AdminSettings() {
                 setAdminRanks(data.currentAdminRanks || []);
                 setVisibleRanks(data.currentVisibleRanks || []);
                 setExclusiveRaid(data.exclusiveRaidName || '');
+                setManualProgress(data.manualRaidProgress || '');
             }
 
             // Load current WoW Path from Electron config
@@ -159,6 +161,22 @@ export default function AdminSettings() {
             }
         } catch (err) {
             console.error('Failed to update exclusive raid');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleSaveRaidProgress = async () => {
+        if (!selectedGuild) return;
+        try {
+            setSaving(true);
+            const data = await GuildService.updateRaidProgress(selectedGuild.id, manualProgress || null);
+            if (data.success) {
+                setManualProgress(data.manualRaidProgress || '');
+                alert('Manueller Raid-Fortschritt gespeichert!');
+            }
+        } catch (err) {
+            console.error('Failed to update raid progress');
         } finally {
             setSaving(false);
         }
@@ -449,46 +467,98 @@ export default function AdminSettings() {
                         <span className="text-xs font-black uppercase tracking-[0.2em] text-white/90">Raid-Fortschritt Fokus</span>
                     </header>
                     <div style={{
-                        background: '#1D1E1F',
-                        padding: '25px',
-                        borderRadius: '20px',
-                        border: '1px solid #333'
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '20px'
                     }}>
-                        <p className="text-[11px] text-gray-500 mb-6 font-bold uppercase tracking-wide leading-relaxed">
-                            Bestimme, welcher Raid ausschließlich im Roster und Dashboard angezeigt werden soll.<br />
-                            Standard: <span className="text-white">Manaforge Omega</span>
-                        </p>
-                        <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
-                            <div style={{ flex: 1 }}>
-                                <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-2 block">Exklusiver Raid Name (Blizzard Original)</label>
-                                <input
-                                    type="text"
-                                    value={exclusiveRaid}
-                                    onChange={e => setExclusiveRaid(e.target.value)}
-                                    placeholder="z.B. Manaforge Omega"
-                                    className="w-full bg-black/20 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-white/5 focus:border-[var(--accent)]/50 transition-all text-white"
-                                />
+                        {/* Phase Focus */}
+                        <div style={{
+                            background: '#1D1E1F',
+                            padding: '25px',
+                            borderRadius: '20px',
+                            border: '1px solid #333'
+                        }}>
+                            <p className="text-[11px] text-gray-500 mb-6 font-bold uppercase tracking-wide leading-relaxed">
+                                Bestimme, welcher Raid ausschließlich im Roster und Dashboard angezeigt werden soll.<br />
+                                Standard: <span className="text-white">Manaforge Omega</span>
+                            </p>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-2 block">Exklusiver Raid Name (Blizzard Original)</label>
+                                    <input
+                                        type="text"
+                                        value={exclusiveRaid}
+                                        onChange={e => setExclusiveRaid(e.target.value)}
+                                        placeholder="z.B. Manaforge Omega"
+                                        className="w-full bg-black/20 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-white/5 focus:border-[var(--accent)]/50 transition-all text-white"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSaveExclusiveRaid}
+                                    disabled={saving}
+                                    style={{
+                                        padding: '12px 20px',
+                                        backgroundColor: 'var(--accent)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        fontWeight: '900',
+                                        textTransform: 'uppercase',
+                                        fontSize: '10px',
+                                        letterSpacing: '1px',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 15px rgba(163,48,201,0.3)',
+                                        height: '46px'
+                                    }}
+                                >
+                                    Fokus Speichern
+                                </button>
                             </div>
-                            <button
-                                onClick={handleSaveExclusiveRaid}
-                                disabled={saving}
-                                style={{
-                                    padding: '12px 30px',
-                                    backgroundColor: 'var(--accent)',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '12px',
-                                    fontWeight: '900',
-                                    textTransform: 'uppercase',
-                                    fontSize: '10px',
-                                    letterSpacing: '1px',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 4px 15px rgba(163,48,201,0.3)',
-                                    height: '46px'
-                                }}
-                            >
-                                {saving ? 'Speichere...' : 'Fokus Speichern'}
-                            </button>
+                        </div>
+
+                        {/* Manual Progress Override */}
+                        <div style={{
+                            background: '#1D1E1F',
+                            padding: '25px',
+                            borderRadius: '20px',
+                            border: '1px solid #333'
+                        }}>
+                            <p className="text-[11px] text-gray-500 mb-6 font-bold uppercase tracking-wide leading-relaxed">
+                                Gib den Raid-Fortschritt manuell an, der im Roster und Dashboard angezeigt werden soll.<br />
+                                Überschreibt die automatische Berechnung.
+                            </p>
+                            <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end' }}>
+                                <div style={{ flex: 1 }}>
+                                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-2 block">Manueller Raid-Fortschritt (z.B. 8/8 M)</label>
+                                    <input
+                                        type="text"
+                                        value={manualProgress}
+                                        onChange={e => setManualProgress(e.target.value)}
+                                        placeholder="z.B. 8/8 M"
+                                        className="w-full bg-black/20 rounded-xl px-4 py-3 text-sm font-medium outline-none border border-white/5 focus:border-[var(--accent)]/50 transition-all text-white"
+                                    />
+                                </div>
+                                <button
+                                    onClick={handleSaveRaidProgress}
+                                    disabled={saving}
+                                    style={{
+                                        padding: '12px 20px',
+                                        backgroundColor: 'var(--accent)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        fontWeight: '900',
+                                        textTransform: 'uppercase',
+                                        fontSize: '10px',
+                                        letterSpacing: '1px',
+                                        cursor: 'pointer',
+                                        boxShadow: '0 4px 15px rgba(163,48,201,0.3)',
+                                        height: '46px'
+                                    }}
+                                >
+                                    Status Speichern
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

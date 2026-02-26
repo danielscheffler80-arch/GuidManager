@@ -269,7 +269,38 @@ export class AuthController {
       const chars = await prisma.character.count();
       const memberships = await prisma.userGuild.count();
 
-      res.json({ success: true, stats: { users, guilds, chars, memberships } });
+      // Prüfe Spalten-Existenz manuell
+      const columnCheck = await prisma.$queryRawUnsafe(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'guilds' AND column_name = 'exclusiveRaidName'
+      `);
+
+      const exists = (columnCheck as any[]).length > 0;
+      let healed = false;
+
+      if (!exists && req.query.fix === 'true') {
+        console.log('[DB-DEBUG] Column exclusiveRaidName missing. Starting self-healing...');
+        await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "exclusiveRaidName" TEXT`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "manualRaidProgress" TEXT`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "mainRosterIncludedCharacterIds" INTEGER[] DEFAULT ARRAY[]::INTEGER[]`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "guilds" ADD COLUMN IF NOT EXISTS "mainRosterExcludedCharacterIds" INTEGER[] DEFAULT ARRAY[]::INTEGER[]`);
+        healed = true;
+      }
+
+      res.json({
+        success: true,
+        stats: { users, guilds, chars, memberships },
+        schemaCheck: {
+          exclusiveRaidName_exists: exists || healed,
+          selfHealed: healed
+        },
+        env: {
+          NODE_ENV: process.env.NODE_ENV,
+          DATABASE_URL_SET: !!process.env.DATABASE_URL
+        },
+        instructions: !exists && !healed ? "Tippe /api/debug/db?fix=true zum Reparieren" : "Schema OK"
+      });
     } catch (error) {
       console.error('[DB-DEBUG] Error:', error);
       res.status(500).json({ success: false, error: (error as any).message });

@@ -194,6 +194,19 @@ export const GuildService = {
         return response.json();
     },
 
+    // Update manual raid progress
+    updateRaidProgress: async (guildId: number, progress: string | null) => {
+        const response = await fetch(`${getBackendUrl()}/api/guilds/${guildId}/update-progress`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeader(),
+                'Content-Type': 'application/json'
+            } as HeadersInit,
+            body: JSON.stringify({ progress })
+        });
+        return response.json();
+    },
+
     // Admin commands
     wipeDatabase: async () => {
         const response = await fetch(`${getBackendUrl()}/api/sync/admin/wipe`, {

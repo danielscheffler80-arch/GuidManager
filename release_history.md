@@ -1,8 +1,16 @@
-# Release History & Rollback Points
+# Release History & Rollback Tracking
 
 This document tracks all public releases of the Xava Guild Manager. For each version, the main changes and the corresponding rollback artifact are listed.
 
 ---
+
+## [Current] v0.9.47 - Schema Fix & Admin Raid Feature
+- **Status**: Deployment in Progress
+- **Changes**:
+    - **Database**: Added manual self-healing for missing columns via `/api/debug/db?fix=true`.
+    - **Admin**: Added "Raid Progress Override" in Gilden-Verwaltung for Superusers.
+    - **Dashboard/Roster**: Prioritize manual raid progress if set by admin.
+- **Rollback Artifact**: `git checkout 13e6d11` (v0.9.46)
 
 ## [v0.9.46] - 2026-02-26 (Latest)
 **Status:** Critical Schema Fix
