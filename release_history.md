@@ -4,9 +4,15 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.57 - Version Selector Installer
-- **Status**: Done ✅
-- **Desktop**: `bootstrapper/` als separates Projekt hinzugefügt. Dies erstellt eine unabhängige `Installer.exe`, die dem User die Auswahl der Version ermöglicht.
+## [Current] v0.9.58 - Update Deployer Fix
+- **Status**: Release Ready 📦
+- **Desktop**: `deploy-update.bat` korrigiert (Support für versionierte EXEs).
+- **Backend**: `clean-updates.ts` erkennt neue Dateinamen.
+- **Rollback Artifact**: `git checkout 6930ab1` (v0.9.57)
+
+## v0.9.57 - Version Selector Installer
+- **Status**: Success ✅
+- **Desktop**: `bootstrapper/` hinzugefügt (unabhängige `Installer.exe`).
 - **Backend**: `/api/update/list` Endpunkt bereitgestellt.
 - **Rollback Artifact**: `git checkout c943bad` (v0.9.56)
 
