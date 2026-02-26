@@ -47,32 +47,42 @@ app.use((req, res, next) => {
 // Health
 app.get('/health', async (_req, res) => {
   try {
-    // Timeout für DB Check
-    const dbPromise = prisma.user.count();
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Database Timeout')), 5000)
-    );
-
-    const userCount = await Promise.race([dbPromise, timeoutPromise]) as number;
-
-    res.json({
+    // Basic liveness check (always returns true if server is up)
+    const status: any = {
       ok: true,
-      database: 'connected',
-      userCount,
-      time: new Date().toISOString()
-    });
+      server: 'online',
+      time: new Date().toISOString(),
+      env: process.env.NODE_ENV || 'development'
+    };
+
+    // Optional Database check with short timeout
+    try {
+      const dbPromise = prisma.user.count();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('DB_TIMEOUT')), 3000)
+      );
+      await Promise.race([dbPromise, timeoutPromise]);
+      status.database = 'connected';
+    } catch (dbErr: any) {
+      status.database = dbErr.message === 'DB_TIMEOUT' ? 'timeout' : 'error';
+      status.dbError = dbErr.message;
+      // We still return 200/ok:true for liveness, but report DB status
+      console.warn(`[HEALTH] Database check degraded: ${dbErr.message}`);
+    }
+
+    res.json(status);
   } catch (err: any) {
-    console.error(`[HEALTH] Fehler: ${err.message}`);
+    console.error(`[HEALTH] Critical failure: ${err.message}`);
     res.status(500).json({
       ok: false,
-      database: 'error',
-      message: err.message,
+      error: err.message,
       time: new Date().toISOString()
     });
   }
 });
 
 // API Routes
+console.log('[INIT] Registering routes...');
 app.use('/api', guildsRouter);
 app.use('/auth', authRouter);
 app.use('/users', userRouter);
@@ -107,6 +117,7 @@ app.get('/api/update/info', (req, res) => {
 });
 
 // Initialize Socket Service
+console.log('[INIT] Initializing Socket.IO...');
 const io = new Server(server, {
   cors: {
     origin: true,
@@ -118,8 +129,9 @@ initSocketService(io);
 
 // Fallback
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3334;
+console.log(`[INIT] Starting server on port ${port}...`);
 server.listen(port, '0.0.0.0', () => {
-  console.log(`Backend listening on http://0.0.0.0:${port} (PID: ${process.pid})`);
+  console.log(`[READY] Backend listening on http://0.0.0.0:${port} (PID: ${process.pid})`);
 });
 
 

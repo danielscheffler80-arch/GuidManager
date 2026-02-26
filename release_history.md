@@ -4,7 +4,14 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.48 - Enhanced Raid Selection
+## [Current] v0.9.49 - Deployment Fix & Update Cleanup
+- **Status**: Deployment in Progress
+- **Backend**: Healthcheck resilient gemacht (Server startet auch wenn DB kurzzeitig slow ist).
+- **Backend**: Automatische Bereinigung alter Update-Dateien (behält nur noch 2 Versionen).
+- **Backend**: Verbessertes Startup-Logging für Railway.
+- **Rollback Artifact**: `git checkout 765ea22` (v0.9.48)
+
+## v0.9.48 - Enhanced Raid Selection
 - **Status**: Deployment in Progress
 - **Admin**: "Exklusiver Raid" ist nun eine Auswahl-Liste (Dropdown). 
 - **Admin**: Liste wird aus vorhandenen Raid-Events und Standard-Raids (z.B. Manaschmiede Omega) generiert.
