@@ -4,11 +4,14 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.54 - Absolute Schema Sync
+## [Current] v0.9.55 - Production Path Fix
 - **Status**: Deployment in Progress
-- **Database**: `ensure-schema.ts` hinzugefügt, das beim Start manuell alle fehlenden Spalten prüft und anlegt (`exclusiveRaidName`, `manualRaidProgress`, etc.).
-- **Backend**: `start` Skript führt jetzt Schema-Validierung vor App-Start aus.
-- **Rollback Artifact**: `git checkout 8a830ca` (v0.9.53)
+- **Backend**: Schema-Logik in `SchemaService` verschoben und direkt in `index.ts` integriert (statt externes Skript).
+- **Backend**: Funktioniert jetzt auch im Docker-Container (wo `src/` fehlt).
+- **Rollback Artifact**: `git checkout a5643d1` (v0.9.54)
+
+## v0.9.54 - Absolute Schema Sync
+- **Status**: Failed (Module Not Found in Prod)
 
 ## v0.9.53 - Deployment Finalized
 - **Status**: Failed (Schema Drift)

@@ -19,11 +19,17 @@ import messagesRouter from './routes/messages';
 import syncRouter from './routes/sync';
 import adminRouter from './routes/admin';
 import { initSocketService } from './services/socketService';
+import { SchemaService } from './services/schemaService';
 import prisma from './prisma';
 import { AuthController } from './controllers/authController';
 
 const app = express();
 const server = http.createServer(app);
+
+// --- STARTUP SCHEMA ENFORCEMENT ---
+SchemaService.ensureSchema().catch(err => {
+  console.error('[CRITICAL] Schema enforcement failed:', err);
+});
 
 // --- ULTRA EARLY HEALTHCHECK (Railway Resilience) ---
 app.get('/health', (_req, res) => {
