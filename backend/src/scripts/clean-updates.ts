@@ -16,11 +16,12 @@ function cleanLegacyUpdates() {
     try {
         const files = fs.readdirSync(updatesDir);
 
-        // 1. Identify all versioned .7z files
+        // 1. Identify all versioned files (7z updates and EXEs)
         const versionFiles = files
-            .filter(f => f.endsWith('.7z') && f.includes('standalone-'))
+            .filter(f => (f.endsWith('.7z') && f.includes('standalone-')) ||
+                (f.endsWith('.exe') && (f.includes('Setup_') || f.includes('UniversalSetup_'))))
             .map(f => {
-                const match = f.match(/standalone-(.*?)-x64/);
+                const match = f.match(/standalone-(.*?)-x64/) || f.match(/Setup_(.*?)\.exe/);
                 return {
                     name: f,
                     version: match ? match[1] : '0.0.0'
@@ -50,22 +51,22 @@ function cleanLegacyUpdates() {
                 return;
             }
 
-            // For .7z files, keep only the top 2
-            if (file.endsWith('.7z')) {
+            // Keep only the top 2 versions for both .7z and versioned .exe
+            if (file.endsWith('.7z') || (file.endsWith('.exe') && (file.includes('Setup_') || file.includes('UniversalSetup_')))) {
                 if (!versionsToKeep.includes(file)) {
                     const filePath = path.join(updatesDir, file);
                     fs.unlinkSync(filePath);
-                    console.log(`[CLEANUP] Removed old version: ${file}`);
+                    console.log(`[CLEANUP] Removed old versioned file: ${file}`);
                     removedCount++;
                 }
                 return;
             }
 
-            // Remove any other old exe files that aren't the main ones
-            if (file.endsWith('.exe')) {
+            // Remove any other stray exe files
+            if (file.endsWith('.exe') && !file.includes('Setup')) {
                 const filePath = path.join(updatesDir, file);
                 fs.unlinkSync(filePath);
-                console.log(`[CLEANUP] Removed old exe: ${file}`);
+                console.log(`[CLEANUP] Removed stray exe: ${file}`);
                 removedCount++;
             }
         });
