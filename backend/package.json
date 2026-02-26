@@ -1,6 +1,6 @@
 {
   "name": "guild-sys-backend",
-  "version": "0.9.55",
+  "version": "0.9.56",
   "private": true,
   "scripts": {
     "start": "npx prisma migrate deploy && node dist/index.js",
