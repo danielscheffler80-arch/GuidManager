@@ -1,7 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// DEPLOY TRIGGER v0.9.9 - Global Visibility
+// DEPLOY TRIGGER v0.9.10 - SFU Update Sync
 import express from 'express';
 import cors from 'cors';
 import http from 'http';
