@@ -26,8 +26,16 @@ const InitialSync: React.FC = () => {
 
     useEffect(() => {
         if (isLoading) return;
+
+        console.log('[InitialSync] Redirect check:', {
+            hasUser: !!user,
+            initialSyncCompletedAt: user?.initialSyncCompletedAt,
+            syncFinished
+        });
+
         // Only auto-redirect if we didn't JUST finish the sync on this page
         if (user?.initialSyncCompletedAt && !syncFinished) {
+            console.log('[InitialSync] Redirecting to /dashboard (account fallback) because sync is completed.');
             navigate('/account');
         }
     }, [user?.initialSyncCompletedAt, navigate, isLoading, syncFinished]);

@@ -62,6 +62,12 @@ function AppContent() {
     return <Login />;
   }
 
+  console.log('[APP] Sync Status check:', {
+    id: user.id,
+    battletag: user.battletag,
+    initialSyncCompletedAt: user.initialSyncCompletedAt
+  });
+
   // Check if initial sync is needed
   if (!user.initialSyncCompletedAt) {
     return (

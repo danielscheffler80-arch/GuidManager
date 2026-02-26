@@ -143,6 +143,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (response.ok) {
             const result = await response.json();
             if (result.success) {
+              console.log('[AUTH] Loaded user from /auth/me:', result.user);
               setUser(result.user);
               // Update localStorage with fresh data
               storage.set('user', result.user);

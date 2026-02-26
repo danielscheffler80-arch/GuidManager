@@ -122,6 +122,8 @@ export class AuthController {
         }
       };
 
+      console.log(`[AUTH] Login success for ${user.name}. Sync Status: ${user.initialSyncCompletedAt}`);
+
       // Speichere Ergebnis für Polling
       console.log(`[AUTH] Storing login result for state: ${state}`);
       oauthStates.set(state as string, { ...storedState, result });
@@ -388,6 +390,8 @@ export class AuthController {
           error: 'User not found'
         });
       }
+
+      console.log(`[AUTH] Me request for ${currentUser.name}. Sync Status: ${currentUser.initialSyncCompletedAt}`);
 
       res.json({
         success: true,
