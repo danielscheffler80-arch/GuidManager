@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.9.12",
+  "version": "0.9.58",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -49,10 +49,14 @@
     "icon": "assets/app-icon.png",
     "win": {
       "icon": "assets/app-icon.ico",
-      "target": "nsis-web",
+      "target": [
+        "nsis-web",
+        "nsis"
+      ],
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
+      "artifactName": "GuildManagerUniversalSetup_${version}.exe",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
@@ -62,7 +66,7 @@
     },
     "nsisWeb": {
       "appPackageUrl": "https://guidmanager-production.up.railway.app/updates",
-      "artifactName": "GuildManagerSetup.exe",
+      "artifactName": "GuildManagerSetup_${version}.exe",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,

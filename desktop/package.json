@@ -14,8 +14,7 @@
     "build": "electron-builder",
     "build:standalone": "electron-builder",
     "icons:gen": "node scripts/gen-icon.js",
-    "icons:frompng": "node scripts/ico-from-png.js",
-    "build:installer": "cd bootstrapper && npm install && npx electron-builder"
+    "icons:frompng": "node scripts/ico-from-png.js"
   },
   "build": {
     "appId": "com.guildsys.app.standalone",
