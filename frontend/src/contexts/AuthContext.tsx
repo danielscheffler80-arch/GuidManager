@@ -153,27 +153,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 window.electronAPI.setToken(token);
               }
 
-              // Trigger LIGHT initial sync in background
-              setTimeout(() => syncCharacters(false), 2000);
+              // Trigger LIGHT initial sync in background ONLY if sync is already completed
+              if (result.user.initialSyncCompletedAt) {
+                setTimeout(() => syncCharacters(false), 2000);
+              }
             } else {
               // Token ungültig, lösche alles
               localStorage.removeItem('user');
               localStorage.removeItem('accessToken');
+              setUser(null);
             }
           } else {
             // Token ungültig, lösche alles
             localStorage.removeItem('user');
             localStorage.removeItem('accessToken');
+            setUser(null);
           }
+        } else {
+          // No user in storage
+          setUser(null);
         }
       } catch (error) {
         console.error('Auth check failed:', error);
+        setUser(null);
         // Only set connection error if it's a network error (TypeEror on fetch)
-        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+        if (error instanceof TypeError && (error.message.includes('Failed to fetch') || error.message.includes('fetch'))) {
           setConnectionError('Verbindung zum Server fehlgeschlagen. Bitte Backend-URL prüfen.');
         }
-        localStorage.removeItem('user');
-        localStorage.removeItem('accessToken');
       } finally {
         setIsLoading(false);
       }
@@ -248,22 +254,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       const token = localStorage.getItem('accessToken');
+      setUser(null); // Immediate state clear
+      localStorage.removeItem('user');
+      localStorage.removeItem('accessToken');
 
       if (token) {
-        // Logout beim Backend
-        await fetch(`${backendUrl}/auth/logout`, {
+        // Logout beim Backend (fire and forget)
+        fetch(`${backendUrl}/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
           }
-        });
+        }).catch(e => console.log('Backend logout suppressed:', e.message));
       }
     } catch (error) {
       console.error('Logout error:', error);
-    } finally {
-      setUser(null);
-      localStorage.removeItem('user');
-      localStorage.removeItem('accessToken');
     }
   };
 

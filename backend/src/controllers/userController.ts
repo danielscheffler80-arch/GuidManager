@@ -43,8 +43,8 @@ export class UserController {
           battletag: userData.name,
           battlenetId: userData.battleNetId,
           createdAt: userData.createdAt,
-          characters: userData.characters,
-          guildMemberships: userData.guildMemberships,
+          characters: userData.characters || [],
+          guildMemberships: userData.guildMemberships.filter(m => m.guild !== null),
         }
       });
 
@@ -200,14 +200,16 @@ export class UserController {
 
       res.json({
         success: true,
-        guilds: userData.guildMemberships.map(membership => ({
-          id: membership.guild.id,
-          name: membership.guild.name,
-          realm: membership.guild.realm,
-          faction: membership.guild.faction,
-          rank: membership.rank,
-          joinedAt: membership.joinedAt,
-        }))
+        guilds: userData.guildMemberships
+          .filter(membership => membership.guild !== null)
+          .map(membership => ({
+            id: membership.guild.id,
+            name: membership.guild.name,
+            realm: membership.guild.realm,
+            faction: membership.guild.faction,
+            rank: membership.rank,
+            joinedAt: membership.joinedAt,
+          }))
       });
 
     } catch (error) {
