@@ -4,11 +4,16 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.49 - Deployment Fix & Update Cleanup
+## [Current] v0.9.50 - Recovery & Diagnostics
 - **Status**: Deployment in Progress
-- **Backend**: Healthcheck resilient gemacht (Server startet auch wenn DB kurzzeitig slow ist).
-- **Backend**: Automatische Bereinigung alter Update-Dateien (behält nur noch 2 Versionen).
-- **Backend**: Verbessertes Startup-Logging für Railway.
+- **Backend**: Healthcheck an den absoluten Anfang des App-Lebenszyklus verschoben.
+- **Backend**: Detaillierteres Startup-Logging ("INIT Step 1-4").
+- **Backend**: `/health` ist nun extrem leichtgewichtig (nur Liveness).
+- **Rollback Artifact**: `git checkout 8a28f24` (v0.9.49)
+
+## v0.9.49 - Deployment Fix & Update Cleanup
+- **Status**: Deployment Failed (Healthcheck)
+- **Backend**: Automatische Bereinigung alter Update-Dateien.
 - **Rollback Artifact**: `git checkout 765ea22` (v0.9.48)
 
 ## v0.9.48 - Enhanced Raid Selection

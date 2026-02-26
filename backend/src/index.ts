@@ -25,8 +25,19 @@ import { AuthController } from './controllers/authController';
 const app = express();
 const server = http.createServer(app);
 
+// --- ULTRA EARLY HEALTHCHECK (Railway Resilience) ---
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    ok: true,
+    status: 'liveness_check_passed',
+    time: new Date().toISOString()
+  });
+});
+
+console.log('[INIT] Step 1: App & Healthcheck ready');
+
 app.use(cors({
-  origin: true, // Erlaube alle Origins für Remote-Zugriff
+  origin: true,
   credentials: true
 }));
 app.use(express.json());
@@ -44,18 +55,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health
-app.get('/health', async (_req, res) => {
+// Full Health (Internal/Detailed) - Renamed to avoid early healthcheck conflict
+app.get('/api/health/detailed', async (_req, res) => {
   try {
-    // Basic liveness check (always returns true if server is up)
     const status: any = {
       ok: true,
       server: 'online',
-      time: new Date().toISOString(),
-      env: process.env.NODE_ENV || 'development'
+      time: new Date().toISOString()
     };
-
-    // Optional Database check with short timeout
     try {
       const dbPromise = prisma.user.count();
       const timeoutPromise = new Promise((_, reject) =>
@@ -64,25 +71,17 @@ app.get('/health', async (_req, res) => {
       await Promise.race([dbPromise, timeoutPromise]);
       status.database = 'connected';
     } catch (dbErr: any) {
-      status.database = dbErr.message === 'DB_TIMEOUT' ? 'timeout' : 'error';
+      status.database = 'error';
       status.dbError = dbErr.message;
-      // We still return 200/ok:true for liveness, but report DB status
-      console.warn(`[HEALTH] Database check degraded: ${dbErr.message}`);
     }
-
     res.json(status);
   } catch (err: any) {
-    console.error(`[HEALTH] Critical failure: ${err.message}`);
-    res.status(500).json({
-      ok: false,
-      error: err.message,
-      time: new Date().toISOString()
-    });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 // API Routes
-console.log('[INIT] Registering routes...');
+console.log('[INIT] Step 2: Registering routes...');
 app.use('/api', guildsRouter);
 app.use('/auth', authRouter);
 app.use('/users', userRouter);
@@ -117,7 +116,7 @@ app.get('/api/update/info', (req, res) => {
 });
 
 // Initialize Socket Service
-console.log('[INIT] Initializing Socket.IO...');
+console.log('[INIT] Step 3: Initializing Socket.IO...');
 const io = new Server(server, {
   cors: {
     origin: true,
@@ -129,10 +128,9 @@ initSocketService(io);
 
 // Fallback
 const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3334;
-console.log(`[INIT] Starting server on port ${port}...`);
+console.log(`[INIT] Step 4: Starting server on port ${port}...`);
 server.listen(port, '0.0.0.0', () => {
   console.log(`[READY] Backend listening on http://0.0.0.0:${port} (PID: ${process.pid})`);
 });
-
 
 export default app;
