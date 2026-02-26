@@ -225,10 +225,10 @@ export default function Dashboard() {
                     className="font-bold text-lg mb-1 group-hover:drop-shadow-[0_0_8px_rgba(163,48,201,0.5)]"
                     style={{ color: getClassColor(char.classId) }}
                   >
-                    {capitalizeName(char.name)}
+                    {capitalizeName(char?.name || 'Unbekannt')}
                   </div>
                   <div className="text-sm text-gray-500">
-                    Lvl {char.level} {char.class} • {formatRealm(char.realm)}
+                    Lvl {char?.level || '??'} {char?.class || 'Klasse'} • {formatRealm(char?.realm || 'Realm')}
                   </div>
                 </div>
               ))}
@@ -357,7 +357,7 @@ export default function Dashboard() {
                   <div className="flex justify-between items-start mb-3">
                     <div className="flex items-center gap-3">
                       <span className={`status-dot-indicator status-dot-${raid.userStatus || 'none'}`} style={{ width: '10px', height: '10px' }}></span>
-                      <span className="text-sm font-black text-white uppercase tracking-tight group-hover:text-accent transition-colors">{raid.title}</span>
+                      <span className="text-sm font-black text-white uppercase tracking-tight group-hover:text-accent transition-colors">{raid?.title || 'Unbenannter Raid'}</span>
                     </div>
                     <span className={`text-[9px] font-black uppercase px-2.5 py-1 rounded-lg border transition-all ${isMythic
                       ? 'bg-[var(--accent)] text-white border-[var(--accent)] shadow-[0_0_10px_rgba(163,48,201,0.4)]'

@@ -144,7 +144,7 @@ const Header: React.FC = () => {
             >
               {guilds.map((guild) => (
                 <option key={guild.id} value={guild.id}>
-                  {guild.name}
+                  {guild?.name || 'Unbekannte Gilde'}
                 </option>
               ))}
               {guilds.length === 0 && <option value="">Keine Gilden verfügbar</option>}
@@ -254,7 +254,7 @@ const Header: React.FC = () => {
                   <option value="all">Alle Mitglieder</option>
                   <option value="main">Main Roster (Standard)</option>
                   {availableRosters.map(roster => (
-                    <option key={roster.id} value={String(roster.id)}>{roster.name}</option>
+                    <option key={roster.id} value={String(roster.id)}>{roster?.name || 'Unbekanntes Roster'}</option>
                   ))}
                 </select>
                 <button
