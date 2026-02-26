@@ -77,7 +77,7 @@ export default function Sidebar() {
 
   if (!user) return null;
 
-  const battletag = user.battletag || 'User';
+  const battletag = user?.battletag || 'User';
   const initial = battletag.charAt(0).toUpperCase();
   const displayName = battletag.split('#')[0];
 

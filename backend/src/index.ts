@@ -20,6 +20,7 @@ import syncRouter from './routes/sync';
 import adminRouter from './routes/admin';
 import { initSocketService } from './services/socketService';
 import prisma from './prisma';
+import { AuthController } from './controllers/authController';
 
 const app = express();
 const server = http.createServer(app);
@@ -80,6 +81,9 @@ app.use('/api/debug', debugRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/admin', adminRouter);
+
+// Debug Route
+app.get('/api/debug/db', AuthController.debugDB);
 
 // Download redirect for Universal Setup
 app.get('/api/download/latest', (req, res) => {

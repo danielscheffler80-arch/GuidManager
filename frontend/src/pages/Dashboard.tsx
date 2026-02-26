@@ -313,7 +313,7 @@ export default function Dashboard() {
             <span className="text-lg">📢</span> Announcements
           </div>
           <div className="flex-1 space-y-3">
-            {hubData.announcements && hubData.announcements.length > 0 ? hubData.announcements.map(ann => (
+            {hubData?.announcements && hubData.announcements.length > 0 ? hubData.announcements.map(ann => (
               <div key={ann.id} className="bg-white/5 p-4 rounded-xl hover:bg-white/10 transition-colors">
                 <div className="font-black text-white text-xs uppercase tracking-wide mb-1 flex items-center justify-between">
                   {ann.title}
@@ -342,7 +342,7 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {hubData.raids && hubData.raids.length > 0 ? hubData.raids.slice(0, 4).map(raid => {
+            {hubData?.raids && hubData.raids.length > 0 ? hubData.raids.slice(0, 4).map(raid => {
               const isMythic = raid.difficulty?.toLowerCase().includes('mythic') || raid.difficulty?.toLowerCase().includes('mythisch');
 
               return (
@@ -419,7 +419,7 @@ export default function Dashboard() {
             <span className="text-lg">📺</span> Guild Streams
           </div>
           <div className="flex-1 space-y-2">
-            {hubData.streams && hubData.streams.length > 0 ? hubData.streams.map(stream => (
+            {hubData?.streams && hubData.streams.length > 0 ? hubData.streams.map(stream => (
               <div key={stream.id} className="bg-white/5 p-3 rounded-xl border border-white/5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>

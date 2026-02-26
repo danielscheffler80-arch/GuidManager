@@ -45,7 +45,11 @@ export class UserController {
       });
 
     } catch (error) {
-      console.error('Get Profile Error:', error);
+      console.error('[UserController] Get Profile Error:', {
+        userId: req.user?.userId,
+        error: (error as any).message,
+        stack: (error as any).stack
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to fetch user profile',
@@ -211,7 +215,11 @@ export class UserController {
       });
 
     } catch (error) {
-      console.error('Get Guilds Error:', error);
+      console.error('[UserController] Get Guilds Error:', {
+        userId: req.user?.userId,
+        error: (error as any).message,
+        stack: (error as any).stack
+      });
       res.status(500).json({
         success: false,
         error: 'Failed to fetch user guilds',

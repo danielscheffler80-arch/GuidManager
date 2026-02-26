@@ -104,7 +104,12 @@ export class GuildController {
             });
 
         } catch (error) {
-            console.error('Dashboard Hub error:', error);
+            console.error('[GuildController] Dashboard Hub error:', {
+                userId,
+                requestedGuildId,
+                error: (error as any).message,
+                stack: (error as any).stack
+            });
             res.status(500).json({
                 success: false,
                 error: 'Failed to fetch dashboard data',

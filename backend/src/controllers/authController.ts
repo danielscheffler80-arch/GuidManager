@@ -103,7 +103,11 @@ export class AuthController {
       // Hole User mit Gilden-Mitgliedschaften
       const dbUser = await prisma.user.findUnique({
         where: { id: user.id },
-        include: { guildMemberships: true }
+        include: {
+          guildMemberships: {
+            include: { guild: true }
+          }
+        }
       });
 
       const result = {
@@ -113,7 +117,15 @@ export class AuthController {
           battletag: user.name,
           battlenetId: user.battleNetId,
           initialSyncCompletedAt: user.initialSyncCompletedAt,
-          guildMemberships: dbUser?.guildMemberships || []
+          guildMemberships: dbUser?.guildMemberships?.map((m: any) => ({
+            ...m,
+            guild: m.guild ? {
+              id: m.guild.id,
+              name: m.guild.name,
+              realm: m.guild.realm,
+              faction: m.guild.faction
+            } : null
+          })) || []
         },
         tokens: {
           accessToken: jwtToken,
@@ -247,6 +259,21 @@ export class AuthController {
     // Noch kein Ergebnis
     console.log(`[POLLING] Result PENDING for state: ${state}`);
     res.json({ success: false, pending: true });
+  }
+
+  // Debugging Helper: List all prisma models
+  static async debugDB(req: Request, res: Response) {
+    try {
+      const users = await prisma.user.count();
+      const guilds = await prisma.guild.count();
+      const chars = await prisma.character.count();
+      const memberships = await prisma.userGuild.count();
+
+      res.json({ success: true, stats: { users, guilds, chars, memberships } });
+    } catch (error) {
+      console.error('[DB-DEBUG] Error:', error);
+      res.status(500).json({ success: false, error: (error as any).message });
+    }
   }
 
   // Synchronisiert Charaktere (wird vom Dashboard aus aufgerufen)
