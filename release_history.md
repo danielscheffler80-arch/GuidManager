@@ -4,8 +4,14 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [v0.9.45] - 2026-02-26 (Latest)
-**Status:** Stable Hotfix
+## [v0.9.46] - 2026-02-26 (Latest)
+**Status:** Critical Schema Fix
+- **Fix**: Resolved `PrismaClientKnownRequestError` caused by missing `exclusiveRaidName` and roster override columns in the database.
+- **Fix**: Added manual Prisma migration to sync the database schema with the model after a wipe.
+- **Note**: Version v0.9.45 was unstable if the database was wiped.
+
+## [v0.9.45] - 2026-02-26
+**Status:** Discontinued (Schema Mismatch)
 - **Fix**: Resolved critical frontend crash on login (membership mapping fix).
 - **Fix**: Corrected `latest.yml` to enable automatic desktop updates.
 - **Feat**: Added `/api/debug/db` diagnostic endpoint and enhanced backend logging.
