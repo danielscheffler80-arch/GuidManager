@@ -264,7 +264,8 @@ export default function StreamSettings() {
             isPublic: isPublic,
             guildId: privacyGuildId ? Number(privacyGuildId) : undefined,
             hasJoinCode: !!joinCode && joinCode.trim().length > 0,
-            joinCode: joinCode
+            joinCode: joinCode,
+            isSFU: true // Mark as SFU stream
         };
 
         const resMap: Record<string, { w: number, h: number }> = {
@@ -292,7 +293,17 @@ export default function StreamSettings() {
         };
 
         try {
-            await startStream(selectedSource, constraints, metadata);
+            // Get SFU token first
+            return new Promise<void>((resolve, reject) => {
+                socket?.emit('request-room-token', { roomName: userName, identity: userName, isPublisher: true }, async (token: string) => {
+                    try {
+                        await startStream(selectedSource, { ...constraints, sfuToken: token }, metadata);
+                        resolve();
+                    } catch (err: any) {
+                        reject(err);
+                    }
+                });
+            });
         } catch (err: any) {
             console.error('[StreamSettings] Start failed:', err);
             alert(`Fehler beim Starten des Streams: ${err.message || 'Unbekannter Fehler'}`);
@@ -379,7 +390,7 @@ export default function StreamSettings() {
                             <div className="setting-group">
                                 <label>Bitrate (kbps): {defaultBitrate}</label>
                                 <input
-                                    type="range" min="1000" max="15000" step="500"
+                                    type="range" min="1000" max="25000" step="500"
                                     value={defaultBitrate}
                                     onChange={e => setDefaultBitrate(parseInt(e.target.value))}
                                 />

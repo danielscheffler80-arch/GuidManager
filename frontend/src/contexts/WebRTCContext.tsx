@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { Room, RoomEvent, Track, VideoPresets } from 'livekit-client';
 import { logWebRTC } from '../api/debug';
 import { storage } from '../utils/storage';
 
@@ -21,6 +22,7 @@ interface StreamMetadata {
     isPublic: boolean;
     guildId?: number;
     hasJoinCode: boolean;
+    isSFU?: boolean; // Support for LiveKit streams
 }
 
 interface WebRTCContextType {
@@ -51,6 +53,7 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
     const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
     const [isConnecting, setIsConnecting] = useState(false);
     const [filter, setFilter] = useState('all');
+    const [livekitRoom, setLivekitRoom] = useState<Room | null>(null);
 
     const outgoingPCs = useRef<Map<string, RTCPeerConnection>>(new Map());
     const incomingPC = useRef<{ id: string, pc: RTCPeerConnection } | null>(null);
@@ -127,29 +130,33 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             let scaleFactor = 1.0;
 
             switch (quality) {
+                case '1440p':
+                    bitrate = 12000;
+                    scaleFactor = 1.0;
+                    break;
                 case '1080p':
-                    bitrate = 6000;
+                    bitrate = 8000;
                     scaleFactor = 1.0;
                     break;
                 case '720p':
-                    bitrate = 2500;
-                    scaleFactor = 1.5; // Downscale by 1.5 (1080 -> 720)
+                    bitrate = 4000;
+                    scaleFactor = 1.5;
                     break;
                 case '480p':
-                    bitrate = 1000;
-                    scaleFactor = 2.25; // Downscale by 2.25 (1080 -> 480)
+                    bitrate = 2000;
+                    scaleFactor = 2.25;
                     break;
                 case '360p':
-                    bitrate = 600;
+                    bitrate = 1000;
                     scaleFactor = 3.0;
                     break;
                 default: // original/auto
-                    bitrate = currentConstraintsRef.current?.bitrate || 6000;
+                    bitrate = currentConstraintsRef.current?.bitrate || 8000;
                     scaleFactor = 1.0;
                     break;
             }
 
-            await setVideoBitrate(pc, bitrate, 'detail', scaleFactor);
+            await setVideoBitrate(pc, bitrate, currentConstraintsRef.current?.optimizationMode || 'gaming', scaleFactor);
         }
     };
 
@@ -159,11 +166,12 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             const videoSender = senders.find(s => s.track?.kind === 'video');
             if (videoSender) {
                 // Determine degradation preference
-                let degradationPreference: RTCDegradationPreference = 'balanced';
-                if (optimizationMode === 'detail') {
-                    degradationPreference = 'maintain-resolution';
-                } else if (optimizationMode === 'gaming' || optimizationMode === 'motion') {
+                let degradationPreference: RTCDegradationPreference = 'maintain-resolution'; // Default for Gaming: Stay sharp!
+
+                if (optimizationMode === 'motion') {
                     degradationPreference = 'maintain-framerate';
+                } else if (optimizationMode === 'balanced') {
+                    degradationPreference = 'balanced';
                 }
 
                 const parameters = videoSender.getParameters();
@@ -232,9 +240,10 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             localStreamRef.current.getTracks().forEach(track => {
                 pc.addTrack(track, localStreamRef.current!);
             });
-            // Initial bitrate setting
+            // Initial bitrate setting for gaming
             const targetBitrate = currentConstraintsRef.current?.bitrate || 8000;
-            setVideoBitrate(pc, targetBitrate);
+            const targetMode = currentConstraintsRef.current?.optimizationMode || 'gaming';
+            setVideoBitrate(pc, targetBitrate, targetMode);
         }
 
         pc.onconnectionstatechange = () => {
@@ -540,6 +549,47 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
             setLocalStream(finalStream);
             localStreamRef.current = finalStream;
             setIsStreaming(true);
+
+            // Handle LiveKit SFU Publishing
+            if (constraints.sfuToken) {
+                console.log('[WebRTC] Publishing to LiveKit SFU...');
+                try {
+                    const room = new Room({
+                        adaptiveStream: true,
+                        dynacast: true,
+                    });
+
+                    const serverUrl = (window as any).electronAPI?.getLiveKitUrl?.() || import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7800';
+                    await room.connect(serverUrl, constraints.sfuToken);
+
+                    // Publish tracks
+                    const videoTrack = finalStream.getVideoTracks()[0];
+                    const audioTrack = finalStream.getAudioTracks()[0];
+
+                    if (videoTrack) {
+                        await room.localParticipant.publishTrack(videoTrack, {
+                            name: 'main-video',
+                            simulcast: true,
+                            videoEncoding: {
+                                maxBitrate: (constraints.bitrate || 8000) * 1000,
+                            }
+                        });
+                    }
+
+                    if (audioTrack) {
+                        await room.localParticipant.publishTrack(audioTrack, {
+                            name: 'main-audio'
+                        });
+                    }
+
+                    setLivekitRoom(room);
+                    console.log('[WebRTC] Stream published to SFU successfully');
+                } catch (sfuErr) {
+                    console.error('[WebRTC] Failed to publish to LiveKit SFU:', sfuErr);
+                    // Fallback to P2P is implicitly handled because we still emit 'start-stream' below
+                }
+            }
+
             socket?.emit('start-stream', metadata);
         } catch (error: any) {
             console.error('[WebRTC] Error starting stream:', error);
@@ -570,6 +620,11 @@ export const WebRTCProvider = ({ children }: { children: ReactNode }) => {
         if (audioContextRef.current) {
             audioContextRef.current.close().catch(console.error);
             audioContextRef.current = null;
+        }
+
+        if (livekitRoom) {
+            livekitRoom.disconnect();
+            setLivekitRoom(null);
         }
 
         candidateQueues.current.clear();

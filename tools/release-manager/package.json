@@ -1,0 +1,32 @@
+{
+    "name": "guild-manager-release-tool",
+    "version": "1.0.0",
+    "description": "Automated release tool for XavaGuildManager",
+    "main": "dist/index.js",
+    "bin": "dist/index.js",
+    "pkg": {
+        "assets": [],
+        "targets": [
+            "node18-win-x64"
+        ]
+    },
+    "scripts": {
+        "build": "tsc && pkg . --output ../../GuildManagerRelease.exe",
+        "start": "ts-node src/index.ts"
+    },
+    "dependencies": {
+        "shelljs": "^0.8.5",
+        "semver": "^7.5.4",
+        "yargs": "^17.7.2",
+        "chalk": "^4.1.2"
+    },
+    "devDependencies": {
+        "@types/shelljs": "^0.8.12",
+        "@types/semver": "^7.5.0",
+        "@types/yargs": "^17.0.24",
+        "@types/node": "^20.0.0",
+        "typescript": "^5.2.2",
+        "ts-node": "^10.9.1",
+        "pkg": "^5.8.1"
+    }
+}

@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWebRTC } from '../hooks/useWebRTC';
+import { useLiveKit } from '../hooks/useLiveKit';
+import {
+  LiveKitRoom,
+  VideoTrack,
+  AudioTrack,
+  RoomAudioRenderer,
+  ControlBar
+} from '@livekit/components-react';
 import { storage } from '../utils/storage';
 import { useGuild } from '../contexts/GuildContext';
 
@@ -28,6 +36,13 @@ export default function Streams() {
     setFilter,
     changeStreamQuality
   } = useWebRTC();
+
+  const {
+    room,
+    remoteTracks,
+    joinStream: joinSFUStream,
+    leaveStream: leaveSFUStream
+  } = useLiveKit();
 
   const [viewingId, setViewingId] = useState<string | null>(null);
 
@@ -172,8 +187,14 @@ export default function Streams() {
       return;
     }
 
-    // No password needed
-    joinStream(stream.id);
+    // Try SFU first if backend supports it/stream is marked
+    if (stream.isSFU) {
+      setViewingId(stream.id);
+      joinSFUStream(stream.id, user?.battletag || 'Guest');
+    } else {
+      // No password needed
+      joinStream(stream.id);
+    }
   };
 
   const joinStream = async (streamId: string, code?: string) => {
@@ -206,7 +227,15 @@ export default function Streams() {
         setViewingId(passwordStreamId);
         clearView(); // Ensure we are ready to view local
       } else {
-        joinStream(passwordStreamId, passwordInput.toUpperCase());
+        if (passwordStreamId) {
+          const stream = activeStreams.find(s => s.id === passwordStreamId);
+          if (stream?.isSFU) {
+            setViewingId(passwordStreamId);
+            joinSFUStream(passwordStreamId, user?.battletag || 'Guest');
+          } else {
+            joinStream(passwordStreamId, passwordInput.toUpperCase());
+          }
+        }
       }
 
       setShowPasswordModal(false);
@@ -360,7 +389,26 @@ export default function Streams() {
               </div>
             )}
 
-            {(!viewingId || (viewingId === socket?.id && !isStreaming) || (viewingId !== socket?.id && !remoteStream)) && (
+            {/* LiveKit SFU Remote Video */}
+            {room && viewingId !== socket?.id && (
+              <div className="video-container sfu-container" style={{ filter: getHdrFilter() }}>
+                <span className="video-badge live">SFU LIVE</span>
+                <div style={{ width: '100%', height: '100%' }}>
+                  <RoomAudioRenderer />
+                  {remoteTracks.map(track => (
+                    track.kind === 'video' && (
+                      <VideoTrack
+                        key={track.sid}
+                        trackRef={track}
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    )
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {(!viewingId || (viewingId === socket?.id && !isStreaming) || (viewingId !== socket?.id && !remoteStream && !room)) && (
               <div className="viewer-placeholder">
                 {isConnecting ? (
                   <div className="connecting-spinner">
@@ -373,7 +421,7 @@ export default function Streams() {
               </div>
             )}
 
-            {(remoteStream || (isStreaming && viewingId === socket?.id)) && (
+            {(remoteStream || room || (isStreaming && viewingId === socket?.id)) && (
               <div className="player-controls-overlay">
                 <div className="controls-left">
                   <button onClick={() => setIsMuted(!isMuted)} className="icon-btn">
@@ -406,30 +454,36 @@ export default function Streams() {
 
                 <div className="controls-right">
                   <button
-                    onClick={() => { clearView(); setViewingId(null); }}
+                    onClick={() => {
+                      clearView();
+                      leaveSFUStream();
+                      setViewingId(null);
+                    }}
                     className="btn-text danger"
                     title="Stream schließen"
                   >
                     Beenden
                   </button>
 
-                  <select
-                    value={playerQuality}
-                    onChange={(e) => {
-                      const q = e.target.value;
-                      setPlayerQuality(q);
-                      if (viewingId) {
-                        changeStreamQuality(viewingId, q);
-                      }
-                    }}
-                    className="quality-select"
-                  >
-                    <option value="original">Original (Auto)</option>
-                    <option value="1080p">1080p</option>
-                    <option value="720p">720p</option>
-                    <option value="480p">480p</option>
-                    <option value="360p">360p</option>
-                  </select>
+                  {!room && (
+                    <select
+                      value={playerQuality}
+                      onChange={(e) => {
+                        const q = e.target.value;
+                        setPlayerQuality(q);
+                        if (viewingId) {
+                          changeStreamQuality(viewingId, q);
+                        }
+                      }}
+                      className="quality-select"
+                    >
+                      <option value="original">Original (Auto)</option>
+                      <option value="1080p">1080p</option>
+                      <option value="720p">720p</option>
+                      <option value="480p">480p</option>
+                      <option value="360p">360p</option>
+                    </select>
+                  )}
 
                   <button onClick={toggleFullscreen} className="btn-text" title={isFullscreen ? "Vollbild beenden" : "Vollbild"}>
                     {isFullscreen ? 'Normal' : 'Vollbild'}

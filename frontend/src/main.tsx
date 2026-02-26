@@ -4,6 +4,7 @@ import App from './App';
 import { AuthProvider } from './contexts/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './styles.css';
+import '@livekit/components-styles';
 
 const root = document.getElementById('root');
 if (root) {
