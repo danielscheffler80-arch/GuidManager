@@ -409,7 +409,8 @@ export class AuthController {
       console.error('Me Error:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch user info'
+        error: 'Failed to fetch user info',
+        details: (error as any).message
       });
     }
   }

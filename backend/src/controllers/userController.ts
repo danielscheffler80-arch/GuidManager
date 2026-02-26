@@ -43,6 +43,7 @@ export class UserController {
           battletag: userData.name,
           battlenetId: userData.battleNetId,
           createdAt: userData.createdAt,
+          initialSyncCompletedAt: userData.initialSyncCompletedAt,
           characters: userData.characters || [],
           guildMemberships: userData.guildMemberships.filter(m => m.guild !== null),
         }
@@ -52,7 +53,8 @@ export class UserController {
       console.error('Get Profile Error:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch user profile'
+        error: 'Failed to fetch user profile',
+        details: (error as any).message
       });
     }
   }
@@ -216,7 +218,8 @@ export class UserController {
       console.error('Get Guilds Error:', error);
       res.status(500).json({
         success: false,
-        error: 'Failed to fetch user guilds'
+        error: 'Failed to fetch user guilds',
+        details: (error as any).message
       });
     }
   }

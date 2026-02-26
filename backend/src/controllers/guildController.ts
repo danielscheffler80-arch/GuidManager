@@ -105,7 +105,11 @@ export class GuildController {
 
         } catch (error) {
             console.error('Dashboard Hub error:', error);
-            res.status(500).json({ success: false, error: 'Failed to fetch dashboard data' });
+            res.status(500).json({
+                success: false,
+                error: 'Failed to fetch dashboard data',
+                details: (error as any).message
+            });
         }
     }
 
