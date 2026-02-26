@@ -4,11 +4,15 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.52 - Centralized Startup Fix
-- **Status**: Deployment in Progress
-- **Backend**: `Dockerfile` nutzt jetzt `npm start`, um die Recovery-Logik aus `package.json` zu respektieren.
+## [Current] v0.9.53 - Deployment Finalized
+- **Status**: Done ✅
+- **Backend**: `start` Skript bereinigt (Migration Recovery entfernt, da Problem gelöst).
+- **Rollback Artifact**: `git checkout fe1e65d` (v0.9.52)
+
+## v0.9.52 - Centralized Startup Fix
+- **Status**: Success ✅
+- **Backend**: `Dockerfile` auf `npm start` umgestellt.
 - **Backend**: Migration Lock Fix wird nun korrekt ausgeführt.
-- **Rollback Artifact**: `git checkout ef986c0` (v0.9.51)
 
 ## v0.9.51 - Recovery & Migration Fix
 - **Status**: Deployment Failed (Dockerfile CMD Override)
