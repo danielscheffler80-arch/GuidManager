@@ -1,7 +1,11 @@
 import { Router, Response, NextFunction } from 'express';
 import { AdminController } from '../controllers/adminController';
+import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = Router();
+
+// Apply authentication to all admin routes
+router.use(authenticateToken);
 
 // Superuser Middleware
 const isSuperuser = (req: any, res: Response, next: NextFunction) => {

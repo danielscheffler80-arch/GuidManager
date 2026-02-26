@@ -24,9 +24,11 @@ const AdminDashboard: React.FC = () => {
             const data = await res.json();
             if (data.success) {
                 setStatus('System erfolgreich zurückgesetzt! App startet neu...');
-                setTimeout(() => {
+                setTimeout(async () => {
+                    // Force complete local state reset
                     localStorage.clear();
-                    window.location.href = '/';
+                    // Redirect to login via full reload
+                    window.location.href = window.location.origin + window.location.pathname;
                 }, 3000);
             } else {
                 setStatus('Fehler: ' + data.error);

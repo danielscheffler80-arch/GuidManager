@@ -109,15 +109,21 @@ export class AdminController {
             ];
 
             for (const table of tables) {
-                await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`);
+                try {
+                    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`);
+                } catch (err: any) {
+                    console.error(`[AdminReset] Error truncating ${table}:`, err.message);
+                }
             }
 
-            await prisma.user.updateMany({
+            const userUpdate = await prisma.user.updateMany({
                 data: { initialSyncCompletedAt: null }
             });
 
-            res.json({ success: true, message: 'Full system reset completed' });
+            console.log(`[AdminReset] Reset initialSyncCompletedAt for ${userUpdate.count} users.`);
+            res.json({ success: true, message: `Full system reset completed. ${userUpdate.count} users reset.` });
         } catch (error: any) {
+            console.error('[AdminReset] Critical Error:', error);
             res.status(500).json({ success: false, error: error.message });
         }
     }

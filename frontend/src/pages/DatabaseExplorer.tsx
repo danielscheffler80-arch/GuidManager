@@ -41,9 +41,12 @@ const DatabaseExplorer: React.FC = () => {
             if (data.success) {
                 setTables(data.tables);
                 if (data.tables.length > 0) setSelectedTable(data.tables[0]);
+            } else {
+                setStatus({ type: 'error', msg: data.error || 'Failed to fetch tables' });
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to fetch tables', e);
+            setStatus({ type: 'error', msg: e.message });
         }
     };
 
@@ -57,9 +60,12 @@ const DatabaseExplorer: React.FC = () => {
             if (data.success) {
                 setRecords(data.records);
                 setTotal(data.total);
+            } else {
+                setStatus({ type: 'error', msg: data.error || 'Failed to fetch records' });
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error('Failed to fetch records', e);
+            setStatus({ type: 'error', msg: e.message });
         } finally {
             setLoading(false);
         }

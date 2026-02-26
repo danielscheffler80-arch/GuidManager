@@ -112,6 +112,7 @@ export class AuthController {
           id: user.id,
           battletag: user.name,
           battlenetId: user.battleNetId,
+          initialSyncCompletedAt: user.initialSyncCompletedAt,
           guildMemberships: dbUser?.guildMemberships || []
         },
         tokens: {
