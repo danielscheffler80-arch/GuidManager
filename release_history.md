@@ -4,10 +4,14 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.56 - Web Installer Feature
+## [Current] v0.9.57 - Version Selector Installer
 - **Status**: Done ✅
-- **Desktop**: `Installer.ps1` (Smart Bootstrapper) und `INSTALL_GUIDE.md` erstellt.
-- **Rollback Artifact**: `git checkout f8a3cc5` (v0.9.55)
+- **Desktop**: `bootstrapper/` als separates Projekt hinzugefügt. Dies erstellt eine unabhängige `Installer.exe`, die dem User die Auswahl der Version ermöglicht.
+- **Backend**: `/api/update/list` Endpunkt bereitgestellt.
+- **Rollback Artifact**: `git checkout c943bad` (v0.9.56)
+
+## v0.9.56 - Web Installer Feature
+- **Status**: Success ✅
 
 ## v0.9.55 - Production Path Fix
 - **Status**: Success ✅

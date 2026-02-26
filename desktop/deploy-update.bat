@@ -21,7 +21,8 @@ echo Kopiere: latest.yml
 copy /y "%BUILD_DIR%\latest.yml" "%TARGET_DIR%\" >nul
 
 echo Kopiere: Installer-Pakete...
-copy /y "%BUILD_DIR%\GuildManagerSetup.exe" "%TARGET_DIR%\" >nul
+copy /y "%BUILD_DIR%\GuildManagerSetup*.exe" "%TARGET_DIR%\" >nul
+copy /y "%BUILD_DIR%\GuildManagerUniversalSetup*.exe" "%TARGET_DIR%\" >nul
 copy /y "%BUILD_DIR%\*.7z" "%TARGET_DIR%\" >nul
 
 
