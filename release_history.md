@@ -4,10 +4,14 @@ This document tracks all public releases of the Xava Guild Manager. For each ver
 
 ---
 
-## [Current] v0.9.55 - Production Path Fix
-- **Status**: Deployment in Progress
-- **Backend**: Schema-Logik in `SchemaService` verschoben und direkt in `index.ts` integriert (statt externes Skript).
-- **Backend**: Funktioniert jetzt auch im Docker-Container (wo `src/` fehlt).
+## [Current] v0.9.56 - Web Installer Feature
+- **Status**: Done ✅
+- **Desktop**: `Installer.ps1` (Smart Bootstrapper) und `INSTALL_GUIDE.md` erstellt.
+- **Rollback Artifact**: `git checkout f8a3cc5` (v0.9.55)
+
+## v0.9.55 - Production Path Fix
+- **Status**: Success ✅
+- **Backend**: Schema-Logik in `SchemaService` verschoben (Fix für Docker-Prod).
 - **Rollback Artifact**: `git checkout a5643d1` (v0.9.54)
 
 ## v0.9.54 - Absolute Schema Sync

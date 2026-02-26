@@ -121,6 +121,48 @@ app.get('/api/update/info', (req, res) => {
   }
 });
 
+// List Available Versions for Selector
+app.get('/api/update/list', (req, res) => {
+  try {
+    const updatesDir = path.join(__dirname, '../updates');
+    if (!fs.existsSync(updatesDir)) {
+      return res.status(404).json({ error: 'Updates directory not found' });
+    }
+
+    const files = fs.readdirSync(updatesDir);
+
+    // Find versioned setups: GuildManagerSetup_*.exe or universal ones
+    const versions = files
+      .filter(f => f.startsWith('GuildManagerSetup') && f.endsWith('.exe'))
+      .map(f => {
+        const match = f.match(/GuildManagerSetup_(.*?)\.exe/);
+        return {
+          filename: f,
+          version: match ? match[1] : 'Latest',
+          url: `/updates/${f}`
+        };
+      });
+
+    // Sort by version (descending)
+    versions.sort((a, b) => {
+      if (a.version === 'Latest') return -1;
+      if (b.version === 'Latest') return 1;
+      const partsA = a.version.split('.').map(Number);
+      const partsB = b.version.split('.').map(Number);
+      for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+        const vA = partsA[i] || 0;
+        const vB = partsB[i] || 0;
+        if (vA !== vB) return vB - vA;
+      }
+      return 0;
+    });
+
+    res.json({ success: true, versions: versions.slice(0, 3) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to list versions' });
+  }
+});
+
 // Initialize Socket Service
 console.log('[INIT] Step 3: Initializing Socket.IO...');
 const io = new Server(server, {

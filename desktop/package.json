@@ -1,6 +1,6 @@
 {
   "name": "guild-manager-standalone",
-  "version": "0.9.56",
+  "version": "0.9.57",
   "author": "Xava",
   "description": "Guild Manager - Standalone Desktop App",
   "main": "main-standalone.js",
@@ -14,7 +14,8 @@
     "build": "electron-builder",
     "build:standalone": "electron-builder",
     "icons:gen": "node scripts/gen-icon.js",
-    "icons:frompng": "node scripts/ico-from-png.js"
+    "icons:frompng": "node scripts/ico-from-png.js",
+    "build:installer": "cd bootstrapper && npm install && npx electron-builder"
   },
   "build": {
     "appId": "com.guildsys.app.standalone",
@@ -56,7 +57,7 @@
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
-      "artifactName": "GuildManagerUniversalSetup.exe",
+      "artifactName": "GuildManagerUniversalSetup_${version}.exe",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,
@@ -66,7 +67,7 @@
     },
     "nsisWeb": {
       "appPackageUrl": "https://guidmanager-production.up.railway.app/updates",
-      "artifactName": "GuildManagerSetup.exe",
+      "artifactName": "GuildManagerSetup_${version}.exe",
       "oneClick": true,
       "allowElevation": true,
       "allowToChangeInstallationDirectory": false,

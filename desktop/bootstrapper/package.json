@@ -1,0 +1,23 @@
+{
+    "name": "guild-manager-installer",
+    "version": "1.0.0",
+    "main": "main.js",
+    "dependencies": {
+        "axios": "^1.6.0"
+    },
+    "devDependencies": {
+        "electron": "^30.0.0",
+        "electron-builder": "^24.9.1"
+    },
+    "build": {
+        "appId": "com.guildsys.installer",
+        "productName": "Xava Guild Manager Installer",
+        "win": {
+            "target": "portable",
+            "icon": "../assets/app-icon.ico"
+        },
+        "directories": {
+            "output": "../dist-installer"
+        }
+    }
+}

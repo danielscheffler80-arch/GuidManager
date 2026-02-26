@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Xava Guild Manager Installer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            color: #D1D9E0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .header {
+            -webkit-app-region: drag;
+            height: 35px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .close-btn {
+            -webkit-app-region: no-drag;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-weight: bold;
+        }
+        .close-btn:hover { color: #ff4444; }
+
+        .content {
+            padding: 20px 40px;
+            text-align: center;
+        }
+
+        .logo { font-size: 50px; margin-bottom: 10px; }
+        h1 { margin: 0; font-size: 22px; color: #A330C9; }
+        p { color: #888; margin-top: 5px; font-size: 14px; }
+
+        .version-list {
+            margin-top: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .version-card {
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .version-card:hover {
+            border-color: #A330C9;
+            background: #2a222d;
+            transform: translateY(-2px);
+        }
+
+        .version-info { text-align: left; }
+        .v-tag { font-weight: bold; color: #fff; font-size: 16px; }
+        .v-name { font-size: 12px; color: #666; display: block; }
+
+        .download-icon { color: #A330C9; font-size: 20px; }
+
+        .loader {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .loading-text { font-size: 12px; color: #A330C9; margin-top: 10px; }
+
+        .error-msg { color: #ff4444; font-size: 12px; margin-top: 20px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="close-btn" onclick="closeApp()">×</div>
+    </div>
+
+    <div class="content">
+        <div class="logo">🛡️</div>
+        <h1>Xava Guild Manager</h1>
+        <p>Wähle eine Version zum Installieren</p>
+
+        <div id="versionList" class="version-list">
+            <!-- Versions will be loaded here -->
+            <p style="color: #444;">Suche nach Versionen...</p>
+        </div>
+
+        <div id="loader" class="loader">
+            <div style="font-size: 30px; animation: spin 2s linear infinite;">⚙️</div>
+            <div class="loading-text">Lade Version herunter...</div>
+        </div>
+
+        <div id="error" class="error-msg">Verbindung zum Server fehlgeschlagen.</div>
+    </div>
+
+    <style>
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+    </style>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        function closeApp() { ipcRenderer.send('close-app'); }
+
+        async function loadVersions() {
+            const versions = await ipcRenderer.invoke('get-versions');
+            const list = document.getElementById('versionList');
+            
+            if (versions.length === 0) {
+                list.innerHTML = '<p style="color: #666;">Keine Versionen gefunden.<br>Nutze den Standard-Installer.</p>';
+                return;
+            }
+
+            list.innerHTML = '';
+            versions.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'version-card';
+                card.onclick = () => download(v.url);
+                
+                card.innerHTML = `
+                    <div class="version-info">
+                        <span class="v-tag">Version ${v.version}</span>
+                        <span class="v-name">${v.filename}</span>
+                    </div>
+                    <div class="download-icon">⬇️</div>
+                `;
+                list.appendChild(card);
+            });
+        }
+
+        async function download(url) {
+            document.getElementById('versionList').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            
+            const success = await ipcRenderer.invoke('download-and-install', url);
+            if (!success) {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('versionList').style.display = 'block';
+                document.getElementById('error').style.display = 'block';
+            }
+        }
+
+        loadVersions();
+    </script>
+</body>
+</html>
