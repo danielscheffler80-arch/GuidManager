@@ -176,7 +176,9 @@ export class GuildController {
                 success: true,
                 ranks: ranks,
                 currentAdminRanks: guild.adminRanks,
-                currentVisibleRanks: guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+                currentVisibleRanks: (guild.visibleRanks.length === 2 && guild.visibleRanks.includes(5) && guild.visibleRanks.includes(7))
+                    ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+                    : (guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
                 exclusiveRaidName: guild.exclusiveRaidName,
                 mainRosterIncludedCharacterIds: guild.mainRosterIncludedCharacterIds || [],
                 mainRosterExcludedCharacterIds: guild.mainRosterExcludedCharacterIds || []

@@ -4,6 +4,8 @@ import { BattleNetAPIService } from '../services/battleNetAPIService';
 import { SyncLogService, SyncCategory } from '../services/syncLogService';
 import { MythicPlusService } from '../services/mythicPlusService';
 import { RosterService } from '../services/rosterService';
+import { SyncService } from '../services/syncService';
+
 
 export class SyncController {
     /**
@@ -233,7 +235,21 @@ export class SyncController {
     }
 
     /**
+     * Consolidated Full Sync (Phases 1-5)
+     */
+    static async fullSync(req: any, res: Response) {
+        const userId = req.user.userId;
+        try {
+            const result = await SyncService.runFullSync(userId);
+            res.json(result);
+        } catch (error: any) {
+            res.status(500).json({ success: false, error: error.message });
+        }
+    }
+
+    /**
      * Admin: Full Database Wipe (Clean Reset)
+
      */
     static async wipeDatabase(req: any, res: Response) {
         try {

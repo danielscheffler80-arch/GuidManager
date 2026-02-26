@@ -46,64 +46,18 @@ const InitialSync: React.FC = () => {
         const token = localStorage.getItem('accessToken');
 
         try {
-            // Phase 1: Account
-            setCurrentStep(1);
-            setStatus(steps[0].title);
+            setStatus('Starte vollständige Synchronisation...');
             setProgress(10);
-            const res1 = await fetch(`${backendUrl}/api/sync/initial/account`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res1.ok) throw new Error('Phase 1 fehlgeschlagen.');
 
-            // Phase 2: Discover
-            setCurrentStep(2);
-            setStatus(steps[1].title);
-            setProgress(30);
-            const res2 = await fetch(`${backendUrl}/api/sync/initial/discover`, {
+            const response = await fetch(`${backendUrl}/api/sync/full`, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!res2.ok) throw new Error('Phase 2 fehlgeschlagen.');
 
-            // Phase 3: Deep Sync Guilds
-            setCurrentStep(3);
-            setStatus(steps[2].title);
-            setProgress(60);
-            const res3 = await fetch(`${backendUrl}/api/sync/initial/guilds`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res3.ok) throw new Error('Phase 3 fehlgeschlagen.');
-
-            // Phase 4: Addon Data
-            setCurrentStep(4);
-            setStatus(steps[3].title);
-            setProgress(80);
-            const res4 = await fetch(`${backendUrl}/api/sync/initial/addon`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res4.ok) throw new Error('Phase 4 fehlgeschlagen.');
-
-            // Phase 5: Chat History
-            setCurrentStep(5);
-            setStatus(steps[4].title);
-            setProgress(90);
-            const res5 = await fetch(`${backendUrl}/api/sync/initial/history`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res5.ok) throw new Error('Phase 5 fehlgeschlagen.');
-
-            // Finalize
-            setStatus('Finalisiere...');
-            setProgress(95);
-            const resFinal = await fetch(`${backendUrl}/api/sync/initial/finalize`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!resFinal.ok) throw new Error('Finalisierung fehlgeschlagen.');
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Synchronisation fehlgeschlagen.');
+            }
 
             // Success
             setProgress(100);
@@ -112,6 +66,7 @@ const InitialSync: React.FC = () => {
             setStatus('Synchronisation vollständig!');
             await checkAuth(); // User-Objekt aktualisieren
         } catch (err: any) {
+            console.error('[SYNC] Error:', err);
             setError(err.message);
             setPhase('idle');
         }

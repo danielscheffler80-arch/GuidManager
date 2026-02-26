@@ -14,6 +14,9 @@ router.post('/initial/history', authenticateToken, SyncController.loadChatHistor
 router.post('/initial/finalize', authenticateToken, SyncController.finalize);
 router.post('/initial/reset', authenticateToken, SyncController.resetInitialSync);
 
+// Consolidated Full Sync
+router.post('/full', authenticateToken, SyncController.fullSync);
+
 // Debugger
 router.get('/debug/logs', authenticateToken, SyncController.getLogs);
 

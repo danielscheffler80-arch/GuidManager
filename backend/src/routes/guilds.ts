@@ -117,7 +117,9 @@ router.get('/guilds/:guildId/roster', authMiddleware, async (req: AuthenticatedR
 
   // Filter roster by visible ranks
   const includeFiltered = req.query.includeFiltered === 'true';
-  const visibleRanks = guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const visibleRanks = (guild.visibleRanks.length === 2 && guild.visibleRanks.includes(5) && guild.visibleRanks.includes(7))
+    ? [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    : (guild.visibleRanks.length > 0 ? guild.visibleRanks : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
   const totalInPool = pool.length;
 
   const filteredRoster = pool.filter((char: any) => {
