@@ -53,7 +53,7 @@ export class GuildController {
 
             // Raids mit User-Status anreichern
             const raidsWithStatus = upcomingRaids.map(raid => {
-                const userAttendance = raid.attendances[0]; // Da wir nach userChars gefiltert haben
+                const userAttendance = raid.attendances && raid.attendances.length > 0 ? raid.attendances[0] : null;
                 let userStatus = 'none'; // Gelb
 
                 if (userAttendance) {

@@ -434,7 +434,12 @@ export class AuthController {
       res.json({ success: true, characters });
     } catch (error) {
       console.error('Get characters error:', error);
-      res.status(500).json({ success: false, error: 'Failed to fetch characters' });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch characters',
+        details: (error as any).message,
+        stack: (error as any).stack
+      });
     }
   }
 

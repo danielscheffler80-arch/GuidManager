@@ -12,29 +12,24 @@ export class UserController {
     try {
       const user = req.user!;
 
-      // Hole User aus Datenbank mit Charakteren
+      // Separate queries for better isolation and error tracking
       const userData = await prisma.user.findUnique({
-        where: { id: user.userId },
-        include: {
-          characters: {
-            orderBy: {
-              lastSync: 'desc'
-            }
-          },
-          guildMemberships: {
-            include: {
-              guild: true
-            }
-          }
-        }
+        where: { id: user.userId }
       });
 
       if (!userData) {
-        return res.status(404).json({
-          success: false,
-          error: 'User not found'
-        });
+        return res.status(404).json({ success: false, error: 'User not found' });
       }
+
+      const characters = await prisma.character.findMany({
+        where: { userId: user.userId },
+        orderBy: { lastSync: 'desc' }
+      });
+
+      const guildMemberships = await prisma.userGuild.findMany({
+        where: { userId: user.userId },
+        include: { guild: true }
+      });
 
       res.json({
         success: true,
@@ -44,8 +39,8 @@ export class UserController {
           battlenetId: userData.battleNetId,
           createdAt: userData.createdAt,
           initialSyncCompletedAt: userData.initialSyncCompletedAt,
-          characters: userData.characters || [],
-          guildMemberships: userData.guildMemberships.filter(m => m.guild !== null),
+          characters: characters || [],
+          guildMemberships: guildMemberships.filter(m => m.guild !== null),
         }
       });
 
@@ -54,7 +49,8 @@ export class UserController {
       res.status(500).json({
         success: false,
         error: 'Failed to fetch user profile',
-        details: (error as any).message
+        details: (error as any).message,
+        stack: (error as any).stack
       });
     }
   }
@@ -219,7 +215,8 @@ export class UserController {
       res.status(500).json({
         success: false,
         error: 'Failed to fetch user guilds',
-        details: (error as any).message
+        details: (error as any).message,
+        stack: (error as any).stack
       });
     }
   }
