@@ -136,18 +136,26 @@ export class RosterService {
             console.log(`[RosterService] Phase 1 complete: ${syncStats.updated} updated, ${syncStats.errors} errors.`);
             console.log(`[RosterService] Phase 1 complete: ${syncStats.updated} members upserted.`);
 
-            // PHASE 2: Detailed Stats (Background / Incremental)
+            // PHASE 2: Detailed Stats (Background / Prioritized)
             console.log(`[RosterService] Phase 2: Fetching details for ${members.length} members...`);
 
-            const chunks = chunk(members, 5); // Process 5 at a time
-            let processedCount = 0;
+            // Identify user-owned characters for priority sync
+            const userOwnedChars = await prisma.character.findMany({
+                where: {
+                    userId: { not: null },
+                    guildId: guildId
+                },
+                select: { name: true, realm: true }
+            });
 
-            for (const batch of chunks) {
+            const userOwnedKeys = new Set(userOwnedChars.map(c => `${c.name.toLowerCase()}@${c.realm.toLowerCase()}`));
+            const priorityMembers = members.filter(m => userOwnedKeys.has(`${m.character.name.toLowerCase()}@${m.character.realm.slug.toLowerCase()}`));
+            const standardMembers = members.filter(m => !userOwnedKeys.has(`${m.character.name.toLowerCase()}@${m.character.realm.slug.toLowerCase()}`));
+
+            const processBatch = async (batch: any[]) => {
                 await Promise.all(batch.map(async (member) => {
                     try {
                         const charData = member.character;
-
-                        // Fetch details
                         const details = await service.getCharacterDetails(charData.realm.slug, charData.name.toLowerCase());
 
                         let averageItemLevel = null;
@@ -159,29 +167,24 @@ export class RosterService {
                             averageItemLevel = details.equipped_item_level || details.average_item_level;
                             role = details.active_spec?.role?.type || null;
 
-                            // Map role to our format
                             if (role === 'TANK') role = 'Tank';
                             else if (role === 'HEALER') role = 'Healer';
                             else if (role === 'DAMAGE') role = 'DPS';
 
-                            // Mythic Rating
                             try {
                                 const mPlus = await service.getCharacterMythicKeystone(charData.realm.slug, charData.name.toLowerCase());
                                 if (mPlus && mPlus.current_mythic_rating) {
                                     mythicRating = mPlus.current_mythic_rating.rating;
                                 }
-                            } catch (e) { /* ignore m+ error */ }
+                            } catch (e) { }
 
-                            // Raid Progress
                             try {
                                 const raids = await service.getCharacterRaidEncounters(charData.realm.slug, charData.name.toLowerCase());
                                 if (raids && raids.expansions) {
-                                    // Determine which raid to use
                                     const exclusiveRaid = guild.exclusiveRaidName;
                                     let targetRaid = null;
 
                                     if (exclusiveRaid) {
-                                        // Strictly look for the exclusive raid
                                         for (const exp of raids.expansions) {
                                             if (exp.instances) {
                                                 const match = exp.instances.find((inst: any) =>
@@ -195,7 +198,6 @@ export class RosterService {
                                             }
                                         }
                                     } else {
-                                        // Priority 1: Specifically look for "Manaforge Omega" as default behavior
                                         for (const exp of raids.expansions) {
                                             if (exp.instances) {
                                                 const omegaRaid = exp.instances.find((inst: any) =>
@@ -209,7 +211,6 @@ export class RosterService {
                                             }
                                         }
 
-                                        // Priority 2: Fallback to the latest raid in the most recent expansion
                                         if (!targetRaid) {
                                             const latestExp = raids.expansions[raids.expansions.length - 1];
                                             if (latestExp?.instances?.length > 0) {
@@ -230,10 +231,9 @@ export class RosterService {
                                         }
                                     }
                                 }
-                            } catch (e) { /* ignore raid error */ }
+                            } catch (e) { }
                         }
 
-                        // Update detailed stats
                         const existingChar = await prisma.character.findFirst({
                             where: {
                                 name: charData.name.toLowerCase(),
@@ -252,21 +252,31 @@ export class RosterService {
                                 averageItemLevel,
                                 mythicRating,
                                 raidProgress,
-                                // Only update role if it's currently null or "Unknown"
                                 role: (role && (!existingChar?.role || existingChar.role === 'Unknown')) ? role : undefined
                             }
                         });
-
-                    } catch (err) {
-                        // Silent fail for individual members to keep sync running
-                        // console.error(`Failed individual sync for ${member.character.name}`);
-                    }
+                    } catch (err) { }
                 }));
-                processedCount += batch.length;
-                if (processedCount % 5 === 0) {
-                    await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Detailed sync: ${processedCount}/${members.length} members`);
+            };
+
+            // Process Priority members
+            const priorityChunks = chunk(priorityMembers, 5);
+            for (const batch of priorityChunks) {
+                await processBatch(batch);
+            }
+            if (priorityMembers.length > 0) {
+                await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Completed detailed sync for ${priorityMembers.length} user characters in ${guild.name}`);
+            }
+
+            // Process Standard members
+            const standardChunks = chunk(standardMembers, 5);
+            let standardCount = 0;
+            for (const batch of standardChunks) {
+                await processBatch(batch);
+                standardCount += batch.length;
+                if (standardCount % 50 === 0) {
+                    await SyncLogService.log(userId, 3, SyncCategory.CLOUD_DB_OUTPUT, `Detailed sync progress: ${standardCount}/${standardMembers.length} for ${guild.name}`);
                 }
-                console.log(`[RosterService] Processed ${processedCount}/${members.length} members`);
             }
             console.log(`[RosterService] Phase 2 complete.`);
 

@@ -26,7 +26,7 @@ export class SyncService {
             // Phase 1: Account Verification (already done by checkAuth in frontend, but we log it)
             await SyncLogService.log(userId, 1, SyncCategory.SYSTEM, 'Phase 1: Verifying Battle.net Account');
             await SyncLogService.log(userId, 1, SyncCategory.BNET_API_INPUT, `Checking account for Battle.net ID: ${user.battleNetId}`);
-            
+
             // Phase 2: Character & Guild Discovery
             await SyncLogService.log(userId, 2, SyncCategory.SYSTEM, 'Phase 2: Discovering Characters and Guilds');
             const apiService = new BattleNetAPIService(user.accessToken);
@@ -40,29 +40,34 @@ export class SyncService {
             });
 
             const guilds = updatedUser?.guildMemberships.map(m => m.guild) || [];
-            
+
             // Phase 3: Deep Guild Sync
             await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Phase 3: Deep Syncing ${guilds.length} Guilds`);
             for (let i = 0; i < guilds.length; i++) {
                 const guild = guilds[i];
                 try {
-                    await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, `Syncing guild ${i + 1}/${guilds.length}: ${guild.name}`);
+                    const progressMsg = `Deep syncing guild ${i + 1}/${guilds.length}: ${guild.name} (${guild.realm})`;
+                    await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, progressMsg);
                     await RosterService.syncRoster(guild.id, user.accessToken, userId);
                 } catch (guildErr: any) {
                     console.error(`[SYNC] Failed to sync guild ${guild.name}:`, guildErr.message);
                     await SyncLogService.log(userId, 3, SyncCategory.ERROR, `Phase 3 failed for ${guild.name}: ${guildErr.message}`);
                 }
             }
-            await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, 'Phase 3: Deep sync completed');
+            await SyncLogService.log(userId, 3, SyncCategory.SYSTEM, 'Phase 3: Deep sync completed successfully');
 
             // Phase 4: Mythic+ Weekly Keys
-            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Phase 4: Syncing Mythic+ Weekly Keys');
+            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, `Phase 4: Syncing Mythic+ Weekly Keys for ${guilds.length} Guilds`);
             for (let i = 0; i < guilds.length; i++) {
                 const guild = guilds[i];
-                await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, `Syncing keys for ${guild.name}`);
-                await MythicPlusService.syncGuildMythicPlus(guild.id, user.accessToken);
+                try {
+                    await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, `Syncing keys for ${guild.name} (${i + 1}/${guilds.length})`);
+                    await MythicPlusService.syncGuildMythicPlus(guild.id, user.accessToken);
+                } catch (keyErr: any) {
+                    await SyncLogService.log(userId, 4, SyncCategory.ERROR, `Phase 4 failed for ${guild.name}: ${keyErr.message}`);
+                }
             }
-            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Phase 4: Mythic+ sync completed');
+            await SyncLogService.log(userId, 4, SyncCategory.SYSTEM, 'Phase 4: Mythic+ sync completed successfully');
 
             // Phase 5: Finalization
             await SyncLogService.log(userId, 5, SyncCategory.SYSTEM, 'Phase 5: Finalizing Synchronization');
@@ -72,8 +77,8 @@ export class SyncService {
             });
             await SyncLogService.log(userId, 5, SyncCategory.SYSTEM, 'Full sync finalized successfully');
 
-            return { 
-                success: true, 
+            return {
+                success: true,
                 message: 'Full sync completed',
                 guildsSynced: guilds.length
             };

@@ -91,6 +91,9 @@ export class BattleNetAPIService {
       console.log(`API returned ${accounts.length} WoW accounts.`);
 
       let count = 0;
+      let guildCount = 0;
+      const discoveredGuilds = new Set<string>();
+
       for (const account of accounts) {
         console.log(`Processing account ${account.id} with ${account.characters?.length || 0} characters`);
         for (const character of account.characters || []) {
@@ -103,20 +106,28 @@ export class BattleNetAPIService {
               const guildRealm = character.guild.realm.slug;
               const faction = typeof character.faction === 'object' ? (character.faction.name.de_DE || character.faction.name.en_US || character.faction.name) : character.faction;
 
-              console.log(`[SYNC] Character ${character.name.toLowerCase()} in guild ${guildName}@${guildRealm}`);
+              const guildKey = `${guildName}@${guildRealm}`;
+              if (!discoveredGuilds.has(guildKey)) {
+                const upsertedGuild = await prisma.guild.upsert({
+                  where: { name_realm: { name: guildName, realm: guildRealm } },
+                  update: { faction },
+                  create: { name: guildName, realm: guildRealm, faction }
+                });
+                guildId = upsertedGuild.id;
+                discoveredGuilds.add(guildKey);
+                guildCount++;
+              } else {
+                const existingGuild = await prisma.guild.findUnique({ where: { name_realm: { name: guildName, realm: guildRealm } } });
+                guildId = existingGuild?.id || null;
+              }
 
-              const upsertedGuild = await prisma.guild.upsert({
-                where: { name_realm: { name: guildName, realm: guildRealm } },
-                update: { faction },
-                create: { name: guildName, realm: guildRealm, faction }
-              });
-              guildId = upsertedGuild.id;
-
-              await prisma.userGuild.upsert({
-                where: { userId_guildId: { userId, guildId } },
-                update: {},
-                create: { userId, guildId, rank: 9 }
-              });
+              if (guildId) {
+                await prisma.userGuild.upsert({
+                  where: { userId_guildId: { userId, guildId } },
+                  update: {},
+                  create: { userId, guildId, rank: 9 }
+                });
+              }
             }
 
             // Phase 1: Basic Stats
@@ -157,16 +168,15 @@ export class BattleNetAPIService {
               await this.syncSingleCharacterDetails(userId, character.realm.slug, character.name.toLowerCase());
             }
 
-            await SyncLogService.log(userId, 2, SyncCategory.CLOUD_DB_OUTPUT, `Upserted basic info for character ${character.name.toLowerCase()}@${character.realm.slug}`, { character: character.name.toLowerCase(), realm: character.realm.slug });
-
-            console.log(`Synced character basic info: ${character.name.toLowerCase()}@${character.realm.slug}`);
+            // Removed per-character log to avoid flooding
+            // console.log(`Synced character basic info: ${character.name.toLowerCase()}@${character.realm.slug}`);
           } catch (charError) {
             console.error(`Error syncing character ${character.name}:`, charError);
-            // Weiter mit dem nächsten Charakter
           }
         }
       }
-      console.log(`Successfully synced ${count} characters basic info.`);
+
+      await SyncLogService.log(userId, 2, SyncCategory.CLOUD_DB_OUTPUT, `Successfully synced ${count} characters and discovered ${guildCount} guilds.`);
 
       // Wenn das nur ein Basic Sync war, starte Guild Discovery um Gilden zu finden
       if (!detailed) {
