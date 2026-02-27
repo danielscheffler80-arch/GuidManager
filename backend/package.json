@@ -13,7 +13,8 @@
     "lint": "eslint src/**/*.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "prisma:seed": "ts-node ./scripts/seed.ts"
+    "prisma:seed": "ts-node ./scripts/seed.ts",
+    "deploy:trigger": "echo trigger-v0.9.63"
   },
   "engines": {
     "node": ">=18.0.0"
