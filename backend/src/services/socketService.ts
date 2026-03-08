@@ -43,12 +43,13 @@ export const initSocketService = (io: Server) => {
         });
 
         // LiveKit SFU Support
-        socket.on('request-room-token', async (data: { roomName: string, identity: string, isPublisher?: boolean }, callback: (token: string) => void) => {
+        socket.on('request-room-token', async (data: { roomName: string, identity: string, isPublisher?: boolean }, callback: (token: string | null) => void) => {
             try {
                 const token = await LiveKitService.createToken(data.roomName, data.identity, data.isPublisher);
                 callback(token);
             } catch (err) {
                 console.error('[Socket] Failed to generate LiveKit token:', err);
+                callback(null);
             }
         });
 

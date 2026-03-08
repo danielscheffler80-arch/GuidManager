@@ -9,6 +9,12 @@ import { AccessToken } from 'livekit-server-sdk';
 const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || 'devkey';
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET || 'secret';
 
+if (LIVEKIT_API_KEY === 'devkey' || LIVEKIT_API_SECRET === 'secret') {
+    console.warn('[LiveKit] WARNING: Using default development keys. Broadcasting might not work correctly on production servers.');
+} else {
+    console.log('[LiveKit] API Keys loaded successfully.');
+}
+
 export class LiveKitService {
     /**
      * Generates a join token for a specific room and identity.

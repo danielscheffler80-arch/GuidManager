@@ -1,0 +1,82 @@
+[
+  {
+    "name": "xardok",
+    "realm": "blackrock",
+    "level": 13,
+    "dungeon": "MapID:499",
+    "mapId": 499,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "xalliara",
+    "realm": "blackrock",
+    "level": 13,
+    "dungeon": "MapID:391",
+    "mapId": 391,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "xâsham",
+    "realm": "blackrock",
+    "level": 13,
+    "dungeon": "MapID:378",
+    "mapId": 378,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "xâvu",
+    "realm": "blackrock",
+    "level": 12,
+    "dungeon": "MapID:503",
+    "mapId": 503,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "shuhalo",
+    "realm": "blackrock",
+    "level": 6,
+    "dungeon": "MapID:525",
+    "mapId": 525,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "xâlina",
+    "realm": "blackrock",
+    "level": 8,
+    "dungeon": "MapID:391",
+    "mapId": 391,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "xalina",
+    "realm": "blackrock",
+    "level": 15,
+    "dungeon": "MapID:391",
+    "mapId": 391,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  },
+  {
+    "name": "xâvor",
+    "realm": "blackrock",
+    "level": 18,
+    "dungeon": "MapID:503",
+    "mapId": 503,
+    "timestamp": null,
+    "source": "bigwigs",
+    "isFromBag": true
+  }
+]

@@ -293,17 +293,24 @@ export default function StreamSettings() {
         };
 
         try {
-            // Get SFU token first
-            return new Promise<void>((resolve, reject) => {
-                socket?.emit('request-room-token', { roomName: userName, identity: userName, isPublisher: true }, async (token: string) => {
-                    try {
-                        await startStream(selectedSource, { ...constraints, sfuToken: token }, metadata);
-                        resolve();
-                    } catch (err: any) {
-                        reject(err);
-                    }
+            // Get SFU token first with a timeout fallback
+            const token = await new Promise<string | null>((resolve) => {
+                const timeout = setTimeout(() => {
+                    console.error('[StreamSettings] Room token request timed out');
+                    resolve(null);
+                }, 10000); // 10s timeout
+
+                socket?.emit('request-room-token', { roomName: userName, identity: userName, isPublisher: true }, (receivedToken: string | null) => {
+                    clearTimeout(timeout);
+                    resolve(receivedToken);
                 });
             });
+
+            if (!token) {
+                throw new Error('Verbindung zum Streaming-Server fehlgeschlagen (Token konnte nicht abgerufen werden).');
+            }
+
+            await startStream(selectedSource, { ...constraints, sfuToken: token }, metadata);
         } catch (err: any) {
             console.error('[StreamSettings] Start failed:', err);
             alert(`Fehler beim Starten des Streams: ${err.message || 'Unbekannter Fehler'}`);
