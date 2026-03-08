@@ -89,17 +89,19 @@ export const initSocketService = (io: Server) => {
         // Chat
         socket.on('send-guild-msg', async (data: { guildId: string, userId: string, content: string }) => {
             try {
-                const message = await prisma.guildMessage.create({
+                // Resolve user name to use as 'sender'
+                const user = await prisma.user.findUnique({ where: { id: parseInt(data.userId) } });
+
+                const message = await prisma.guildChat.create({
                     data: {
                         content: data.content,
-                        userId: data.userId,
-                        guildId: data.guildId
-                    },
-                    include: { user: true }
+                        sender: user?.name || data.userId,
+                        guildId: parseInt(data.guildId)
+                    }
                 });
                 io.to(`guild_${data.guildId}`).emit('guild-msg', message);
             } catch (err) {
-                console.error('Failed to save guild message:', err);
+                console.error('[Socket] Failed to save guild message:', err);
             }
         });
     });

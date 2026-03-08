@@ -1,6 +1,6 @@
 {
     "$schema": "https://railway.app/railway.schema.json",
-    "version": "0.9.64",
+    "version": "0.9.65",
     "build": {
         "builder": "DOCKERFILE",
         "dockerfilePath": "backend/Dockerfile",
