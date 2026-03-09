@@ -458,10 +458,6 @@ export default function StreamSettings() {
                     <section style={{ background: '#1a1a1a', padding: '20px', borderRadius: '12px', border: '1px solid #333' }}>
                         <h2 style={{ fontSize: '1.1rem', marginBottom: '20px', color: '#00aaff' }}>🎙️ Audio-Mixer</h2>
 
-                        <div style={{ background: 'rgba(0, 170, 255, 0.1)', border: '1px solid rgba(0, 170, 255, 0.3)', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.85rem', color: '#ccc', lineHeight: '1.4' }}>
-                            <strong style={{ color: '#00aaff', display: 'block', marginBottom: '4px' }}>💡 Profi-Tipp: Spiel-Sound übertragen</strong>
-                            Wähle <strong>"System-Sound"</strong>, um alles zu übertragen, was du gerade hörst (Spiel, Musik, Windows). Physische Lautsprecher können techn. bedingt nicht direkt ausgewählt werden.
-                        </div>
 
                         <div style={{ display: 'grid', gap: '15px' }}>
                             {/* Microphone */}
