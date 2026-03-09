@@ -321,12 +321,17 @@ export default function StreamSettings() {
         refreshSources();
     }, []);
 
+    const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
+
     useEffect(() => {
         const fetchDevices = async () => {
             try {
                 const devices = await navigator.mediaDevices.enumerateDevices();
-                const filtered = devices.filter(d => d.kind === 'audioinput');
-                setAudioSources(filtered);
+                const inputs = devices.filter(d => d.kind === 'audioinput');
+                const outputs = devices.filter(d => d.kind === 'audiooutput');
+                console.log('[AudioMixer] Detected Devices:', { inputs, outputs });
+                setAudioSources(inputs);
+                setAudioOutputs(outputs);
             } catch (err) {
                 console.error('Error fetching devices:', err);
             }
@@ -486,7 +491,9 @@ export default function StreamSettings() {
                             {/* Audio Channels */}
                             {audioChannels.map((ch, i) => (
                                 <div key={i} style={{ background: '#252525', padding: '12px', borderRadius: '8px', borderLeft: '4px solid #00aaff' }}>
-                                    <div style={{ fontSize: '0.75rem', color: '#00aaff', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>Kanal {i + 1}</div>
+                                    <div style={{ fontSize: '0.75rem', color: '#00aaff', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>
+                                        {i === 0 ? 'Virtueller Kanal / Spiel-Sound' : `Extra Kanal ${i + 1}`}
+                                    </div>
                                     <div style={{ display: 'flex', gap: '10px' }}>
                                         <select
                                             value={ch.id}
@@ -498,10 +505,10 @@ export default function StreamSettings() {
                                             style={{ flex: 1, background: '#1a1a1a', border: '1px solid #444', color: 'white', padding: '5px', borderRadius: '4px', fontSize: '0.85rem' }}
                                         >
                                             <option value="">(Aus)</option>
-                                            <option value="default">System-Sound</option>
+                                            <option value="default">System-Sound (Loopback)</option>
                                             {audioSources.map(as => (
                                                 <option key={as.deviceId} value={as.deviceId}>
-                                                    🎙️ {as.label ? (as.label.length > 25 ? as.label.slice(0, 25) + '...' : as.label) : `Eingang ${as.deviceId.slice(0, 3)}`}
+                                                    🎧 {as.label ? (as.label.length > 25 ? as.label.slice(0, 25) + '...' : as.label) : `Eingang ${as.deviceId.slice(0, 3)}`}
                                                 </option>
                                             ))}
                                         </select>
